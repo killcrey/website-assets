@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>LAYERS: Void Runner | The Invisible Panchos Official Game</title>
+    <meta name="description" content="The official Underground Hip-Hop video game by The Invisible Panchos. Pilot through a sci-fi anomaly in this authentic Boom-Bap inspired retro shooter.">
+    
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdn.tailwindcss.com" defer></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=VT323&display=swap" rel="stylesheet">
+    <style>
+
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Rajdhani', sans-serif; touch-action: none; user-select: none; height: 100dvh; }
+        #game-container { position: relative; width: 100vw; height: 100dvh; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI Overlay Styles */
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #e2e8f0; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); z-index: 10; background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(2px); transition: opacity 0.5s ease; }
+        .hidden { opacity: 0 !important; pointer-events: none !important; visibility: hidden; }
+
+        /* Tiled Background for Start Screen */
+        .tile-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.15; pointer-events: none; background-image: url('./Green%20alien%20.png'); background-size: 80px; background-position: 0 0; background-repeat: repeat; }
+
+        /* Level Up Flash Effect */
+        #flash-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: white; opacity: 0; pointer-events: none; z-index: 20; transition: all 0.1s ease-out; }
+
+        /* CRT Scanline Effect Overlay */
+        .scanlines { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)); background-size: 100% 4px; pointer-events: none; z-index: 5; animation: scrollLines 10s linear infinite; }
+        .vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.9) 100%); pointer-events: none; z-index: 6; }
+
+        @keyframes terminal-flicker { 0% { opacity: 0.8; transform: skewX(0deg); } 3% { opacity: 1; transform: skewX(2deg); } 6% { opacity: 0.8; transform: skewX(0deg); } 7% { opacity: 0.4; } 8% { opacity: 1; } 50% { opacity: 0.9; } 100% { opacity: 1; } }
+        .terminal-logo { animation: terminal-flicker 4s infinite; filter: drop-shadow(0 0 8px rgba(0, 255, 249, 0.6)); }
+
+        .glitch { font-family: 'VT323', monospace; position: relative; color: white; font-size: clamp(1.5rem, 6vw, 2.5rem); line-height: 1; letter-spacing: 0.1em; animation: glitch-skew 1s infinite linear alternate-reverse; margin-bottom: 0.2rem; }
+        @media (min-width: 768px) { .glitch { font-size: 3rem; } }
+        .glitch::before, .glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .glitch::before { left: 2px; text-shadow: -2px 0 #ff00c1; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim 5s infinite linear alternate-reverse; }
+        .glitch::after { left: -2px; text-shadow: -2px 0 #00fff9; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim2 5s infinite linear alternate-reverse; }
+        @keyframes glitch-anim { 0% { clip: rect(31px, 9999px, 9px, 0); transform: skew(0.85deg); } 5% { clip: rect(70px, 9999px, 79px, 0); transform: skew(0.07deg); } 100% { clip: rect(92px, 9999px, 95px, 0); transform: skew(0.75deg); } }
+        @keyframes glitch-anim2 { 0% { clip: rect(65px, 9999px, 100px, 0); transform: skew(0.51deg); } 100% { clip: rect(56px, 9999px, 4px, 0); transform: skew(0.75deg); } }
+
+        #quote-box { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 80%; text-align: center; font-family: 'VT323', monospace; font-size: 1.5rem; color: #00fff9; text-shadow: 0 0 5px rgba(0, 255, 249, 0.8); opacity: 0; transition: opacity 0.5s; pointer-events: none; z-index: 8; }
+
+        #pancho-power-msg { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5); width: 100vw; text-align: center; font-family: 'VT323', monospace; font-size: clamp(2rem, 8vw, 4rem); color: #00fff9; z-index: 25; text-shadow: 0 0 20px #00fff9, 0 0 40px #00fff9; pointer-events: none; opacity: 0; transition: all 0.1s ease-out; line-height: 1.1; }
+        @media (min-width: 768px) { #pancho-power-msg { font-size: clamp(4rem, 8vw, 8rem); } }
+        .pancho-active { opacity: 1 !important; transform: translate(-50%, -50%) scale(1.2) !important; }
+
+        /* Snake Warning Prompt */
+        #snake-warning { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #10b981; font-family: 'VT323', monospace; font-size: 1.2rem; text-shadow: 0 0 5px #10b981; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 20; letter-spacing: 2px; }
+
+        /* COMPRESSED UI BUTTONS */
+        .btn { background: rgba(0, 255, 249, 0.1); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; pointer-events: auto !important; position: relative; z-index: 50; transition: all 0.2s; box-shadow: 0 0 10px rgba(0, 255, 249, 0.2); margin-top: 8px; }
+        @media (min-width: 768px) { .btn { padding: 10px 24px; font-size: 1.1rem; margin-top: 12px; }}
+        .btn:hover { background: #00fff9; color: #000; box-shadow: 0 0 20px rgba(0, 255, 249, 0.8); }
+        
+        .insta-cta { margin-top: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 2px solid rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.15); border-radius: 12px; animation: purple-pulse 2s infinite alternate; max-width: 90%; pointer-events: auto !important; }
+        .insta-logo { width: 35px; height: 35px; filter: drop-shadow(0 0 15px #d8b4fe) brightness(1.5); transition: all 0.3s ease-in-out; }
+        .insta-cta a:hover .insta-logo { transform: scale(1.15) rotate(5deg); filter: drop-shadow(0 0 25px #ffffff) brightness(1.7); }
+        @keyframes purple-pulse { 0% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.3); border-color: rgba(168, 85, 247, 0.4); } 100% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.7); border-color: rgba(168, 85, 247, 1); } }
+
+        .leaderboard-panel { width: 100%; border: 1px solid rgba(0, 255, 249, 0.3); background: rgba(0,0,0,0.7); padding: 4px 8px; margin-top: 6px; font-family: 'VT323', monospace; }
+        .leaderboard-panel h3 { color: #f6e05e; font-size: 1.1rem; border-bottom: 1px solid rgba(0, 255, 249, 0.3); margin-bottom: 2px; text-transform: uppercase; }
+        .lb-entry { display: flex; justify-content: space-between; color: #00fff9; font-size: 0.9rem; }
+        .lb-header { color: #a0aec0; font-size: 0.8rem; margin-bottom: 2px;}
+
+        #hud-score { position: absolute; top: 20px; left: 20px; font-family: 'VT323', monospace; font-size: 1.8rem; color: #fff; z-index: 9; text-shadow: 0 0 5px #000; }
+        #hud-total-score { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-family: 'VT323', monospace; font-size: 2.5rem; color: #f6e05e; z-index: 9; text-shadow: 0 0 10px rgba(246, 224, 94, 0.5); white-space: nowrap; transition: color 0.2s; }
+        #hud-highscore { position: absolute; top: 20px; right: 20px; font-family: 'VT323', monospace; font-size: 1.8rem; color: #a0aec0; z-index: 9; text-shadow: 0 0 5px #000; }
+        
+        /* FIXED HUD COUNTER STACKING */
+        #hud-counters { position: absolute; top: 60px; right: 20px; text-align: right; font-family: 'VT323', monospace; font-size: 1.4rem; z-index: 9; text-shadow: 0 0 5px #000; line-height: 1.1; }
+        
+        #hud-level { position: absolute; top: 60px; left: 20px; font-family: 'VT323', monospace; font-size: 1.5rem; color: #00fff9; z-index: 9; text-shadow: 0 0 5px #000; }
+        #hud-dimension { position: absolute; top: 85px; left: 20px; font-family: 'VT323', monospace; font-size: 1.5rem; color: #a855f7; z-index: 9; text-shadow: 0 0 5px #000; }
+        #hud-track { position: absolute; bottom: 60px; right: 20px; font-family: 'VT323', monospace; font-size: 1.2rem; color: #00fff9; z-index: 9; text-shadow: 0 0 5px #000; text-align: right; opacity: 0; transition: opacity 1s; }
+        #level-up-msg { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-family: 'VT323', monospace; font-size: 4rem; color: #f6e05e; z-index: 15; text-shadow: 0 0 15px #f6e05e; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
+        
+        .instruction-box { border-left: 2px solid #00fff9; padding-left: 10px; text-align: left; margin-bottom: 4px; pointer-events: auto; }
+
+        #audio-controls { position: absolute; bottom: 20px; right: 20px; z-index: 100; display: flex; gap: 15px; align-items: center; pointer-events: auto; }
+        #return-link { position: absolute; bottom: 25px; left: 20px; z-index: 100; font-family: 'VT323', monospace; font-size: 1.2rem; color: rgba(0, 255, 249, 0.7); text-decoration: none; letter-spacing: 2px; text-transform: uppercase; transition: all 0.3s ease; pointer-events: auto; text-shadow: 0 0 5px rgba(0,0,0,0.8); transform: translateZ(0); }
+        #return-link:hover { color: rgba(0, 255, 249, 1); text-shadow: 0 0 10px rgba(0, 255, 249, 0.8); }
+        .control-icon { cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .control-icon:hover { opacity: 1; }
+
+        @media (max-width: 768px) {
+            #hud-score, #hud-highscore { font-size: 1.0rem; }
+            #hud-counters { top: 40px; font-size: 1.1rem; }
+            #hud-total-score { font-size: 1.5rem; top: 10px; }
+            #hud-level, #hud-dimension { top: 40px; font-size: 1.0rem; }
+            #hud-dimension { top: 58px; }
+            #snake-warning { font-size: 1rem; top: 40px; }
+            #level-up-msg { font-size: 2.5rem; }
+        }
+
+        /* START SCREEN PC SCALING FIX */
+        @media (min-width: 768px) and (max-height: 850px) { #start-screen > .flex.flex-col { transform: scale(0.9); transform-origin: center; } }
+        @media (min-width: 768px) and (max-height: 750px) { #start-screen > .flex.flex-col { transform: scale(0.8); transform-origin: center; } }
+        @media (min-width: 768px) and (max-height: 650px) { #start-screen > .flex.flex-col { transform: scale(0.7); transform-origin: center; } }
+        @media (min-width: 768px) and (max-height: 550px) { #start-screen > .flex.flex-col { transform: scale(0.6); transform-origin: center; } }
+    </style>
+</head>
+<body>
+    <audio id="bg-music" crossorigin="anonymous"></audio>
+
+    <div id="game-container">
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+        <div id="flash-overlay"></div>
+        
+        <div id="snake-warning">DODGE THE SNAKES PANCHO!</div>
+
+        <div id="hud-score">DEPTH: 0m</div>
+        <div id="hud-total-score">SCORE: 0</div>
+        <div id="hud-level">ZONE: ORBIT</div>
+        <div id="hud-dimension">DIMENSION: 1</div>
+        <div id="hud-highscore">REC: 0</div>
+        
+        <div id="hud-counters">
+            <div id="counter-blue" style="color:#3b82f6">SIGHT: 0/5</div>
+            <div id="counter-green" style="color:#10b981">EGO: 0/3</div>
+            <div id="hud-lives" style="color:#ef4444; transition: color 0.2s;">LIVES: 3</div>
+        </div>
+        
+        <div id="hud-track">TRANSMISSION RECEIVED</div>
+        <div id="quote-box"></div>
+        <div id="level-up-msg">ENTERING DEEP SPACE</div>
+        <div id="pancho-power-msg">PANCHO POWER</div>
+        
+        <a id="return-link" href="https://theinvisiblepanchos.com/">
+            &lt;&lt; RETURN TO BASE
+        </a>
+
+        <div id="audio-controls">
+            <svg id="btn-skip" class="control-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00fff9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+            <div id="btn-mute" class="control-icon">
+                <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00fff9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="icon-sound-off" class="hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="start-screen" class="ui-layer">
+            <div class="tile-bg"></div>
+            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;"> 
+                <img src="./PANCHOS%20EYE%20WHT.png" class="w-10 md:w-14 mx-auto mb-1 terminal-logo flex-shrink-0" alt="The Invisible Panchos Eye">
+                
+                <div class="mb-1 text-center w-full flex-shrink-0">
+                    <h1 class="glitch" data-text="ASTRONAUT CAMP">ASTRONAUT CAMP</h1>
+                    <p class="text-sm md:text-base text-cyan-300 font-vt323 tracking-widest uppercase mt-0">MULTI-DIMENSIONAL SIMULATION</p>
+                </div>
+                
+                <div class="instruction-box w-full flex-shrink-0">
+                    <p class="text-[10px] md:text-xs text-gray-300 mb-0.5 font-bold text-cyan-400 uppercase tracking-wider">MISSION OBJECTIVES:</p>
+                    <ul class="text-[9px] md:text-[11px] text-gray-400 space-y-0.5 font-mono text-left list-disc pl-4 leading-tight">
+                        <li>Destroy <span class="text-red-500">RED SHARDS/SHIPS</span> (+250).</li>
+                        <li>Destroy <span class="text-purple-400">OCTOPUS</span> (+2000, 4 Hits).</li>
+                        <li>Dodge <span class="text-green-500">SNAKES</span> (-500 Tax). <span class="text-red-500">3 LIVES.</span></li>
+                        <li><span class="text-blue-400">BLUE EYE</span>: Power-up + 1 SIGHT.</li>
+                        <li><span class="text-green-400">GREEN ALIEN</span>: Side Lasers + 1 EGO.</li>
+                        <li>5 SIGHT + 3 EGO = ANOMALY ZONE.</li>
+                        <li>Catch <span class="text-purple-400">PORTAL</span> for Bonus Run.</li>
+                        <li>Find <span class="text-white">ROCKET3</span> for God Mode.</li>
+                        <li>Collect <span class="text-yellow-300">GOLD COINS</span> (+1000).</li>
+                    </ul>
+                </div>
+
+                <div class="leaderboard-panel flex-shrink-0">
+                    <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
+                    <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
+                    <div id="lb-content-start">
+                        <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
+                    </div>
+                </div>
+                
+                <p id="loading-status" class="text-xs md:text-sm text-cyan-300 font-vt323 tracking-widest uppercase mt-2 animate-pulse">LOADING ASSETS... 0%</p>
+                <button id="start-btn" class="btn w-full flex-shrink-0 hidden" disabled>INITIATE LAUNCH</button>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="ui-layer hidden" style="pointer-events: auto;">
+            <h2 class="text-6xl font-vt323 text-red-600 animate-pulse" style="text-shadow: 2px 2px 0px #000;">SIGNAL LOST</h2>
+            <p id="final-score" class="text-4xl mt-1 text-white font-bold font-vt323"></p>
+            <p id="final-depth" class="text-xl mt-0.5 text-cyan-300 font-vt323"></p>
+            <p id="final-highscore" class="text-lg mt-0.5 text-gray-400 font-vt323 hidden"></p>
+            <p id="new-record" class="text-yellow-400 font-bold mt-1 hidden text-lg animate-bounce">NEW LOCAL HIGH SCORE</p>
+
+            <div class="leaderboard-panel flex-shrink-0 w-full max-w-xs mt-2 mb-1">
+                <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
+                <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
+                <div id="lb-content-gameover">
+                    <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
+                </div>
+            </div>
+            
+            <div id="score-submit-ui" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
+                <p class="text-yellow-400 font-vt323 text-xl uppercase mb-1 animate-pulse" style="text-shadow: 0 0 10px #facc15;">YOU HAVE A HIGH SCORE!</p>
+                <div class="flex gap-2 w-full justify-center">
+                    <input type="text" id="pilot-initials" maxlength="6" placeholder="TAG123" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-xl w-24 text-center uppercase focus:outline-none focus:border-yellow-400" title="1 to 3 letters, followed by 0 to 3 numbers.">
+                    <button id="submit-score-btn" class="btn !mt-0 !py-1">TRANSMIT</button>
+                </div>
+                <p id="submit-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
+            </div>
+
+            <div class="insta-cta">
+                <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
+                    SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
+                </p>
+                <a href="https://instagram.com/theinvisiblepanchos" target="_blank">
+                    <img src="./instagram%20logo.png" class="insta-logo" alt="Instagram">
+                </a>
+            </div>
+
+            <button id="restart-btn" class="btn">ATTEMPT RE-ENTRY</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // UI VARIABLES
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen'); const gameOverScreen = document.getElementById('game-over-screen');
+        const hudScore = document.getElementById('hud-score'); const hudTotalScore = document.getElementById('hud-total-score');
+        const hudHighScore = document.getElementById('hud-highscore'); const hudTrack = document.getElementById('hud-track');
+        const hudLevel = document.getElementById('hud-level'); const hudDimension = document.getElementById('hud-dimension');
+        const hudCounterBlue = document.getElementById('counter-blue'); const hudCounterGreen = document.getElementById('counter-green');
+        const hudLives = document.getElementById('hud-lives'); const snakeWarning = document.getElementById('snake-warning');
+        const levelUpMsg = document.getElementById('level-up-msg'); const panchoPowerMsg = document.getElementById('pancho-power-msg');
+        const quoteBox = document.getElementById('quote-box');
+        
+        const startBtn = document.getElementById('start-btn'); const restartBtn = document.getElementById('restart-btn');
+        const loadingStatus = document.getElementById('loading-status');
+        const finalScoreEl = document.getElementById('final-score'); const finalDepthEl = document.getElementById('final-depth');
+        const finalHighScoreEl = document.getElementById('final-highscore'); const newRecordEl = document.getElementById('new-record');
+        
+        const bgMusic = document.getElementById('bg-music');
+        const btnMute = document.getElementById('btn-mute'); const btnSkip = document.getElementById('btn-skip');
+        const iconSoundOn = document.getElementById('icon-sound-on'); const iconSoundOff = document.getElementById('icon-sound-off');
+        const flashOverlay = document.getElementById('flash-overlay');
+
+        // ==========================================
+        // SUPABASE DATABASE CONFIGURATION
+        // ==========================================
+        const supabaseUrl = 'https://vihwbuiobowdreynxmgy.supabase.co';
+        const supabaseKey = 'sb_publishable_2f0-m_zLJJqbX8jtZZWjfg_Fx2CEST5';
+        let db = null;
+
+        let lowestTopScore = 0; let topScoreCount = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const { createClient } = supabase;
+            db = createClient(supabaseUrl, supabaseKey);
+            fetchLeaderboard();
+        });
+
+        async function fetchLeaderboard() {
+            if(!db) return;
+            try {
+                const { data, error } = await db.from('void_runner_scores').select('username, score').order('score', { ascending: false }).limit(5);
+                if (error) throw error;
+                let lbHTML = ''; topScoreCount = data ? data.length : 0;
+                
+                if (topScoreCount > 0) {
+                    lowestTopScore = data[topScoreCount - 1].score;
+                    data.forEach((entry) => { lbHTML += `<div class="lb-entry"><span>${entry.username}</span><span>${entry.score}</span></div>`; });
+                } else { lowestTopScore = 0; lbHTML = '<div class="text-center text-gray-500 text-xs py-1">No Uplinks Found</div>'; }
+
+                document.getElementById('lb-content-start').innerHTML = lbHTML; document.getElementById('lb-content-gameover').innerHTML = lbHTML;
+            } catch (e) { console.log("LB Fetch Error", e); }
+        }
+
+        document.getElementById('submit-score-btn').addEventListener('click', async () => {
+            const inputField = document.getElementById('pilot-initials'); const username = inputField.value.toUpperCase();
+            const statusText = document.getElementById('submit-status'); const submitBtn = document.getElementById('submit-score-btn');
+
+            if(username.length === 0 || !db) return;
+            const tagRegex = /^[A-Z]{1,3}[0-9]{0,3}$/;
+            if (!tagRegex.test(username)) { statusText.innerText = "FORMAT ERROR: 1-3 LETTERS THEN 0-3 NUMBERS."; return; }
+            
+            statusText.innerText = "TRANSMITTING..."; submitBtn.disabled = true;
+
+            try {
+                const { error } = await db.from('void_runner_scores').insert([{ username: username, score: Math.floor(distanceTraveled) + bonusPoints }]);
+                if (error) throw error;
+                statusText.innerText = "DATA RECEIVED."; document.getElementById('score-submit-ui').classList.add('hidden');
+                fetchLeaderboard();
+            } catch (e) { statusText.innerText = "ERROR UPLOADING."; submitBtn.disabled = false; }
+        });
+
+        // ==========================================
+        // WEB AUDIO API
+        // ==========================================
+        let audioCtx, analyser, dataArray; let currentBassIntensity = 0; let audioInitialized = false;
+
+        function initAudioEngine() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaElementSource(bgMusic); source.connect(analyser); analyser.connect(audioCtx.destination);
+                analyser.fftSize = 128; const bufferLength = analyser.frequencyBinCount; dataArray = new Uint8Array(bufferLength);
+            }
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        }
+
+        // ==========================================
+        // GAME ENGINE ENTITIES & LOGIC
+        // ==========================================
+
+        const shipSprite = new Image();
+        const aztecSprite = new Image();
+        const blueEyeSprite = new Image();
+        const redShardSprite = new Image();
+        const alienSprite = new Image();
+        const astronautSprite = new Image();
+        const snakeSprite = new Image();
+        const rocket3Sprite = new Image();
+        const octoSprite = new Image();
+        const enemyShipSprite = new Image();
+        const portalSprite = new Image();
+
+        let WIDTH, HEIGHT;
+        const COLORS = { bg: '#050505', ship: '#00fff9', enemy: '#ff0055', orb: '#f6e05e', powerup: '#3b82f6', alien: '#10b981', shot: '#60a5fa' };
+        const DIMENSION_PALETTES = ['168, 85, 247', '16, 185, 129', '239, 68, 68', '245, 158, 11', '59, 130, 246'];
+
+        // ==========================================
+        // ASSET PRELOADING + GLOW SPRITE CACHE
+        // (blocks game start until sprites load; pre-bakes glow halos
+        //  once so Entity.draw() doesn't pay ctx.shadowBlur every frame)
+        // ==========================================
+        const ALL_SPRITES = [shipSprite, aztecSprite, blueEyeSprite, redShardSprite, alienSprite, astronautSprite, snakeSprite, rocket3Sprite, octoSprite, enemyShipSprite, portalSprite];
+        let spritesLoadedCount = 0; let assetsReady = false;
+        const GLOW = {};
+
+        function makeGlowSprite(img, drawW, drawH, color, blur) {
+            const pad = blur + 4; const size = Math.ceil(Math.max(drawW, drawH) + pad * 2);
+            const c = document.createElement('canvas'); c.width = size; c.height = size;
+            const cctx = c.getContext('2d');
+            cctx.shadowBlur = blur; cctx.shadowColor = color;
+            cctx.drawImage(img, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
+            return c;
+        }
+        function makeGlowShape(drawFn, size, color, blur) {
+            const pad = blur + 4; const full = Math.ceil(size + pad * 2);
+            const c = document.createElement('canvas'); c.width = full; c.height = full;
+            const cctx = c.getContext('2d'); cctx.translate(full / 2, full / 2);
+            cctx.shadowBlur = blur; cctx.shadowColor = color;
+            drawFn(cctx);
+            return c;
+        }
+        function buildGlowCache() {
+            GLOW.orb = makeGlowSprite(aztecSprite, 30, 30, COLORS.orb, 15);
+            GLOW.powerup = makeGlowSprite(blueEyeSprite, 40, 40, COLORS.powerup, 20);
+            GLOW.alien = makeGlowSprite(alienSprite, 40, 40, COLORS.alien, 20);
+            GLOW.astronaut = makeGlowSprite(astronautSprite, 40, 60, '#e2e8f0', 20);
+            GLOW.octo = makeGlowSprite(octoSprite, 85, 85, '#9333ea', 25);
+            GLOW.enemyship = makeGlowSprite(enemyShipSprite, 65, 65, '#ef4444', 20);
+            GLOW.snake = makeGlowSprite(snakeSprite, 25, 25, '#10b981', 10);
+            GLOW.rocket3_item = makeGlowSprite(rocket3Sprite, 45, 45, '#ffffff', 30);
+            GLOW.enemyShard = makeGlowSprite(redShardSprite, 64, 64, COLORS.enemy, 15);
+
+            const enemyShapePath = (variant) => (cctx) => {
+                cctx.fillStyle = 'rgba(20, 0, 5, 0.9)'; cctx.strokeStyle = COLORS.enemy; cctx.lineWidth = 3; cctx.beginPath();
+                if (variant === 0) { cctx.moveTo(0, -35); cctx.lineTo(20, -15); cctx.lineTo(35, 0); cctx.lineTo(20, 15); cctx.lineTo(0, 35); cctx.lineTo(-20, 15); cctx.lineTo(-35, 0); cctx.lineTo(-20, -15); }
+                else if (variant === 1) { cctx.moveTo(0, -30); cctx.lineTo(30, 0); cctx.lineTo(0, 30); cctx.lineTo(-30, 0); }
+                else { cctx.rect(-25, -25, 50, 50); }
+                cctx.closePath(); cctx.fill(); cctx.stroke();
+                cctx.fillStyle = COLORS.enemy; cctx.beginPath(); cctx.arc(0, 0, 5, 0, Math.PI * 2); cctx.fill();
+            };
+            GLOW.enemyShape = [0, 1, 2].map(v => makeGlowShape(enemyShapePath(v), 70, COLORS.enemy, 15));
+        }
+        function drawGlow(cache) { if (cache) ctx.drawImage(cache, -cache.width / 2, -cache.height / 2); }
+
+        function updateLoadingUI() {
+            const pct = Math.round((spritesLoadedCount / ALL_SPRITES.length) * 100);
+            if (loadingStatus) loadingStatus.innerText = `LOADING ASSETS... ${pct}%`;
+        }
+        function onAssetsReady() {
+            buildGlowCache();
+            if (loadingStatus) loadingStatus.classList.add('hidden');
+            if (startBtn) { startBtn.classList.remove('hidden'); startBtn.disabled = false; }
+        }
+        function markSpriteLoaded() {
+            spritesLoadedCount++; updateLoadingUI();
+            if (spritesLoadedCount >= ALL_SPRITES.length && !assetsReady) { assetsReady = true; onAssetsReady(); }
+        }
+        ALL_SPRITES.forEach(img => { img.addEventListener('load', markSpriteLoaded, { once: true }); img.addEventListener('error', markSpriteLoaded, { once: true }); });
+
+        shipSprite.src = "./rocket%20game.png";
+        aztecSprite.src = "./INCA.png";
+        blueEyeSprite.src = "./Blue%20eye.png";
+        redShardSprite.src = "./Red%20shard.png";
+        alienSprite.src = "./Green%20alien%20.png";
+        astronautSprite.src = "./astronaut.png";
+        snakeSprite.src = "./snake.png";
+        rocket3Sprite.src = "./rocket3.png";
+        octoSprite.src = "./octo.png";
+        enemyShipSprite.src = "./enemyship.png";
+        portalSprite.src = "./portal.png";
+
+        const PLAYLIST = [
+            { title: "BE RIGHT BACK", url: "./BE%20RIGHT%20BACK.mp3" }, { title: "SOLITARY", url: "./SOLITARY.mp3" },
+            { title: "THE LIGHT", url: "./THE%20LIGHT.mp3" }, { title: "WATER EVERYTHING", url: "./WATER%20EVERY.mp3" },
+            { title: "ON THE MOON", url: "./ON%20THE%20MOON.mp3" }, { title: "LAYERS", url: "./LAYERS.mp3" },
+            { title: "FEEDBACK", url: "./FEEDBACK.mp3" }, { title: "THE GRAVITY IS GONE", url: "./THE%20GRAVITY%20IS%20GONE.mp3" },
+            { title: "ASTRONAUTS (FT. MR LIL ONE)", url: "./The%20Invisible%20Panchos%20Astronauts%20ft%20Mr%20Lil%20One.mp3" },
+            { title: "DAYGO FAITHFUL", url: "./DAYGO%20FAITHFUL%20(promo%20v2).mp3" }
+        ];
+
+        let gameRunning = false; let distanceTraveled = 0; let bonusPoints = 0; 
+        let highScore = localStorage.getItem('layers_highscore') || 0;
+        let gameSpeed = 8; let globalSpeedMultiplier = 1; let frameCount = 0;
+        let playerLives = 3; let invulnerableTimer = 0;
+        
+        let anomalyActive = false; let anomalyTimer = 0; let anomalyType = 'normal'; const ANOMALY_DURATION = 1800;
+        let trenchGap = 1000; let portalWarningTimer = 0; 
+        let currentDimension = 1; let nextDimThreshold = 45000;
+        let collectedBlue = 0; let collectedGreen = 0;
+        
+        let particles = [], stars = [], entities = [], projectiles = [], enemyProjectiles = [];
+        let powerUpActive = false, powerUpTimer = 0; let sideShotActive = false, sideShotTimer = 0; let doubleShipActive = false, doubleShipTimer = 0;
+        let rocket3Active = false, rocket3Timer = 0; let rocket3Cooldown = 0; const ROCKET3_DURATION = 900; 
+        
+        let quoteTimer = null, trackTimer = null; let currentTrackIndex = 0, isMuted = false;
+        let panchoPowerTimer = null, hudLivesFlashTimer = null, playerHitFlashTimer = null;
+        let lastTime = 0; const fpsInterval = 1000 / 60;
+
+        function playTrack(index) {
+            if (index >= PLAYLIST.length) index = 0; if (index < 0) index = PLAYLIST.length - 1;
+            currentTrackIndex = index; bgMusic.src = PLAYLIST[currentTrackIndex].url; bgMusic.load();
+            if (!isMuted) { bgMusic.play().then(() => initAudioEngine()).catch(e => console.log("Audio wait")); }
+            hudTrack.innerHTML = `TRANSMISSION:<br>${PLAYLIST[currentTrackIndex].title}`; hudTrack.style.opacity = 1;
+            if (trackTimer) clearTimeout(trackTimer); trackTimer = setTimeout(() => hudTrack.style.opacity = 0, 4000);
+        }
+        function initAudio() { const startIndex = Math.floor(Math.random() * PLAYLIST.length); playTrack(startIndex); bgMusic.addEventListener('ended', () => { playTrack(currentTrackIndex + 1); }); }
+        function toggleMute() { isMuted = !isMuted; if (isMuted) { bgMusic.pause(); iconSoundOn.classList.add('hidden'); iconSoundOff.classList.remove('hidden'); } else { bgMusic.play().then(() => initAudioEngine()); iconSoundOn.classList.remove('hidden'); iconSoundOff.classList.add('hidden'); } }
+        function showPanchoPower(msg = "PANCHO POWER") { panchoPowerMsg.innerHTML = msg; panchoPowerMsg.classList.add('pancho-active'); if (panchoPowerTimer) clearTimeout(panchoPowerTimer); panchoPowerTimer = setTimeout(() => { panchoPowerMsg.classList.remove('pancho-active'); }, 1500); }
+        
+        btnMute.addEventListener('click', toggleMute); btnSkip.addEventListener('click', () => playTrack(currentTrackIndex + 1));
+        function bootstrapAudio() { if (!audioInitialized) { try { initAudio(); initAudioEngine(); audioInitialized = true; } catch(e) { console.log(e); } } }
+        document.addEventListener('pointerdown', bootstrapAudio, { once: true });
+
+        const ship = {
+            x: 0, y: 0, width: 65, height: 65, targetX: 0, targetY: 0, 
+            init() { this.x = WIDTH / 2; this.y = HEIGHT / 2; this.targetX = this.x; this.targetY = this.y; },
+            update() {
+                this.x += (this.targetX - this.x) * 0.15; this.y += (this.targetY - this.y) * 0.15; 
+                if (this.x < this.width/2) this.targetX = this.width/2; if (this.x > WIDTH - this.width/2) this.targetX = WIDTH - this.width/2;
+                if (this.y < this.height/2) this.targetY = this.height/2; if (this.y > HEIGHT - this.height/2) this.targetY = HEIGHT - this.height/2;
+                
+                if (frameCount % 5 === 0) {
+                    if (doubleShipActive) { createParticle(this.x - 40, this.y + this.height/2, 'thrust'); createParticle(this.x + 40, this.y + this.height/2, 'thrust'); } 
+                    else { createParticle(this.x, this.y + this.height/2, 'thrust'); }
+                }
+
+                if (rocket3Active && frameCount % 12 === 0) {
+                    const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+                    angles.forEach(deg => { const rad = deg * Math.PI / 180; projectiles.push(new Projectile(this.x, this.y, Math.sin(rad) * 15, -Math.cos(rad) * 15)); });
+                }
+                else if (doubleShipActive && frameCount % 8 === 0) { projectiles.push(new Projectile(this.x - 40, this.y - 20)); projectiles.push(new Projectile(this.x + 40, this.y - 20)); } 
+                else if (sideShotActive && frameCount % 8 === 0) { 
+                    projectiles.push(new Projectile(this.x - 30, this.y - 10)); 
+                    projectiles.push(new Projectile(this.x + 30, this.y - 10)); 
+                } 
+                else if (powerUpActive && frameCount % 8 === 0) { projectiles.push(new Projectile(this.x, this.y - 30)); this.y += 2; }
+            },
+            draw() {
+                if (invulnerableTimer > 0 && Math.floor(frameCount / 5) % 2 === 0) return;
+
+                ctx.save(); ctx.translate(this.x, this.y);
+                let dynamicGlow = 20 + (currentBassIntensity * 20);
+
+                if (rocket3Active) {
+                    ctx.shadowBlur = dynamicGlow + 20; ctx.shadowColor = '#ffffff';
+                    ctx.drawImage(rocket3Sprite, -this.width/2 - 10, -this.height/2 - 10, this.width + 20, this.height + 20);
+                    const pct = rocket3Timer / ROCKET3_DURATION; ctx.fillStyle = '#ffffff'; ctx.fillRect(-30, -50, 60 * pct, 4);
+                }
+                else if (doubleShipActive) {
+                    ctx.shadowBlur = dynamicGlow; ctx.shadowColor = COLORS.ship;
+                    ctx.drawImage(shipSprite, -this.width/2 - 40, -this.height/2, this.width, this.height);
+                    ctx.drawImage(shipSprite, -this.width/2 + 40, -this.height/2, this.width, this.height);
+                    const pct = doubleShipTimer / 900; ctx.fillStyle = COLORS.ship; ctx.fillRect(-60, -50, 120 * pct, 4);
+                } else {
+                    if (sideShotActive) { ctx.shadowBlur = dynamicGlow + 10; ctx.shadowColor = COLORS.alien; ctx.beginPath(); ctx.arc(0, 0, 55 + (currentBassIntensity*10), 0, Math.PI * 2); ctx.strokeStyle = `rgba(16, 185, 129, ${Math.random() * 0.5 + 0.4})`; ctx.lineWidth = 4; ctx.stroke(); } 
+                    else if (powerUpActive) { ctx.shadowBlur = dynamicGlow + 10; ctx.shadowColor = COLORS.powerup; ctx.beginPath(); ctx.arc(0, 0, 50 + (currentBassIntensity*10), 0, Math.PI * 2); ctx.strokeStyle = `rgba(59, 130, 246, ${Math.random() * 0.5 + 0.2})`; ctx.lineWidth = 3; ctx.stroke(); } 
+                    else { ctx.shadowBlur = dynamicGlow; ctx.shadowColor = COLORS.ship; }
+                    ctx.drawImage(shipSprite, -this.width/2, -this.height/2, this.width, this.height);
+                    if (sideShotActive) { const pct = sideShotTimer / 300; ctx.fillStyle = COLORS.alien; ctx.fillRect(-20, -50, 40 * pct, 4); } 
+                    else if (powerUpActive) { const pct = powerUpTimer / 300; ctx.fillStyle = COLORS.powerup; ctx.fillRect(-20, -50, 40 * pct, 4); }
+                }
+                ctx.restore();
+            }
+        };
+
+        class Projectile {
+            constructor(x, y, vx = 0, vy = -15) { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.width = 4; this.height = 20; this.markedForDeletion = false; }
+            update() { this.x += this.vx; this.y += this.vy; if (this.y < -50 || this.x < -50 || this.x > WIDTH + 50 || this.y > HEIGHT + 50) this.markedForDeletion = true; }
+            draw() { ctx.save(); ctx.translate(this.x, this.y); let angle = Math.atan2(this.vy, this.vx) + Math.PI/2; ctx.rotate(angle); ctx.fillStyle = COLORS.shot; ctx.shadowBlur = 10; ctx.shadowColor = COLORS.shot; ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height); ctx.restore(); }
+        }
+
+        class EnemyProjectile {
+            constructor(x, y, vx = 0, vy = 10) { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.width = 6; this.height = 16; this.markedForDeletion = false; }
+            update() { this.x += this.vx; this.y += this.vy; if (this.y > HEIGHT + 50 || this.x < -50 || this.x > WIDTH + 50) this.markedForDeletion = true; }
+            draw() { ctx.save(); ctx.translate(this.x, this.y); let angle = Math.atan2(this.vy, this.vx) - Math.PI/2; ctx.rotate(angle); ctx.fillStyle = '#ff0055'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff0055'; ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height); ctx.restore(); }
+        }
+
+        class Entity {
+            constructor(type) {
+                this.type = type;
+                if (type === 'enemy') { this.width = 60; this.height = 60; } 
+                else if (type === 'powerup' || type === 'alien') { this.width = 40; this.height = 40; }
+                else if (type === 'orb') { this.width = 30; this.height = 30; } 
+                else if (type === 'astronaut') { this.width = 40; this.height = 60; }
+                else if (type === 'octo') { this.width = 85; this.height = 85; this.hp = 4; }
+                else if (type === 'enemyship') { this.width = 65; this.height = 65; }
+                else if (type === 'snake') { this.width = 25; this.height = 25; }
+                else if (type === 'rocket3_item') { this.width = 45; this.height = 45; }
+                else if (type === 'portal') { this.width = 70; this.height = 70; } 
+
+                this.x = Math.random() * (WIDTH - this.width) + this.width/2; this.y = -100;
+                this.speedY = type === 'enemy' || type === 'octo' ? gameSpeed * (0.8 + Math.random() * 0.5) : gameSpeed;
+                this.markedForDeletion = false; this.rotation = 0; this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+                this.oscillationOffset = Math.random() * Math.PI * 2; this.shapeVariant = Math.floor(Math.random() * 3);
+                this.inTrench = false; 
+            }
+            update() {
+                if (this.type === 'enemyship') {
+                    if (this.y < 120) { this.y += this.speedY * globalSpeedMultiplier; } 
+                    else {
+                        this.y = 120 + Math.sin(frameCount * 0.05 + this.oscillationOffset) * 15;
+                        if (!this.inTrench) {
+                            if (this.x < ship.x - 10) this.x += 1.5; else if (this.x > ship.x + 10) this.x -= 1.5;
+                        }
+                        if (frameCount % 80 === 0 && Math.random() > 0.3) {
+                            let shots = Math.min(3, currentDimension);
+                            if (shots === 1) { enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, 0, 8)); } 
+                            else if (shots === 2) { enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, -3, 8)); enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, 3, 8)); } 
+                            else { enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, 0, 9)); enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, -4, 8)); enemyProjectiles.push(new EnemyProjectile(this.x, this.y + 30, 4, 8)); }
+                        }
+                    }
+                } else if (this.type === 'octo') {
+                    this.y += this.speedY * 0.8 * globalSpeedMultiplier; 
+                    if (!this.inTrench) this.x += Math.sin(frameCount * 0.02 + this.oscillationOffset) * 3;
+                } else if (this.type === 'snake') {
+                    this.y += this.speedY * 1.5 * globalSpeedMultiplier; 
+                    if (!this.inTrench) this.x += Math.sin(frameCount * 0.1 + this.oscillationOffset) * 3; 
+                    this.rotation = Math.sin(frameCount * 0.15) * 0.5;
+                } else {
+                    this.y += this.speedY * globalSpeedMultiplier;
+                    if (this.type === 'enemy') { 
+                        this.rotation += this.rotationSpeed; 
+                        if (!this.inTrench) this.x += Math.sin(frameCount * 0.05 + this.oscillationOffset) * 2; 
+                    }
+                }
+                if (this.y > HEIGHT + 150) this.markedForDeletion = true;
+            }
+            draw() {
+                ctx.save(); ctx.translate(this.x, this.y);
+                if (this.type === 'enemy') {
+                    ctx.rotate(this.rotation);
+                    if (anomalyActive && anomalyType !== 'enemy') {
+                        drawGlow(GLOW.enemyShard);
+                    } else {
+                        drawGlow(GLOW.enemyShape[this.shapeVariant]);
+                    }
+                } else if (this.type === 'orb') { drawGlow(GLOW.orb); }
+                else if (this.type === 'powerup') { drawGlow(GLOW.powerup); }
+                else if (this.type === 'alien') { drawGlow(GLOW.alien); }
+                else if (this.type === 'astronaut') { drawGlow(GLOW.astronaut); }
+                else if (this.type === 'octo') {
+                    drawGlow(GLOW.octo);
+                    if (this.hp < 4) { ctx.fillStyle = '#ef4444'; ctx.fillRect(-20, -this.height/2 - 12, 40, 5); ctx.fillStyle = '#00fff9'; ctx.fillRect(-20, -this.height/2 - 12, 10 * this.hp, 5); }
+                }
+                else if (this.type === 'enemyship') { drawGlow(GLOW.enemyship); }
+                else if (this.type === 'snake') { ctx.rotate(this.rotation); drawGlow(GLOW.snake); }
+                else if (this.type === 'rocket3_item') { drawGlow(GLOW.rocket3_item); }
+                else if (this.type === 'portal') {
+                    let pulse = Math.abs(Math.sin(frameCount * 0.1)) * 15;
+                    ctx.shadowBlur = 30 + pulse; ctx.shadowColor = '#a855f7';
+                    ctx.drawImage(portalSprite, -this.width/2 - pulse/2, -this.height/2 - pulse/2, this.width + pulse, this.height + pulse);
+                }
+                ctx.restore();
+            }
+        }
+
+        class Star {
+            constructor() { this.reset(); this.y = Math.random() * HEIGHT; }
+            reset() { this.x = Math.random() * WIDTH; this.y = 0; this.z = Math.random() * 2 + 0.5; this.size = Math.random() * 2; }
+            update() { this.y += gameSpeed * globalSpeedMultiplier * this.z * 0.5; if (gameSpeed > 8) this.size = Math.random() * 2 + (gameSpeed / 4); if (this.y > HEIGHT) this.reset(); }
+            draw() { let beatAlpha = Math.min(1, (Math.random() * 0.5 + 0.2) + currentBassIntensity); ctx.fillStyle = `rgba(200, 200, 255, ${beatAlpha})`; ctx.fillRect(this.x, this.y, 1.5 + (currentBassIntensity*2), this.size * 2 + (currentBassIntensity*5)); }
+        }
+
+        function createParticle(x, y, type) { particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: type === 'thrust' ? Math.random() * 4 + 2 : (Math.random() - 0.5) * 5, life: 1, decay: Math.random() * 0.03 + 0.02, type: type }); }
+        function resize() { WIDTH = window.innerWidth; HEIGHT = window.innerHeight; canvas.width = WIDTH; canvas.height = HEIGHT; if(ship) ship.init(); trenchGap = WIDTH; }
+        function showQuote() { const quote = ["Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up."][Math.floor(Math.random() * 5)]; quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1; if (quoteTimer) clearTimeout(quoteTimer); quoteTimer = setTimeout(() => quoteBox.style.opacity = 0, 3000); }
+        function updateCounters() { hudCounterBlue.innerText = `SIGHT: ${collectedBlue}/5`; hudCounterGreen.innerText = `EGO: ${collectedGreen}/3`; hudLives.innerText = `LIVES: ${playerLives}`; }
+
+        // ==========================================
+        // SPAWN WEIGHT TABLES (data-driven, replaces 4 duplicated rand-threshold chains)
+        // ==========================================
+        const SPAWN_TABLES = {
+            green: [
+                { min: 0.95, type: 'astronaut', cond: c => !c.astroExists },
+                { min: 0.83, type: 'alien' },
+                { min: 0.65, type: 'orb' },
+            ],
+            enemyZone: [
+                { min: 0.95, type: 'astronaut', cond: c => !c.astroExists },
+                { min: 0.83, type: 'alien' },
+                { min: 0.60, type: 'powerup' },
+                { min: 0.40, type: 'enemyship' },
+            ],
+            trench: [
+                { min: 0.95, type: 'octo' },
+                { min: 0.85, type: 'enemyship' },
+                { min: 0.70, type: 'powerup' }, // INJECTED BLUE EYE INTO TRENCH
+                { min: 0.45, type: 'orb' },
+            ],
+            anomalyNormal: [
+                { min: 0.975, type: 'rocket3_item', cond: c => c.currentTotalScore > 30000 && !c.rocket3Active && c.rocket3Cooldown <= 0 && !c.rocket3Exists },
+                { min: 0.945, type: 'portal', cond: c => !c.anomalyActive && c.currentTotalScore > 5000 && !c.portalExists },
+                { min: 0.90, type: 'astronaut', cond: c => !c.astroExists },
+                { min: 0.82, type: 'alien' },
+                { min: 0.60, type: 'powerup' },
+                { min: 0.50, type: 'orb' },
+                { min: 0.40, type: 'octo', cond: c => c.currentTotalScore > 20000 },
+                { min: 0.35, type: 'enemyship', cond: c => c.inEnemyShipZone },
+            ],
+            default: [
+                { min: 0.975, type: 'rocket3_item', cond: c => c.currentTotalScore > 30000 && !c.rocket3Active && c.rocket3Cooldown <= 0 && !c.rocket3Exists },
+                { min: 0.945, type: 'portal', cond: c => !c.anomalyActive && c.currentTotalScore > 5000 && !c.portalExists },
+                { min: 0.90, type: 'alien' },
+                { min: 0.65, type: 'powerup' },
+                { min: 0.55, type: 'orb' },
+                { min: 0.45, type: 'octo', cond: c => c.currentTotalScore > 20000 },
+                { min: 0.40, type: 'enemyship', cond: c => c.inEnemyShipZone },
+            ],
+        };
+        function pickSpawnType(tableKey, rand, ctx) {
+            for (const rule of SPAWN_TABLES[tableKey]) {
+                if (rand > rule.min && (!rule.cond || rule.cond(ctx))) return rule.type;
+            }
+            return 'enemy';
+        }
+        function spawnTableKeyFor(anomalyActive, anomalyType) {
+            if (!anomalyActive) return 'default';
+            if (anomalyType === 'green') return 'green';
+            if (anomalyType === 'enemy') return 'enemyZone';
+            if (anomalyType === 'trench') return 'trench';
+            if (anomalyType === 'normal') return 'anomalyNormal';
+            return 'default';
+        }
+
+        function startGame() {
+            if (!assetsReady) return;
+            bootstrapAudio();
+            gameRunning = true; distanceTraveled = 0; bonusPoints = 0; gameSpeed = 8; globalSpeedMultiplier = 1;
+            playerLives = 3; invulnerableTimer = 0; rocket3Cooldown = 0; trenchGap = WIDTH; portalWarningTimer = 0;
+            collectedBlue = 0; collectedGreen = 0; anomalyActive = false; anomalyTimer = 0; anomalyType = 'normal';
+            currentDimension = 1; nextDimThreshold = 45000;
+            entities = []; particles = []; projectiles = []; enemyProjectiles = [];
+            powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
+            
+            snakeWarning.style.opacity = '0';
+            
+            ship.init(); updateCounters(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden'); document.getElementById('score-submit-ui').classList.add('hidden');
+            hudScore.innerText = "DEPTH: 0m"; hudTotalScore.innerText = "SCORE: 0"; hudLevel.innerText = "ZONE: ORBIT"; hudDimension.innerText = "DIMENSION: 1"; hudLives.style.color = '#ef4444';
+        }
+
+        function triggerPlayerHit() {
+            playerLives--; updateCounters();
+            createParticle(ship.x, ship.y, 'explosion'); for(let i=0; i<15; i++) createParticle(ship.x, ship.y, 'explosion');
+            
+            if (playerLives > 0) {
+                invulnerableTimer = 120; // 2 seconds at 60fps
+                flashOverlay.style.backgroundColor = 'red'; flashOverlay.style.opacity = '0.5';
+                hudLives.style.color = '#fff'; if (hudLivesFlashTimer) clearTimeout(hudLivesFlashTimer); hudLivesFlashTimer = setTimeout(() => hudLives.style.color = '#ef4444', 300);
+                if (playerHitFlashTimer) clearTimeout(playerHitFlashTimer); playerHitFlashTimer = setTimeout(() => { flashOverlay.style.opacity = '0'; flashOverlay.style.backgroundColor = 'white'; }, 200);
+            } else {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false; canvas.style.transform = "translate(5px, 5px)"; setTimeout(() => canvas.style.transform = "translate(0,0)", 50);
+            let finalScore = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
+            
+            // UI TEXT HARD-KILL SWITCH
+            snakeWarning.style.opacity = '0';
+            levelUpMsg.style.opacity = '0';
+            panchoPowerMsg.style.opacity = '0';
+            panchoPowerMsg.classList.remove('pancho-active');
+            quoteBox.style.opacity = '0';
+            hudTrack.style.opacity = '0';
+            flashOverlay.style.opacity = '0';
+
+            if (finalScore > highScore) { highScore = finalScore; localStorage.setItem('layers_highscore', highScore); newRecordEl.classList.remove('hidden'); hudHighScore.innerText = `REC: ${highScore}`; }
+            if(db) { 
+                let qualifiesForTop5 = (topScoreCount < 5 || finalScore > lowestTopScore);
+                if (qualifiesForTop5 && finalScore > 0) { document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = ""; } 
+                else { document.getElementById('score-submit-ui').classList.add('hidden'); }
+            }
+            finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`; gameOverScreen.classList.remove('hidden');
+        }
+
+        function triggerAnomaly(forcedType = null) {
+            if (anomalyActive) return; anomalyActive = true; anomalyTimer = ANOMALY_DURATION; 
+            
+            if (forcedType) {
+                anomalyType = forcedType;
+            } else {
+                let r = Math.random();
+                if (r < 0.4166) anomalyType = 'green';
+                else if (r < 0.7083) anomalyType = 'enemy';
+                else anomalyType = 'normal';
+            }
+            
+            if (anomalyType === 'green') {
+                levelUpMsg.innerHTML = "TOXIC ANOMALY BREACHED";
+                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
+            }
+            else if (anomalyType === 'enemy') {
+                levelUpMsg.innerHTML = "ENEMY ZONE BREACHED";
+                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
+            }
+            else if (anomalyType === 'trench') { 
+                levelUpMsg.innerHTML = "PANCHO PORTAL APPROACHING<br><span style='font-size:0.5em; color:#fff; display:block; margin-top:10px;' class='animate-pulse'>CENTER THE SHIP!!!</span>"; 
+                portalWarningTimer = 180; 
+                trenchGap = WIDTH; 
+                levelUpMsg.style.color = '#ef4444'; 
+                levelUpMsg.style.textShadow = '0 0 20px #ef4444';
+            }
+            else {
+                levelUpMsg.innerHTML = "ENTERING ANOMALY";
+                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
+            }
+            
+            levelUpMsg.style.opacity = 1; 
+            if (anomalyType !== 'trench') setTimeout(() => levelUpMsg.style.opacity = 0, 3000);
+            
+            flashOverlay.style.opacity = '0.4'; setTimeout(() => flashOverlay.style.opacity = '0', 200); collectedBlue = 0; collectedGreen = 0; updateCounters();
+        }
+
+        function triggerDimensionShift() {
+            currentDimension++; nextDimThreshold += 45000; hudDimension.innerText = `DIMENSION: ${currentDimension}`;
+            levelUpMsg.innerHTML = `DIMENSION ${currentDimension} BREACHED`; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
+            setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, 4000);
+            flashOverlay.style.opacity = '0.8'; setTimeout(() => flashOverlay.style.opacity = '0', 400);
+        }
+
+        function checkCollisions() {
+            if (anomalyActive && anomalyType === 'trench' && portalWarningTimer <= 0) {
+                let wallW = (WIDTH - trenchGap) / 2;
+                if (ship.x - ship.width/3 < wallW || ship.x + ship.width/3 > WIDTH - wallW) {
+                    if (invulnerableTimer <= 0) {
+                        triggerPlayerHit();
+                        ship.targetX = WIDTH / 2; 
+                        ship.x = WIDTH / 2;
+                    }
+                }
+            }
+
+            entities.forEach(ent => {
+                const hitBoxScale = ent.type === 'octo' ? 0.5 : 0.6;
+                const dx = Math.abs(ship.x - ent.x); const dy = Math.abs(ship.y - ent.y);
+                if (dx < (ship.width/2 + ent.width/2) * hitBoxScale && dy < (ship.height/2 + ent.height/2) * hitBoxScale) {
+                    
+                    if (ent.type === 'snake') {
+                        if (invulnerableTimer > 0) return;
+                        if (doubleShipActive || rocket3Active) { ent.markedForDeletion = true; createParticle(ent.x, ent.y, 'explosion'); return; }
+                        bonusPoints -= 500; ent.markedForDeletion = true; createParticle(ship.x, ship.y, 'explosion');
+                        hudTotalScore.style.color = '#ef4444'; hudTotalScore.style.textShadow = '0 0 15px #ef4444';
+                        setTimeout(() => { hudTotalScore.style.color = '#f6e05e'; hudTotalScore.style.textShadow = '0 0 10px rgba(246, 224, 94, 0.5)'; }, 300);
+                        return;
+                    }
+                    if (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') {
+                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { 
+                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; bonusPoints += 250; 
+                            if(ent.type === 'octo') bonusPoints += 2000;
+                            
+                            // SHATTER SHIELD LOGIC
+                            if (powerUpActive && !rocket3Active && !doubleShipActive) {
+                                powerUpActive = false; powerUpTimer = 0;
+                            }
+                        } else if (invulnerableTimer <= 0) { 
+                            ent.markedForDeletion = true;
+                            triggerPlayerHit();
+                        }
+                    } else if (ent.type === 'orb') { bonusPoints += 1000; ent.markedForDeletion = true; showQuote(); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'orb'); } 
+                    else if (ent.type === 'powerup') { powerUpActive = true; powerUpTimer = 300; ent.markedForDeletion = true; bonusPoints += 350; collectedBlue++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); } 
+                    else if (ent.type === 'alien') { sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); } 
+                    else if (ent.type === 'astronaut') { doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'rocket3_item') { rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'portal') { ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); }
+                }
+            });
+
+            enemyProjectiles.forEach(ep => {
+                if (!ep.markedForDeletion) {
+                    const dx = Math.abs(ship.x - ep.x); const dy = Math.abs(ship.y - ep.y);
+                    if (dx < ship.width/2.5 && dy < ship.height/2.5) {
+                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { 
+                            ep.markedForDeletion = true; 
+                            createParticle(ep.x, ep.y, 'explosion');
+                            
+                            // SHATTER SHIELD LOGIC
+                            if (powerUpActive && !rocket3Active && !doubleShipActive) {
+                                powerUpActive = false; powerUpTimer = 0;
+                            }
+                        } 
+                        else if (invulnerableTimer <= 0) { 
+                            ep.markedForDeletion = true; 
+                            triggerPlayerHit(); 
+                        }
+                    }
+                }
+            });
+
+            projectiles.forEach(proj => {
+                entities.forEach(ent => {
+                    if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') && !ent.markedForDeletion && !proj.markedForDeletion) {
+                        const dx = Math.abs(proj.x - ent.x); const dy = Math.abs(proj.y - ent.y);
+                        if (dx < (ent.width/2 + proj.width/2) && dy < (ent.height/2 + proj.height/2)) { 
+                            proj.markedForDeletion = true; 
+                            if (ent.type === 'octo') {
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                if (ent.hp <= 0) { ent.markedForDeletion = true; bonusPoints += 2000; for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                            } else {
+                                ent.markedForDeletion = true; bonusPoints += 250; for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion'); 
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function gameLoop(timestamp) {
+            requestAnimationFrame(gameLoop); const elapsed = timestamp - lastTime;
+
+            if (elapsed > fpsInterval) {
+                lastTime = timestamp - (elapsed % fpsInterval);
+                
+                if (analyser && gameRunning) { analyser.getByteFrequencyData(dataArray); let sum = 0; for(let i = 0; i < 8; i++) { sum += dataArray[i]; } currentBassIntensity = (sum / 8) / 255; } else { currentBassIntensity = 0; }
+
+                ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                
+                let currentDimColor = DIMENSION_PALETTES[(currentDimension - 1) % DIMENSION_PALETTES.length];
+                if (currentBassIntensity > 0.3) { 
+                    ctx.fillStyle = `rgba(${currentDimColor}, ${currentBassIntensity * 0.15})`; 
+                    if (anomalyActive) { 
+                        if (anomalyType === 'green') ctx.fillStyle = `rgba(16, 185, 129, ${currentBassIntensity * 0.2})`;
+                        else if (anomalyType === 'enemy') ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2 + 0.1})`;
+                        else ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2})`;
+                    } 
+                    ctx.fillRect(0, 0, WIDTH, HEIGHT); 
+                }
+                
+                if (anomalyActive) { if (Math.random() > 0.9) canvas.style.transform = `translate(${Math.random()*2 - 1}px, ${Math.random()*2 - 1}px)`; else canvas.style.transform = "none"; } else { canvas.style.transform = "none"; }
+                
+                if (anomalyActive) {
+                    if (anomalyType === 'trench') {
+                        globalSpeedMultiplier = 1.5; 
+                    } else {
+                        globalSpeedMultiplier = 1.25; 
+                    }
+                } else {
+                    globalSpeedMultiplier = 1.0; 
+                }
+                
+                stars.forEach(star => { star.update(); star.draw(); });
+                
+                if (anomalyActive && anomalyType === 'trench' && portalWarningTimer <= 0) {
+                    let targetGap = 220; 
+                    if (anomalyTimer < 60) targetGap = WIDTH * 1.5; 
+                    trenchGap += (targetGap - trenchGap) * 0.05;
+                    
+                    let wallW = (WIDTH - trenchGap) / 2;
+                    if (wallW > 0) {
+                        ctx.fillStyle = `rgba(0, 255, 249, 0.1)`;
+                        ctx.fillRect(0, 0, wallW, HEIGHT);
+                        ctx.fillRect(WIDTH - wallW, 0, wallW, HEIGHT);
+                        
+                        ctx.fillStyle = `rgba(0, 255, 249, 0.3)`;
+                        let yOffset = (distanceTraveled * 10) % 100;
+                        for(let y = yOffset - 100; y < HEIGHT; y+= 100) {
+                            ctx.fillRect(0, y, wallW, 2); ctx.fillRect(WIDTH - wallW, y, wallW, 2);
+                        }
+                        
+                        ctx.shadowBlur = 15; ctx.shadowColor = '#00fff9'; ctx.fillStyle = '#00fff9';
+                        ctx.fillRect(wallW - 4, 0, 4, HEIGHT); ctx.fillRect(WIDTH - wallW, 0, 4, HEIGHT);
+                        ctx.shadowBlur = 0;
+                    }
+                } else { trenchGap = WIDTH; }
+
+                if (gameRunning) {
+                    frameCount++; 
+                    if (invulnerableTimer > 0) invulnerableTimer--;
+
+                    if (rocket3Active) { rocket3Timer--; if (rocket3Timer <= 0) { rocket3Active = false; rocket3Cooldown = 1800; } }
+                    if (rocket3Cooldown > 0) rocket3Cooldown--;
+
+                    let hasSnakes = entities.some(e => e.type === 'snake' && !e.markedForDeletion);
+                    if (hasSnakes) { if (snakeWarning.style.opacity !== '1') snakeWarning.style.opacity = '1'; } 
+                    else { if (snakeWarning.style.opacity !== '0') snakeWarning.style.opacity = '0'; }
+
+                    let currentSpeed = gameSpeed + (currentDimension * 0.5); 
+                    distanceTraveled += currentSpeed * globalSpeedMultiplier * 0.1; let currentTotalScore = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
+                    hudScore.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`; hudTotalScore.innerText = `SCORE: ${currentTotalScore}`;
+                    
+                    if (currentTotalScore >= nextDimThreshold) triggerDimensionShift();
+                    
+                    if (anomalyActive) { 
+                        anomalyTimer--; 
+                        if (anomalyTimer <= 0) { 
+                            if (anomalyType === 'trench') { 
+                                bonusPoints += 10000; 
+                                showPanchoPower("PORTAL CLEARED<br><span style='color:#f6e05e'>+10000</span>"); 
+                            }
+                            anomalyActive = false; 
+                            hudLevel.innerText = "ZONE: DEEP SPACE"; 
+                        } 
+                        else { 
+                            if (anomalyType === 'green') hudLevel.innerText = "ZONE: TOXIC ANOMALY";
+                            else if (anomalyType === 'enemy') hudLevel.innerText = "ZONE: ENEMY ZONE";
+                            else if (anomalyType === 'trench') {
+                                if (portalWarningTimer > 0) {
+                                    portalWarningTimer--;
+                                    hudLevel.innerText = "ZONE: PORTAL APPROACHING";
+                                    if (portalWarningTimer === 0) {
+                                        levelUpMsg.innerHTML = "PANCHO PORTAL ENGAGED";
+                                        levelUpMsg.style.color = '#00fff9'; levelUpMsg.style.textShadow = '0 0 15px #00fff9';
+                                        levelUpMsg.style.opacity = 1; setTimeout(() => levelUpMsg.style.opacity = 0, 2000);
+                                        // ONE-TIME SHIELD INITIALIZATION (ALLOWS IT TO DRAIN/SHATTER)
+                                        powerUpActive = true; powerUpTimer = 300; sideShotActive = false; doubleShipActive = false; rocket3Active = false; 
+                                    }
+                                } else {
+                                    hudLevel.innerText = "ZONE: PANCHO PORTAL";
+                                }
+                            }
+                            else hudLevel.innerText = "ZONE: ANOMALY";
+                        } 
+                    } 
+                    else { if (distanceTraveled < 1000) hudLevel.innerText = "ZONE: ORBIT"; else hudLevel.innerText = "ZONE: DEEP SPACE"; }
+                    
+                    if (powerUpActive) { powerUpTimer--; if (powerUpTimer <= 0) powerUpActive = false; }
+                    if (sideShotActive) { sideShotTimer--; if (sideShotTimer <= 0) sideShotActive = false; }
+                    if (doubleShipActive) { doubleShipTimer--; if (doubleShipTimer <= 0) doubleShipActive = false; }
+
+                    let baseSpawnDelay = 35 - (currentDimension * 2); 
+                    if (anomalyActive) baseSpawnDelay = 20; 
+                    if (anomalyActive && anomalyType === 'trench') baseSpawnDelay = 12; 
+                    
+                    const spawnRate = Math.max(12, Math.floor(baseSpawnDelay / (1 + (distanceTraveled/4000))));
+                    
+                    if (frameCount % spawnRate === 0) {
+                        const rand = Math.random();
+                        let spawnedSnakes = false;
+                        
+                        let portalExists = entities.some(e => e.type === 'portal');
+                        let astroExists = entities.some(e => e.type === 'astronaut');
+                        let rocket3Exists = entities.some(e => e.type === 'rocket3_item');
+
+                        if (anomalyActive && anomalyType === 'green') {
+                            if (rand > 0.50) { 
+                                let numSnakes = 2 + Math.floor(Math.random() * 3);
+                                let startX = Math.random() * WIDTH;
+                                for(let i=0; i<numSnakes; i++) { let s = new Entity('snake'); s.x = startX; s.y = -50 - (i * 180); entities.push(s); }
+                                spawnedSnakes = true;
+                            }
+                        }
+
+                        if (!spawnedSnakes && !(anomalyActive && anomalyType === 'trench' && portalWarningTimer > 0)) {
+                            let inEnemyShipZone = currentTotalScore >= 45000 && ((currentTotalScore - 45000) % 25000 < 5000);
+                            let tableKey = spawnTableKeyFor(anomalyActive, anomalyType);
+                            let type = pickSpawnType(tableKey, rand, { astroExists, portalExists, rocket3Exists, rocket3Active, rocket3Cooldown, currentTotalScore, inEnemyShipZone, anomalyActive });
+
+                            let e = new Entity(type);
+                            if (anomalyActive && anomalyType === 'trench') {
+                                e.inTrench = true;
+                                e.x = WIDTH / 2 + (Math.random() * 40 - 20); 
+                                e.oscillationOffset = 0;
+                            }
+                            entities.push(e);
+                        }
+                    }
+                    ship.update(); projectiles.forEach(p => p.update()); enemyProjectiles.forEach(ep => ep.update()); checkCollisions();
+                }
+                
+                ship.draw();
+                
+                for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].draw(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1); }
+                for (let i = enemyProjectiles.length - 1; i >= 0; i--) { enemyProjectiles[i].draw(); if (enemyProjectiles[i].markedForDeletion) enemyProjectiles.splice(i, 1); }
+                for (let i = entities.length - 1; i >= 0; i--) { entities[i].update(); entities[i].draw(); if (entities[i].markedForDeletion) entities.splice(i, 1); }
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay; let particleRadius = p.life * 3; if (p.type === 'thrust') particleRadius *= (1 + currentBassIntensity);
+                    if (p.type === 'thrust' && rocket3Active) ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`; else if (p.type === 'thrust' && sideShotActive) ctx.fillStyle = `rgba(16, 185, 129, ${p.life})`; else if (p.type === 'thrust') ctx.fillStyle = `rgba(0, 255, 249, ${p.life})`; else if (p.type === 'explosion') ctx.fillStyle = `rgba(255, 0, 85, ${p.life})`; else if (p.type === 'orb') ctx.fillStyle = `rgba(246, 224, 94, ${p.life})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, particleRadius, 0, Math.PI * 2); ctx.fill(); if (p.life <= 0) particles.splice(i, 1);
+                }
+            }
+        }
+
+        window.onload = () => {
+            resize(); stars = Array(100).fill().map(() => new Star()); hudHighScore.innerText = `REC: ${highScore}`;
+            window.addEventListener('resize', resize);
+            const handleInput = (e) => {
+                if (!gameRunning) return; e.preventDefault(); let cx, cy;
+                if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY - 100; } else { cx = e.clientX; cy = e.clientY; }
+                ship.targetX = cx; ship.targetY = cy; 
+            };
+            document.addEventListener('mousemove', handleInput); document.addEventListener('touchmove', handleInput, { passive: false });
+            startBtn.onclick = startGame; restartBtn.onclick = startGame; requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
