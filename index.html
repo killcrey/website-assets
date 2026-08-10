@@ -601,9 +601,11 @@
         // can't be delayed without confusing the player.
         // ==========================================
         let overlayBusyUntil = 0;
+        const MAX_OVERLAY_QUEUE_WAIT = 2500; // messages stuck behind more than this get dropped instead of shown late/stale
         function claimOverlaySlot(durationMs) {
             const now = performance.now();
             const wait = Math.max(0, overlayBusyUntil - now);
+            if (wait > MAX_OVERLAY_QUEUE_WAIT) return null;
             overlayBusyUntil = now + wait + durationMs;
             return wait;
         }
@@ -616,6 +618,7 @@
 
         function showPanchoPower(msg = "PANCHO POWER") {
             const duration = 1500; const wait = claimOverlaySlot(duration);
+            if (wait === null) return;
             if (panchoPowerTimer) clearTimeout(panchoPowerTimer);
             panchoPowerTimer = setTimeout(() => {
                 panchoPowerMsg.innerHTML = msg; panchoPowerMsg.classList.add('pancho-active');
@@ -905,8 +908,9 @@
         function maybeShowTutorialTip(type) {
             const tip = TUTORIAL_TIPS[type]; if (!tip) return;
             const key = 'layers_seen_' + type; if (localStorage.getItem(key)) return;
-            localStorage.setItem(key, '1');
             const duration = 4000; const wait = claimOverlaySlot(duration);
+            if (wait === null) return; // busy - don't burn the one-time flag on a tip the player never saw
+            localStorage.setItem(key, '1');
             if (tutorialToastTimer) clearTimeout(tutorialToastTimer);
             tutorialToastTimer = setTimeout(() => {
                 tutorialToast.innerText = tip; tutorialToast.style.opacity = 1;
@@ -915,9 +919,10 @@
         }
         function showQuote() {
             if (frameCount - lastQuoteFrame < QUOTE_COOLDOWN_FRAMES) return;
-            lastQuoteFrame = frameCount;
             const quote = VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)];
             const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (wait === null) return; // busy - don't reset the cooldown on a quote that never showed
+            lastQuoteFrame = frameCount;
             if (quoteTimer) clearTimeout(quoteTimer);
             quoteTimer = setTimeout(() => {
                 quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1;
@@ -1093,6 +1098,7 @@
 
         function announceSourceEncounter() {
             const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (wait === null) return;
             if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
             levelUpMsgTimer = setTimeout(() => {
                 levelUpMsg.innerHTML = "THE SOURCE STIRS"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#e879f9'; levelUpMsg.style.textShadow = '0 0 20px #e879f9';
@@ -1113,6 +1119,7 @@
 
         function announceCobraEncounter() {
             const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (wait === null) return;
             if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
             levelUpMsgTimer = setTimeout(() => {
                 levelUpMsg.innerHTML = "THE COBRA COILS"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#22c55e'; levelUpMsg.style.textShadow = '0 0 20px #22c55e';
@@ -1135,6 +1142,7 @@
 
         function announceSuperEgoEncounter() {
             const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (wait === null) return;
             if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
             levelUpMsgTimer = setTimeout(() => {
                 levelUpMsg.innerHTML = "THE SUPER EGO JUDGES"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#f43f5e'; levelUpMsg.style.textShadow = '0 0 20px #f43f5e';
@@ -1192,6 +1200,27 @@
             showPanchoPower("WELCOME BACK");
         }
 
+        function drawTrackMarquee() {
+            if (!gameRunning || choiceModalActive || invulnerableTimer > 0) return;
+            const track = PLAYLIST[currentTrackIndex];
+            if (!track) return;
+            const boxW = 130, boxH = 14;
+            const x = ship.x - boxW / 2, y = ship.y - ship.height / 2 - boxH - 6;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(x, y, boxW, boxH); ctx.clip();
+            ctx.font = "12px 'VT323', monospace";
+            ctx.fillStyle = memoryFlightActive ? 'rgba(15, 23, 42, 0.45)' : 'rgba(0, 255, 249, 0.5)';
+            ctx.textBaseline = 'middle';
+            const text = track.title + '   •   ';
+            const textWidth = ctx.measureText(text).width;
+            if (textWidth > 0) {
+                const offset = (frameCount * 0.4) % textWidth;
+                let drawX = x - offset;
+                while (drawX < x + boxW) { ctx.fillText(text, drawX, y + boxH / 2); drawX += textWidth; }
+            }
+            ctx.restore();
+        }
+
         function triggerAnomaly(forcedType = null) {
             if (anomalyActive) return; anomalyActive = true; anomalyTimer = ANOMALY_DURATION; sfxAnomaly();
             
@@ -1225,11 +1254,13 @@
                 levelUpMsg.innerHTML = html; levelUpMsg.style.color = color; levelUpMsg.style.textShadow = shadow; levelUpMsg.style.opacity = 1;
             } else {
                 const duration = 3000; const wait = claimOverlaySlot(duration);
-                if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
-                levelUpMsgTimer = setTimeout(() => {
-                    levelUpMsg.innerHTML = html; levelUpMsg.style.color = color; levelUpMsg.style.textShadow = shadow; levelUpMsg.style.opacity = 1;
-                    levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
-                }, wait);
+                if (wait !== null) {
+                    if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+                    levelUpMsgTimer = setTimeout(() => {
+                        levelUpMsg.innerHTML = html; levelUpMsg.style.color = color; levelUpMsg.style.textShadow = shadow; levelUpMsg.style.opacity = 1;
+                        levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
+                    }, wait);
+                }
             }
 
             flashOverlay.style.opacity = '0.4'; setTimeout(() => flashOverlay.style.opacity = '0', 200); collectedBlue = 0; collectedGreen = 0; updateCounters();
@@ -1242,11 +1273,13 @@
             const missionLine = MISSION_CONTROL_LINES[Math.floor(Math.random() * MISSION_CONTROL_LINES.length)];
             const html = `DIMENSION ${currentDimension} BREACHED<br><span style='font-size:0.4em; color:#00fff9; display:block; margin-top:10px;'>${missionLine}</span>`;
             const duration = 4000; const wait = claimOverlaySlot(duration);
-            if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
-            levelUpMsgTimer = setTimeout(() => {
-                levelUpMsg.innerHTML = html; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
-                levelUpMsgTimer = setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, duration);
-            }, wait);
+            if (wait !== null) {
+                if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+                levelUpMsgTimer = setTimeout(() => {
+                    levelUpMsg.innerHTML = html; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
+                    levelUpMsgTimer = setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, duration);
+                }, wait);
+            }
             flashOverlay.style.opacity = '0.8'; setTimeout(() => flashOverlay.style.opacity = '0', 400);
         }
 
@@ -1578,7 +1611,8 @@
                 }
                 
                 ship.draw();
-                
+                drawTrackMarquee();
+
                 for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].draw(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1); }
                 for (let i = enemyProjectiles.length - 1; i >= 0; i--) { enemyProjectiles[i].draw(); if (enemyProjectiles[i].markedForDeletion) enemyProjectiles.splice(i, 1); }
                 for (let i = entities.length - 1; i >= 0; i--) { if (!choiceModalActive) entities[i].update(); entities[i].draw(); if (entities[i].markedForDeletion) entities.splice(i, 1); }
