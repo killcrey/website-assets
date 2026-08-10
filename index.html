@@ -73,6 +73,9 @@
 
         #hud-score { position: absolute; top: 20px; left: 20px; font-family: 'VT323', monospace; font-size: 1.8rem; color: #fff; z-index: 9; text-shadow: 0 0 5px #000; }
         #hud-total-score { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-family: 'VT323', monospace; font-size: 2.5rem; color: #f6e05e; z-index: 9; text-shadow: 0 0 10px rgba(246, 224, 94, 0.5); white-space: nowrap; transition: color 0.2s; }
+        #hud-combo { position: absolute; top: 62px; left: 50%; transform: translateX(-50%) scale(1); font-family: 'VT323', monospace; font-size: 1.3rem; color: #ff6ec7; z-index: 9; text-shadow: 0 0 8px rgba(255, 110, 199, 0.7); white-space: nowrap; opacity: 0; transition: opacity 0.3s ease, transform 0.15s ease; letter-spacing: 1px; }
+        #hud-combo.combo-active { opacity: 1; }
+        #hud-combo.combo-pulse { transform: translateX(-50%) scale(1.3); }
         #hud-highscore { position: absolute; top: 20px; right: 20px; font-family: 'VT323', monospace; font-size: 1.8rem; color: #a0aec0; z-index: 9; text-shadow: 0 0 5px #000; }
         
         /* FIXED HUD COUNTER STACKING */
@@ -106,6 +109,7 @@
             #hud-score, #hud-highscore { font-size: 1.0rem; }
             #hud-counters { top: 40px; font-size: 1.1rem; }
             #hud-total-score { font-size: 1.5rem; top: 10px; }
+            #hud-combo { font-size: 0.9rem; top: 38px; }
             #hud-level, #hud-dimension { top: 40px; font-size: 1.0rem; }
             #hud-dimension { top: 58px; }
             #snake-warning { font-size: 1rem; top: 40px; }
@@ -133,6 +137,7 @@
 
         <div id="hud-score">DEPTH: 0m</div>
         <div id="hud-total-score">SCORE: 0</div>
+        <div id="hud-combo"></div>
         <div id="hud-level">ZONE: ORBIT</div>
         <div id="hud-dimension">DIMENSION: 1</div>
         <div id="hud-highscore">REC: 0</div>
@@ -186,6 +191,7 @@
                             <li>Catch <span class="text-purple-400">PORTAL</span> for Bonus Run.</li>
                             <li>Find <span class="text-white">ROCKET3</span> for God Mode.</li>
                             <li>Collect <span class="text-yellow-300">GOLD COINS</span> (+1000).</li>
+                            <li>Chain kills & near-misses for a <span class="text-pink-400">COMBO MULTIPLIER</span>.</li>
                         </ul>
                     </div>
 
@@ -255,6 +261,7 @@
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
         const startScreen = document.getElementById('start-screen'); const gameOverScreen = document.getElementById('game-over-screen');
         const hudScore = document.getElementById('hud-score'); const hudTotalScore = document.getElementById('hud-total-score');
+        const hudCombo = document.getElementById('hud-combo');
         const hudHighScore = document.getElementById('hud-highscore'); const hudTrack = document.getElementById('hud-track');
         const hudLevel = document.getElementById('hud-level'); const hudDimension = document.getElementById('hud-dimension');
         const hudCounterBlue = document.getElementById('counter-blue'); const hudCounterGreen = document.getElementById('counter-green');
@@ -374,6 +381,8 @@
         function sfxAnomaly() { sfxTone(200, 0.4, 'sawtooth', 0.16, 600); }
         function sfxDimension() { sfxTone(300, 0.5, 'sine', 0.2, 900); }
         function sfxGameOver() { sfxTone(300, 0.6, 'sawtooth', 0.2, 60); }
+        function sfxGraze() { sfxTone(1100, 0.06, 'sine', 0.09, 1500); }
+        function sfxComboTierUp() { sfxTone(600, 0.08, 'square', 0.12, 1000); sfxTone(1000, 0.1, 'square', 0.12, 1600, 0.06); }
 
         // ==========================================
         // GAME ENGINE ENTITIES & LOGIC
@@ -489,7 +498,8 @@
         let trenchGap = 1000; let portalWarningTimer = 0; 
         let currentDimension = 1; let nextDimThreshold = 45000;
         let collectedBlue = 0; let collectedGreen = 0;
-        
+        let killStreak = 0; let comboMultiplier = 1; const COMBO_MAX = 2.5;
+
         let particles = [], stars = [], entities = [], projectiles = [], enemyProjectiles = [];
         let powerUpActive = false, powerUpTimer = 0; let sideShotActive = false, sideShotTimer = 0; let doubleShipActive = false, doubleShipTimer = 0;
         let rocket3Active = false, rocket3Timer = 0; let rocket3Cooldown = 0; const ROCKET3_DURATION = 900; 
@@ -630,7 +640,8 @@
                 this.speedY = type === 'enemy' || type === 'octo' ? gameSpeed * (0.8 + Math.random() * 0.5) : gameSpeed;
                 this.markedForDeletion = false; this.rotation = 0; this.rotationSpeed = (Math.random() - 0.5) * 0.1;
                 this.oscillationOffset = Math.random() * Math.PI * 2; this.shapeVariant = Math.floor(Math.random() * 3);
-                this.inTrench = false; 
+                this.inTrench = false;
+                this.grazed = false;
             }
             update() {
                 if (this.type === 'enemyship') {
@@ -785,6 +796,32 @@
         function updateCounters() { hudCounterBlue.innerText = `SIGHT: ${collectedBlue}/5`; hudCounterGreen.innerText = `EGO: ${collectedGreen}/3`; hudLives.innerText = `LIVES: ${playerLives}`; }
 
         // ==========================================
+        // SKILL EXPRESSION: kill streak -> combo multiplier, near-miss grazing
+        // Streak grows from kills and grazes, resets when the player takes a hit.
+        // Every 5 in the streak adds +0.1x, capped at COMBO_MAX.
+        // ==========================================
+        function updateComboMultiplier() {
+            const prevMultiplier = comboMultiplier;
+            comboMultiplier = Math.min(COMBO_MAX, 1 + Math.floor(killStreak / 5) * 0.1);
+            if (killStreak <= 0) { hudCombo.classList.remove('combo-active'); return; }
+            hudCombo.innerText = `COMBO x${comboMultiplier.toFixed(1)}  (STREAK ${killStreak})`;
+            hudCombo.classList.add('combo-active');
+            if (comboMultiplier > prevMultiplier) {
+                sfxComboTierUp();
+                hudCombo.classList.add('combo-pulse');
+                setTimeout(() => hudCombo.classList.remove('combo-pulse'), 150);
+            }
+        }
+        function registerKill() { killStreak++; updateComboMultiplier(); }
+        function resetCombo() { killStreak = 0; comboMultiplier = 1; hudCombo.classList.remove('combo-active'); }
+        function registerGraze(x, y) {
+            killStreak++; updateComboMultiplier();
+            bonusPoints += 25;
+            sfxGraze();
+            createParticle(x, y, 'thrust');
+        }
+
+        // ==========================================
         // SPAWN WEIGHT TABLES (data-driven, replaces 4 duplicated rand-threshold chains)
         // ==========================================
         const SPAWN_TABLES = {
@@ -846,6 +883,7 @@
             gameRunning = true; distanceTraveled = 0; bonusPoints = 0; gameSpeed = 8; globalSpeedMultiplier = 1;
             playerLives = 3; invulnerableTimer = 0; rocket3Cooldown = 0; trenchGap = WIDTH; portalWarningTimer = 0;
             collectedBlue = 0; collectedGreen = 0; anomalyActive = false; anomalyTimer = 0; anomalyType = 'normal';
+            killStreak = 0; comboMultiplier = 1; hudCombo.classList.remove('combo-active');
             currentDimension = 1; nextDimThreshold = 45000;
             entities = []; particles = []; projectiles = []; enemyProjectiles = [];
             powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
@@ -864,6 +902,7 @@
 
         function triggerPlayerHit() {
             sfxPlayerHit();
+            resetCombo();
             playerLives--; updateCounters();
             createParticle(ship.x, ship.y, 'explosion'); for(let i=0; i<15; i++) createParticle(ship.x, ship.y, 'explosion');
             
@@ -988,8 +1027,8 @@
                     if (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') {
                         if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) {
                             if (ent.type === 'octo') { sfxBigExplosion(); maybeShowTutorialTip('octo'); } else sfxHit();
-                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; bonusPoints += 250;
-                            if(ent.type === 'octo') bonusPoints += 2000;
+                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier);
+                            if(ent.type === 'octo') bonusPoints += Math.round(2000 * comboMultiplier);
                             
                             // SHATTER SHIELD LOGIC
                             if (powerUpActive && !rocket3Active && !doubleShipActive) {
@@ -1005,6 +1044,13 @@
                     else if (ent.type === 'astronaut') { sfxPowerBig(); maybeShowTutorialTip('astronaut'); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'rocket3_item') { sfxPowerBig(); maybeShowTutorialTip('rocket3_item'); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'portal') { ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); maybeShowTutorialTip('portal'); }
+                } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
+                    // Near-miss: passed close without touching. Reward risky flying, once per entity.
+                    const grazeScale = hitBoxScale * 1.8;
+                    if (dx < (ship.width/2 + ent.width/2) * grazeScale && dy < (ship.height/2 + ent.height/2) * grazeScale) {
+                        ent.grazed = true;
+                        registerGraze(ent.x, ent.y);
+                    }
                 }
             });
 
@@ -1038,10 +1084,10 @@
                             if (ent.type === 'octo') {
                                 maybeShowTutorialTip('octo');
                                 ent.hp--; createParticle(proj.x, proj.y, 'explosion');
-                                if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; bonusPoints += 2000; for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                                if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(2000 * comboMultiplier); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
                                 else sfxHit();
                             } else {
-                                sfxHit(); ent.markedForDeletion = true; bonusPoints += 250; for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
+                                sfxHit(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
                             }
                         }
                     }
