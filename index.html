@@ -196,7 +196,7 @@
                     </div>
 
                     <div class="leaderboard-panel flex-shrink-0 w-full md:w-1/2 mt-0">
-                        <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
+                        <h3>ASTRONAUT RANKINGS - ELITE 8</h3>
                         <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
                         <div id="lb-content-start">
                             <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
@@ -220,10 +220,20 @@
                     <p id="final-depth" class="text-xl md:text-2xl mt-0.5 md:mt-1 text-cyan-300 font-vt323"></p>
                     <p id="final-highscore" class="text-lg md:text-xl mt-0.5 text-gray-400 font-vt323 hidden"></p>
                     <p id="new-record" class="text-yellow-400 font-bold mt-1 hidden text-lg animate-bounce">NEW LOCAL HIGH SCORE</p>
+                    <div class="hidden md:block w-full">
+                        <div class="insta-cta">
+                            <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
+                                SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
+                            </p>
+                            <a href="https://instagram.com/theinvisiblepanchos" target="_blank">
+                                <img src="./instagram%20logo.png" class="insta-logo" alt="Instagram">
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="leaderboard-panel flex-shrink-0 w-full max-w-xs md:w-80 mt-2 md:mt-0 mb-1">
-                    <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
+                    <h3>ASTRONAUT RANKINGS - ELITE 8</h3>
                     <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
                     <div id="lb-content-gameover">
                         <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
@@ -240,13 +250,15 @@
                 <p id="submit-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
             </div>
 
-            <div class="insta-cta">
-                <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
-                    SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
-                </p>
-                <a href="https://instagram.com/theinvisiblepanchos" target="_blank">
-                    <img src="./instagram%20logo.png" class="insta-logo" alt="Instagram">
-                </a>
+            <div class="md:hidden">
+                <div class="insta-cta">
+                    <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
+                        SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
+                    </p>
+                    <a href="https://instagram.com/theinvisiblepanchos" target="_blank">
+                        <img src="./instagram%20logo.png" class="insta-logo" alt="Instagram">
+                    </a>
+                </div>
             </div>
 
             <button id="restart-btn" class="btn">ATTEMPT RE-ENTRY</button>
@@ -311,7 +323,7 @@
         async function fetchLeaderboard() {
             if(!db) return;
             try {
-                const { data, error } = await db.from('void_runner_scores').select('username, score').order('score', { ascending: false }).limit(5);
+                const { data, error } = await db.from('void_runner_scores').select('username, score').order('score', { ascending: false }).limit(8);
                 if (error) throw error;
                 let lbHTML = ''; topScoreCount = data ? data.length : 0;
                 
@@ -420,6 +432,8 @@
         const cloud2Sprite = new Image();
         const sourceLogoSprite = new Image();
         const wingShipSprite = new Image();
+        const cobraSprite = new Image();
+        const superEgoSprite = new Image();
 
         let WIDTH, HEIGHT;
         const COLORS = { bg: '#050505', ship: '#00fff9', enemy: '#ff0055', orb: '#f6e05e', powerup: '#3b82f6', alien: '#10b981', shot: '#60a5fa' };
@@ -430,7 +444,7 @@
         // (blocks game start until sprites load; pre-bakes glow halos
         //  once so Entity.draw() doesn't pay ctx.shadowBlur every frame)
         // ==========================================
-        const ALL_SPRITES = [shipSprite, aztecSprite, blueEyeSprite, redShardSprite, alienSprite, astronautSprite, snakeSprite, rocket3Sprite, octoSprite, enemyShipSprite, portalSprite, sourceSprite, cloudSprite, cloud2Sprite, sourceLogoSprite, wingShipSprite];
+        const ALL_SPRITES = [shipSprite, aztecSprite, blueEyeSprite, redShardSprite, alienSprite, astronautSprite, snakeSprite, rocket3Sprite, octoSprite, enemyShipSprite, portalSprite, sourceSprite, cloudSprite, cloud2Sprite, sourceLogoSprite, wingShipSprite, cobraSprite, superEgoSprite];
         let spritesLoadedCount = 0; let assetsReady = false;
         const GLOW = {};
 
@@ -462,6 +476,8 @@
             GLOW.enemyShard = makeGlowSprite(redShardSprite, 64, 64, COLORS.enemy, 15);
             GLOW.source = makeGlowSprite(sourceSprite, 150, 149, '#e879f9', 35);
             GLOW.source_logo = makeGlowSprite(sourceLogoSprite, 60, 60, '#facc15', 25);
+            GLOW.cobra = makeGlowSprite(cobraSprite, 130, 129, '#22c55e', 30);
+            GLOW.superego = makeGlowSprite(superEgoSprite, 130, 129, '#f43f5e', 30);
 
             const enemyShapePath = (variant) => (cctx) => {
                 cctx.fillStyle = 'rgba(20, 0, 5, 0.9)'; cctx.strokeStyle = COLORS.enemy; cctx.lineWidth = 3; cctx.beginPath();
@@ -507,6 +523,8 @@
         cloud2Sprite.src = "./cloud2.png";
         sourceLogoSprite.src = "./theinvisiblepanchos.png";
         wingShipSprite.src = "./wingship.png";
+        cobraSprite.src = "./snakeboss.png";
+        superEgoSprite.src = "./brainboss.png";
 
         const PLAYLIST = [
             { title: "BE RIGHT BACK", url: "./BE%20RIGHT%20BACK.mp3" }, { title: "SOLITARY", url: "./SOLITARY.mp3" },
@@ -536,6 +554,16 @@
         // THE SOURCE: rare boss, Dissolve/Remember Home choice, memory-flight bonus mode
         // ==========================================
         let sourceCooldown = 0; const SOURCE_COOLDOWN_FRAMES = 5400; const SOURCE_MIN_SCORE = 30000; // 90s cooldown, rare-but-recurring
+
+        // ==========================================
+        // ANOMALY CAPSTONE BOSSES: Cobra (toxic) and Super Ego (enemy zone)
+        // Eligibility is rolled once when the anomaly starts; the actual spawn happens
+        // partway through if eligible, gated by its own cooldown so it can't recur back-to-back.
+        // ==========================================
+        let cobraCooldown = 0; const COBRA_COOLDOWN_FRAMES = 3600; const COBRA_MIN_SCORE = 10000; // 60s cooldown
+        let cobraEligibleThisAnomaly = false, cobraSpawned = false;
+        let superEgoCooldown = 0; const SUPER_EGO_COOLDOWN_FRAMES = 3600; const SUPER_EGO_MIN_SCORE = 15000; // 60s cooldown
+        let superEgoEligibleThisAnomaly = false, superEgoSpawned = false;
         let choiceModalActive = false;
         let memoryFlightActive = false, memoryFlightTimer = 0; const MEMORY_FLIGHT_DURATION = 900; // 15s
         let memoryLogoSpawned = false, memoryLogoCaught = false;
@@ -661,9 +689,9 @@
         }
 
         class EnemyProjectile {
-            constructor(x, y, vx = 0, vy = 10) { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.width = 6; this.height = 16; this.markedForDeletion = false; }
+            constructor(x, y, vx = 0, vy = 10, color = '#ff0055') { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.width = 6; this.height = 16; this.markedForDeletion = false; this.color = color; }
             update() { this.x += this.vx; this.y += this.vy; if (this.y > HEIGHT + 50 || this.x < -50 || this.x > WIDTH + 50) this.markedForDeletion = true; }
-            draw() { ctx.save(); ctx.translate(this.x, this.y); let angle = Math.atan2(this.vy, this.vx) - Math.PI/2; ctx.rotate(angle); ctx.fillStyle = '#ff0055'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff0055'; ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height); ctx.restore(); }
+            draw() { ctx.save(); ctx.translate(this.x, this.y); let angle = Math.atan2(this.vy, this.vx) - Math.PI/2; ctx.rotate(angle); ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height); ctx.restore(); }
         }
 
         class Entity {
@@ -682,6 +710,8 @@
                 else if (type === 'cloud') { this.width = 90; this.height = 49; }
                 else if (type === 'cloud2') { this.width = 80; this.height = 68; }
                 else if (type === 'source_logo') { this.width = 60; this.height = 60; }
+                else if (type === 'cobra') { this.width = 130; this.height = 129; this.hp = 8; this.shotTimer = 100; this.summonTimer = 300; this.hovering = false; }
+                else if (type === 'superego') { this.width = 130; this.height = 129; this.hp = 7; this.shotTimer = 120; this.hovering = false; }
 
                 this.x = Math.random() * (WIDTH - this.width) + this.width/2; this.y = -100;
                 this.speedY = type === 'enemy' || type === 'octo' ? gameSpeed * (0.8 + Math.random() * 0.5) : gameSpeed;
@@ -710,9 +740,38 @@
                     this.y += this.speedY * 0.8 * globalSpeedMultiplier;
                     if (!this.inTrench) this.x += Math.sin(frameCount * 0.02 + this.oscillationOffset) * 3;
                 } else if (this.type === 'source') {
-                    this.y += this.speedY * 0.4 * globalSpeedMultiplier;
+                    this.y += this.speedY * 0.2 * globalSpeedMultiplier;
                     this.x += Math.sin(frameCount * 0.015 + this.oscillationOffset) * 2.5;
                     this.rotation = Math.sin(frameCount * 0.01) * 0.05;
+                } else if (this.type === 'cobra') {
+                    if (!this.hovering) { this.y += this.speedY * 0.5 * globalSpeedMultiplier; if (this.y >= 130) this.hovering = true; }
+                    else {
+                        this.y = 130 + Math.sin(frameCount * 0.02 + this.oscillationOffset) * 12;
+                        this.x = Math.min(WIDTH - this.width / 2, Math.max(this.width / 2, WIDTH / 2 + Math.sin(frameCount * 0.012 + this.oscillationOffset) * 140));
+                        this.rotation = Math.sin(frameCount * 0.012 + this.oscillationOffset) * 0.15;
+                        this.shotTimer--;
+                        if (this.shotTimer <= 0) {
+                            this.shotTimer = 100;
+                            enemyProjectiles.push(new EnemyProjectile(this.x - 20, this.y + this.height / 2 - 20, -1.5, 6, '#22c55e'));
+                            enemyProjectiles.push(new EnemyProjectile(this.x + 20, this.y + this.height / 2 - 20, 1.5, 6, '#22c55e'));
+                        }
+                        this.summonTimer--;
+                        if (this.summonTimer <= 0) {
+                            this.summonTimer = 300;
+                            for (let i = 0; i < 2; i++) { let s = new Entity('snake'); s.x = this.x + (i === 0 ? -40 : 40); s.y = this.y - 60 - (i * 60); entities.push(s); }
+                        }
+                    }
+                } else if (this.type === 'superego') {
+                    if (!this.hovering) { this.y += this.speedY * 0.5 * globalSpeedMultiplier; if (this.y >= 130) this.hovering = true; }
+                    else {
+                        this.y = 130 + Math.sin(frameCount * 0.015 + this.oscillationOffset) * 8;
+                        this.shotTimer--;
+                        if (this.shotTimer <= 0) {
+                            this.shotTimer = 110;
+                            const dx = ship.x - this.x, dy = ship.y - this.y, dist = Math.max(1, Math.hypot(dx, dy)), speed = 7;
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y + this.height / 2 - 20, (dx / dist) * speed, (dy / dist) * speed, '#f43f5e'));
+                        }
+                    }
                 } else if (this.type === 'snake') {
                     this.y += this.speedY * 1.5 * globalSpeedMultiplier; 
                     if (!this.inTrench) this.x += Math.sin(frameCount * 0.1 + this.oscillationOffset) * 3; 
@@ -750,6 +809,15 @@
                     ctx.rotate(this.rotation);
                     drawGlow(GLOW.source);
                     if (this.hp < 10) { ctx.fillStyle = '#1f0a2e'; ctx.fillRect(-35, -this.height/2 - 14, 70, 6); ctx.fillStyle = '#e879f9'; ctx.fillRect(-35, -this.height/2 - 14, 7 * this.hp, 6); }
+                }
+                else if (this.type === 'cobra') {
+                    ctx.rotate(this.rotation);
+                    drawGlow(GLOW.cobra);
+                    if (this.hp < 8) { ctx.fillStyle = '#0f2e1a'; ctx.fillRect(-40, -this.height/2 - 14, 80, 6); ctx.fillStyle = '#22c55e'; ctx.fillRect(-40, -this.height/2 - 14, 10 * this.hp, 6); }
+                }
+                else if (this.type === 'superego') {
+                    drawGlow(GLOW.superego);
+                    if (this.hp < 7) { ctx.fillStyle = '#2e0f14'; ctx.fillRect(-35, -this.height/2 - 14, 70, 6); ctx.fillStyle = '#f43f5e'; ctx.fillRect(-35, -this.height/2 - 14, 10 * this.hp, 6); }
                 }
                 else if (this.type === 'cloud') { ctx.shadowBlur = 12; ctx.shadowColor = '#bfe4ff'; ctx.drawImage(cloudSprite, -this.width/2, -this.height/2, this.width, this.height); }
                 else if (this.type === 'cloud2') { ctx.shadowBlur = 16; ctx.shadowColor = '#93c5fd'; ctx.drawImage(cloud2Sprite, -this.width/2, -this.height/2, this.width, this.height); }
@@ -950,7 +1018,9 @@
             powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
             sourceCooldown = 0; choiceModalActive = false; memoryFlightActive = false; memoryFlightTimer = 0;
             memoryLogoSpawned = false; memoryLogoCaught = false; sourceChoiceScreen.classList.add('hidden');
-            
+            cobraCooldown = 0; cobraEligibleThisAnomaly = false; cobraSpawned = false;
+            superEgoCooldown = 0; superEgoEligibleThisAnomaly = false; superEgoSpawned = false;
+
             snakeWarning.style.opacity = '0';
             tutorialToast.style.opacity = '0';
             if (quoteTimer) { clearTimeout(quoteTimer); quoteTimer = null; }
@@ -1038,6 +1108,50 @@
             fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
         }
 
+        function announceCobraEncounter() {
+            const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+            levelUpMsgTimer = setTimeout(() => {
+                levelUpMsg.innerHTML = "THE COBRA COILS"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#22c55e'; levelUpMsg.style.textShadow = '0 0 20px #22c55e';
+                levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
+            }, wait);
+            sfxAnomaly(); vibrate([60, 40, 60, 40, 120]);
+        }
+
+        function triggerCobraDefeat(ent) {
+            sfxBigExplosion(); vibrate([100, 50, 100, 50, 200]);
+            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion');
+            registerKill(); bonusPoints += Math.round(3000 * comboMultiplier);
+            cobraCooldown = COBRA_COOLDOWN_FRAMES;
+            if (anomalyActive && anomalyType === 'green') {
+                anomalyActive = false; hudLevel.innerText = "ZONE: DEEP SPACE";
+                bonusPoints += 10000;
+                showPanchoPower("TOXIC ANOMALY PURGED<br><span style='color:#22c55e'>+10000</span>");
+            }
+        }
+
+        function announceSuperEgoEncounter() {
+            const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+            levelUpMsgTimer = setTimeout(() => {
+                levelUpMsg.innerHTML = "THE SUPER EGO JUDGES"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#f43f5e'; levelUpMsg.style.textShadow = '0 0 20px #f43f5e';
+                levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
+            }, wait);
+            sfxAnomaly(); vibrate([60, 40, 60, 40, 120]);
+        }
+
+        function triggerSuperEgoDefeat(ent) {
+            sfxBigExplosion(); vibrate([100, 50, 100, 50, 200]);
+            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion');
+            registerKill(); bonusPoints += Math.round(3000 * comboMultiplier);
+            superEgoCooldown = SUPER_EGO_COOLDOWN_FRAMES;
+            if (anomalyActive && anomalyType === 'enemy') {
+                anomalyActive = false; hudLevel.innerText = "ZONE: DEEP SPACE";
+                bonusPoints += 10000;
+                showPanchoPower("ENEMY ZONE PURGED<br><span style='color:#f43f5e'>+10000</span>");
+            }
+        }
+
         function chooseDissolve() {
             sourceChoiceScreen.classList.add('hidden');
             choiceModalActive = false;
@@ -1085,6 +1199,12 @@
                 portalWarningTimer = 180; trenchGap = WIDTH; color = '#ef4444'; shadow = '0 0 20px #ef4444';
             }
             else { html = "ENTERING ANOMALY"; color = '#f6e05e'; shadow = '0 0 15px #f6e05e'; }
+
+            const scoreAtAnomalyStart = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
+            cobraSpawned = false;
+            cobraEligibleThisAnomaly = anomalyType === 'green' && cobraCooldown <= 0 && scoreAtAnomalyStart > COBRA_MIN_SCORE && Math.random() < 0.25;
+            superEgoSpawned = false;
+            superEgoEligibleThisAnomaly = anomalyType === 'enemy' && superEgoCooldown <= 0 && scoreAtAnomalyStart > SUPER_EGO_MIN_SCORE && Math.random() < 0.25;
 
             if (anomalyType === 'trench') {
                 // Tied to the live portalWarningTimer countdown that's already running - must show now, can't queue behind other text.
@@ -1162,8 +1282,8 @@
                     else if (ent.type === 'astronaut') { sfxPowerBig(); vibrate([20,30,20]); maybeShowTutorialTip('astronaut'); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'rocket3_item') { sfxPowerBig(); vibrate([20,30,20]); maybeShowTutorialTip('rocket3_item'); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'portal') { vibrate([20,30,20]); ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); maybeShowTutorialTip('portal'); }
-                    else if (ent.type === 'source') {
-                        // Shielded body contact just bounces off - The Source only goes down to real
+                    else if (ent.type === 'source' || ent.type === 'cobra' || ent.type === 'superego') {
+                        // Shielded body contact just bounces off - these bosses only go down to real
                         // projectile damage, so a lucky power-up touch can't trivialize the fight.
                         if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { createParticle(ent.x, ent.y, 'explosion'); }
                         else if (invulnerableTimer <= 0) { triggerPlayerHit(); }
@@ -1213,7 +1333,7 @@
 
             projectiles.forEach(proj => {
                 entities.forEach(ent => {
-                    if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'source') && !ent.markedForDeletion && !proj.markedForDeletion) {
+                    if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'source' || ent.type === 'cobra' || ent.type === 'superego') && !ent.markedForDeletion && !proj.markedForDeletion) {
                         const dx = Math.abs(proj.x - ent.x); const dy = Math.abs(proj.y - ent.y);
                         if (dx < (ent.width/2 + proj.width/2) && dy < (ent.height/2 + proj.height/2)) {
                             proj.markedForDeletion = true;
@@ -1225,6 +1345,14 @@
                             } else if (ent.type === 'source') {
                                 ent.hp--; createParticle(proj.x, proj.y, 'explosion');
                                 if (ent.hp <= 0) { ent.markedForDeletion = true; triggerSourceDefeat(ent); }
+                                else sfxHit();
+                            } else if (ent.type === 'cobra') {
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                if (ent.hp <= 0) { ent.markedForDeletion = true; triggerCobraDefeat(ent); }
+                                else sfxHit();
+                            } else if (ent.type === 'superego') {
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                if (ent.hp <= 0) { ent.markedForDeletion = true; triggerSuperEgoDefeat(ent); }
                                 else sfxHit();
                             } else {
                                 sfxHit(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
@@ -1302,6 +1430,8 @@
                     if (rocket3Active) { rocket3Timer--; if (rocket3Timer <= 0) { rocket3Active = false; rocket3Cooldown = 1800; } }
                     if (rocket3Cooldown > 0) rocket3Cooldown--;
                     if (sourceCooldown > 0) sourceCooldown--;
+                    if (cobraCooldown > 0) cobraCooldown--;
+                    if (superEgoCooldown > 0) superEgoCooldown--;
 
                     if (memoryFlightActive) {
                         memoryFlightTimer--;
@@ -1383,11 +1513,28 @@
                         let astroExists = entities.some(e => e.type === 'astronaut');
                         let rocket3Exists = entities.some(e => e.type === 'rocket3_item');
                         let sourceExists = entities.some(e => e.type === 'source');
+                        let cobraExists = entities.some(e => e.type === 'cobra');
+                        let superEgoExists = entities.some(e => e.type === 'superego');
 
                         // The Source: rare-but-recurring, only in open space (not mid-anomaly), well-gated by score+cooldown.
                         if (!sourceExists && !anomalyActive && sourceCooldown <= 0 && currentTotalScore > SOURCE_MIN_SCORE && Math.random() < 0.05) {
                             entities.push(new Entity('source'));
                             announceSourceEncounter();
+                            spawnedSpecial = true;
+                        }
+
+                        // Cobra / Super Ego: anomaly capstones - eligibility was rolled once when the anomaly
+                        // started, actual spawn waits until the anomaly is half over so it isn't instant.
+                        if (!spawnedSpecial && cobraEligibleThisAnomaly && !cobraSpawned && !cobraExists && anomalyActive && anomalyType === 'green' && (ANOMALY_DURATION - anomalyTimer) > 900) {
+                            entities.push(new Entity('cobra'));
+                            cobraSpawned = true; cobraCooldown = COBRA_COOLDOWN_FRAMES;
+                            announceCobraEncounter();
+                            spawnedSpecial = true;
+                        }
+                        if (!spawnedSpecial && superEgoEligibleThisAnomaly && !superEgoSpawned && !superEgoExists && anomalyActive && anomalyType === 'enemy' && (ANOMALY_DURATION - anomalyTimer) > 900) {
+                            entities.push(new Entity('superego'));
+                            superEgoSpawned = true; superEgoCooldown = SUPER_EGO_COOLDOWN_FRAMES;
+                            announceSuperEgoEncounter();
                             spawnedSpecial = true;
                         }
 
