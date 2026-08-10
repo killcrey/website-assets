@@ -1539,7 +1539,7 @@
                         }
 
                         if (!spawnedSpecial && anomalyActive && anomalyType === 'green') {
-                            if (rand > 0.50) {
+                            if (rand > 0.70) {
                                 let numSnakes = 2 + Math.floor(Math.random() * 3);
                                 let startX = Math.random() * WIDTH;
                                 for(let i=0; i<numSnakes; i++) { let s = new Entity('snake'); s.x = startX; s.y = -50 - (i * 180); entities.push(s); }
