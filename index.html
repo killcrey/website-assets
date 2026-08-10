@@ -527,7 +527,12 @@
         
         btnMute.addEventListener('click', toggleMute); btnSkip.addEventListener('click', () => playTrack(currentTrackIndex + 1));
         function bootstrapAudio() { if (!audioInitialized) { try { initAudio(); initAudioEngine(); audioInitialized = true; } catch(e) { console.log(e); } } }
+        // Multiple gesture types: iOS Safari doesn't reliably treat pointerdown/touchstart as a
+        // valid gesture for unlocking audio, it wants click or touchend. bootstrapAudio() is
+        // idempotent (guarded by audioInitialized), so whichever fires first wins.
         document.addEventListener('pointerdown', bootstrapAudio, { once: true });
+        document.addEventListener('click', bootstrapAudio, { once: true });
+        document.addEventListener('touchend', bootstrapAudio, { once: true });
 
         const ship = {
             x: 0, y: 0, width: 65, height: 65, targetX: 0, targetY: 0, 
