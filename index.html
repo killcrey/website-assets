@@ -471,7 +471,7 @@
         let powerUpActive = false, powerUpTimer = 0; let sideShotActive = false, sideShotTimer = 0; let doubleShipActive = false, doubleShipTimer = 0;
         let rocket3Active = false, rocket3Timer = 0; let rocket3Cooldown = 0; const ROCKET3_DURATION = 900; 
         
-        let quoteTimer = null, trackTimer = null; let currentTrackIndex = 0, isMuted = false;
+        let quoteTimer = null, trackTimer = null, levelUpMsgTimer = null; let currentTrackIndex = 0, isMuted = false;
         let lastQuoteFrame = -999999; const QUOTE_COOLDOWN_FRAMES = 600; // ~10s at 60fps, keeps quotes from flashing back-to-back
         let panchoPowerTimer = null, hudLivesFlashTimer = null, playerHitFlashTimer = null;
         let lastTime = 0; const fpsInterval = 1000 / 60;
@@ -485,7 +485,37 @@
         }
         function initAudio() { const startIndex = Math.floor(Math.random() * PLAYLIST.length); playTrack(startIndex); bgMusic.addEventListener('ended', () => { playTrack(currentTrackIndex + 1); }); }
         function toggleMute() { isMuted = !isMuted; if (isMuted) { bgMusic.pause(); iconSoundOn.classList.add('hidden'); iconSoundOff.classList.remove('hidden'); } else { bgMusic.play().then(() => initAudioEngine()); iconSoundOn.classList.remove('hidden'); iconSoundOff.classList.add('hidden'); } }
-        function showPanchoPower(msg = "PANCHO POWER") { panchoPowerMsg.innerHTML = msg; panchoPowerMsg.classList.add('pancho-active'); if (panchoPowerTimer) clearTimeout(panchoPowerTimer); panchoPowerTimer = setTimeout(() => { panchoPowerMsg.classList.remove('pancho-active'); }, 1500); }
+        // ==========================================
+        // OVERLAY TEXT COORDINATOR
+        // Keeps quote/pancho-power/tutorial-toast/level-up text from stacking on
+        // screen at once. Each caller reserves a time slot; if the slot is busy,
+        // the caller waits its turn instead of showing immediately. Nothing gets
+        // dropped, it just queues - except forceClaimOverlay(), used only for the
+        // trench portal warning, which is tied to a live on-screen countdown and
+        // can't be delayed without confusing the player.
+        // ==========================================
+        let overlayBusyUntil = 0;
+        function claimOverlaySlot(durationMs) {
+            const now = performance.now();
+            const wait = Math.max(0, overlayBusyUntil - now);
+            overlayBusyUntil = now + wait + durationMs;
+            return wait;
+        }
+        function forceClaimOverlay(durationMs) {
+            quoteBox.style.opacity = 0; if (quoteTimer) { clearTimeout(quoteTimer); quoteTimer = null; }
+            panchoPowerMsg.classList.remove('pancho-active'); if (panchoPowerTimer) { clearTimeout(panchoPowerTimer); panchoPowerTimer = null; }
+            tutorialToast.style.opacity = 0; if (tutorialToastTimer) { clearTimeout(tutorialToastTimer); tutorialToastTimer = null; }
+            overlayBusyUntil = performance.now() + durationMs;
+        }
+
+        function showPanchoPower(msg = "PANCHO POWER") {
+            const duration = 1500; const wait = claimOverlaySlot(duration);
+            if (panchoPowerTimer) clearTimeout(panchoPowerTimer);
+            panchoPowerTimer = setTimeout(() => {
+                panchoPowerMsg.innerHTML = msg; panchoPowerMsg.classList.add('pancho-active');
+                panchoPowerTimer = setTimeout(() => { panchoPowerMsg.classList.remove('pancho-active'); }, duration);
+            }, wait);
+        }
         
         btnMute.addEventListener('click', toggleMute); btnSkip.addEventListener('click', () => playTrack(currentTrackIndex + 1));
         function bootstrapAudio() { if (!audioInitialized) { try { initAudio(); initAudioEngine(); audioInitialized = true; } catch(e) { console.log(e); } } }
@@ -678,14 +708,23 @@
             const tip = TUTORIAL_TIPS[type]; if (!tip) return;
             const key = 'layers_seen_' + type; if (localStorage.getItem(key)) return;
             localStorage.setItem(key, '1');
-            tutorialToast.innerText = tip; tutorialToast.style.opacity = 1;
+            const duration = 4000; const wait = claimOverlaySlot(duration);
             if (tutorialToastTimer) clearTimeout(tutorialToastTimer);
-            tutorialToastTimer = setTimeout(() => tutorialToast.style.opacity = 0, 4000);
+            tutorialToastTimer = setTimeout(() => {
+                tutorialToast.innerText = tip; tutorialToast.style.opacity = 1;
+                tutorialToastTimer = setTimeout(() => tutorialToast.style.opacity = 0, duration);
+            }, wait);
         }
         function showQuote() {
             if (frameCount - lastQuoteFrame < QUOTE_COOLDOWN_FRAMES) return;
             lastQuoteFrame = frameCount;
-            const quote = VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]; quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1; if (quoteTimer) clearTimeout(quoteTimer); quoteTimer = setTimeout(() => quoteBox.style.opacity = 0, 3000);
+            const quote = VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)];
+            const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (quoteTimer) clearTimeout(quoteTimer);
+            quoteTimer = setTimeout(() => {
+                quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1;
+                quoteTimer = setTimeout(() => quoteBox.style.opacity = 0, duration);
+            }, wait);
         }
         function updateCounters() { hudCounterBlue.innerText = `SIGHT: ${collectedBlue}/5`; hudCounterGreen.innerText = `EGO: ${collectedGreen}/3`; hudLives.innerText = `LIVES: ${playerLives}`; }
 
@@ -757,6 +796,11 @@
             
             snakeWarning.style.opacity = '0';
             tutorialToast.style.opacity = '0';
+            if (quoteTimer) { clearTimeout(quoteTimer); quoteTimer = null; }
+            if (panchoPowerTimer) { clearTimeout(panchoPowerTimer); panchoPowerTimer = null; }
+            if (tutorialToastTimer) { clearTimeout(tutorialToastTimer); tutorialToastTimer = null; }
+            if (levelUpMsgTimer) { clearTimeout(levelUpMsgTimer); levelUpMsgTimer = null; }
+            overlayBusyUntil = 0;
 
             ship.init(); updateCounters(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden'); document.getElementById('score-submit-ui').classList.add('hidden');
             hudScore.innerText = "DEPTH: 0m"; hudTotalScore.innerText = "SCORE: 0"; hudLevel.innerText = "ZONE: ORBIT"; hudDimension.innerText = "DIMENSION: 1"; hudLives.style.color = '#ef4444';
@@ -791,6 +835,11 @@
             quoteBox.style.opacity = '0';
             hudTrack.style.opacity = '0';
             flashOverlay.style.opacity = '0';
+            if (quoteTimer) { clearTimeout(quoteTimer); quoteTimer = null; }
+            if (panchoPowerTimer) { clearTimeout(panchoPowerTimer); panchoPowerTimer = null; }
+            if (tutorialToastTimer) { clearTimeout(tutorialToastTimer); tutorialToastTimer = null; }
+            if (levelUpMsgTimer) { clearTimeout(levelUpMsgTimer); levelUpMsgTimer = null; }
+            overlayBusyUntil = 0;
 
             if (finalScore > highScore) { highScore = finalScore; localStorage.setItem('layers_highscore', highScore); newRecordEl.classList.remove('hidden'); hudHighScore.innerText = `REC: ${highScore}`; }
             if(db) { 
@@ -815,29 +864,28 @@
                 else anomalyType = 'normal';
             }
             
-            if (anomalyType === 'green') {
-                levelUpMsg.innerHTML = "TOXIC ANOMALY BREACHED";
-                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
+            let html, color, shadow;
+            if (anomalyType === 'green') { html = "TOXIC ANOMALY BREACHED"; color = '#f6e05e'; shadow = '0 0 15px #f6e05e'; }
+            else if (anomalyType === 'enemy') { html = "ENEMY ZONE BREACHED"; color = '#f6e05e'; shadow = '0 0 15px #f6e05e'; }
+            else if (anomalyType === 'trench') {
+                html = "PANCHO PORTAL APPROACHING<br><span style='font-size:0.5em; color:#fff; display:block; margin-top:10px;' class='animate-pulse'>CENTER THE SHIP!!!</span>";
+                portalWarningTimer = 180; trenchGap = WIDTH; color = '#ef4444'; shadow = '0 0 20px #ef4444';
             }
-            else if (anomalyType === 'enemy') {
-                levelUpMsg.innerHTML = "ENEMY ZONE BREACHED";
-                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
+            else { html = "ENTERING ANOMALY"; color = '#f6e05e'; shadow = '0 0 15px #f6e05e'; }
+
+            if (anomalyType === 'trench') {
+                // Tied to the live portalWarningTimer countdown that's already running - must show now, can't queue behind other text.
+                forceClaimOverlay(5000);
+                levelUpMsg.innerHTML = html; levelUpMsg.style.color = color; levelUpMsg.style.textShadow = shadow; levelUpMsg.style.opacity = 1;
+            } else {
+                const duration = 3000; const wait = claimOverlaySlot(duration);
+                if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+                levelUpMsgTimer = setTimeout(() => {
+                    levelUpMsg.innerHTML = html; levelUpMsg.style.color = color; levelUpMsg.style.textShadow = shadow; levelUpMsg.style.opacity = 1;
+                    levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
+                }, wait);
             }
-            else if (anomalyType === 'trench') { 
-                levelUpMsg.innerHTML = "PANCHO PORTAL APPROACHING<br><span style='font-size:0.5em; color:#fff; display:block; margin-top:10px;' class='animate-pulse'>CENTER THE SHIP!!!</span>"; 
-                portalWarningTimer = 180; 
-                trenchGap = WIDTH; 
-                levelUpMsg.style.color = '#ef4444'; 
-                levelUpMsg.style.textShadow = '0 0 20px #ef4444';
-            }
-            else {
-                levelUpMsg.innerHTML = "ENTERING ANOMALY";
-                levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e';
-            }
-            
-            levelUpMsg.style.opacity = 1; 
-            if (anomalyType !== 'trench') setTimeout(() => levelUpMsg.style.opacity = 0, 3000);
-            
+
             flashOverlay.style.opacity = '0.4'; setTimeout(() => flashOverlay.style.opacity = '0', 200); collectedBlue = 0; collectedGreen = 0; updateCounters();
         }
 
@@ -845,8 +893,13 @@
             sfxDimension();
             currentDimension++; nextDimThreshold += 45000; hudDimension.innerText = `DIMENSION: ${currentDimension}`;
             const missionLine = MISSION_CONTROL_LINES[Math.floor(Math.random() * MISSION_CONTROL_LINES.length)];
-            levelUpMsg.innerHTML = `DIMENSION ${currentDimension} BREACHED<br><span style='font-size:0.4em; color:#00fff9; display:block; margin-top:10px;'>${missionLine}</span>`; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
-            setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, 4000);
+            const html = `DIMENSION ${currentDimension} BREACHED<br><span style='font-size:0.4em; color:#00fff9; display:block; margin-top:10px;'>${missionLine}</span>`;
+            const duration = 4000; const wait = claimOverlaySlot(duration);
+            if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+            levelUpMsgTimer = setTimeout(() => {
+                levelUpMsg.innerHTML = html; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
+                levelUpMsgTimer = setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, duration);
+            }, wait);
             flashOverlay.style.opacity = '0.8'; setTimeout(() => flashOverlay.style.opacity = '0', 400);
         }
 
@@ -894,7 +947,7 @@
                     else if (ent.type === 'alien') { sfxPickupGreen(); maybeShowTutorialTip('alien'); sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'astronaut') { sfxPowerBig(); maybeShowTutorialTip('astronaut'); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'rocket3_item') { sfxPowerBig(); maybeShowTutorialTip('rocket3_item'); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'portal') { maybeShowTutorialTip('portal'); ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); }
+                    else if (ent.type === 'portal') { ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); maybeShowTutorialTip('portal'); }
                 }
             });
 
