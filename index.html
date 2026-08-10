@@ -635,6 +635,17 @@
         document.addEventListener('pointerdown', bootstrapAudio, { once: true });
         document.addEventListener('click', bootstrapAudio, { once: true });
         document.addEventListener('touchend', bootstrapAudio, { once: true });
+        // In-app browsers (Instagram, TikTok, etc.) can silently ignore the first unlock gesture,
+        // so keep retrying on every subsequent tap during play - steering the ship means constant
+        // touches, giving the WebView many more chances to grant audio instead of just the one.
+        function retryAudioIfStuck() {
+            if (gameRunning && !isMuted && bgMusic && bgMusic.paused && bgMusic.src) {
+                bootstrapAudio();
+                bgMusic.play().then(() => initAudioEngine()).catch(() => {});
+            }
+        }
+        document.addEventListener('pointerdown', retryAudioIfStuck);
+        document.addEventListener('touchstart', retryAudioIfStuck, { passive: true });
 
         const ship = {
             x: 0, y: 0, width: 65, height: 65, targetX: 0, targetY: 0, 
