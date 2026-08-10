@@ -211,7 +211,7 @@
 
         <div id="game-over-screen" class="ui-layer hidden">
             <div class="flex flex-col items-center justify-center max-w-md md:max-w-3xl w-full px-4" style="pointer-events: auto;">
-            <h2 class="text-6xl md:text-7xl font-vt323 text-red-600 animate-pulse" style="text-shadow: 2px 2px 0px #000;">SIGNAL LOST</h2>
+            <h2 id="game-over-heading" class="text-6xl md:text-7xl font-vt323 text-red-600 animate-pulse" style="text-shadow: 2px 2px 0px #000;">SIGNAL LOST</h2>
             <p id="epilogue-line" class="text-sm md:text-base text-cyan-300 font-vt323 tracking-wide mt-0.5 opacity-80"></p>
 
             <div class="flex flex-col md:flex-row items-center md:items-start md:justify-center gap-1 md:gap-8 w-full max-w-xs md:max-w-none mt-1">
@@ -252,6 +252,16 @@
             <button id="restart-btn" class="btn">ATTEMPT RE-ENTRY</button>
             </div>
         </div>
+
+        <div id="source-choice-screen" class="ui-layer hidden">
+            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
+                <img src="./egolossboss.png" class="w-28 md:w-40 mx-auto mb-2" alt="The Source">
+                <h2 class="glitch" data-text="THE SOURCE" style="color:#e879f9;">THE SOURCE</h2>
+                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3">Dissolve into everything. Or remember the way back.</p>
+                <button id="dissolve-btn" class="btn w-full max-w-xs">DISSOLVE INTO THE SOURCE</button>
+                <button id="remember-btn" class="btn w-full max-w-xs" style="margin-top:12px;">REMEMBER HOME</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -275,6 +285,8 @@
         const finalScoreEl = document.getElementById('final-score'); const finalDepthEl = document.getElementById('final-depth');
         const finalHighScoreEl = document.getElementById('final-highscore'); const newRecordEl = document.getElementById('new-record');
         const epilogueLineEl = document.getElementById('epilogue-line');
+        const gameOverHeading = document.getElementById('game-over-heading');
+        const sourceChoiceScreen = document.getElementById('source-choice-screen');
         
         const bgMusic = document.getElementById('bg-music');
         const btnMute = document.getElementById('btn-mute'); const btnSkip = document.getElementById('btn-skip');
@@ -382,6 +394,10 @@
         function sfxDimension() { sfxTone(300, 0.5, 'sine', 0.2, 900); }
         function sfxGameOver() { sfxTone(300, 0.6, 'sawtooth', 0.2, 60); }
         function sfxGraze() { sfxTone(1100, 0.06, 'sine', 0.09, 1500); }
+
+        // Haptics: Android Chrome supports navigator.vibrate; iOS Safari does not (no API at all,
+        // Apple's platform limitation) - this silently no-ops there, same as any unsupported browser.
+        function vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
         function sfxComboTierUp() { sfxTone(600, 0.08, 'square', 0.12, 1000); sfxTone(1000, 0.1, 'square', 0.12, 1600, 0.06); }
 
         // ==========================================
@@ -399,6 +415,11 @@
         const octoSprite = new Image();
         const enemyShipSprite = new Image();
         const portalSprite = new Image();
+        const sourceSprite = new Image();
+        const cloudSprite = new Image();
+        const cloud2Sprite = new Image();
+        const sourceLogoSprite = new Image();
+        const wingShipSprite = new Image();
 
         let WIDTH, HEIGHT;
         const COLORS = { bg: '#050505', ship: '#00fff9', enemy: '#ff0055', orb: '#f6e05e', powerup: '#3b82f6', alien: '#10b981', shot: '#60a5fa' };
@@ -409,7 +430,7 @@
         // (blocks game start until sprites load; pre-bakes glow halos
         //  once so Entity.draw() doesn't pay ctx.shadowBlur every frame)
         // ==========================================
-        const ALL_SPRITES = [shipSprite, aztecSprite, blueEyeSprite, redShardSprite, alienSprite, astronautSprite, snakeSprite, rocket3Sprite, octoSprite, enemyShipSprite, portalSprite];
+        const ALL_SPRITES = [shipSprite, aztecSprite, blueEyeSprite, redShardSprite, alienSprite, astronautSprite, snakeSprite, rocket3Sprite, octoSprite, enemyShipSprite, portalSprite, sourceSprite, cloudSprite, cloud2Sprite, sourceLogoSprite, wingShipSprite];
         let spritesLoadedCount = 0; let assetsReady = false;
         const GLOW = {};
 
@@ -439,6 +460,8 @@
             GLOW.snake = makeGlowSprite(snakeSprite, 25, 25, '#10b981', 10);
             GLOW.rocket3_item = makeGlowSprite(rocket3Sprite, 45, 45, '#ffffff', 30);
             GLOW.enemyShard = makeGlowSprite(redShardSprite, 64, 64, COLORS.enemy, 15);
+            GLOW.source = makeGlowSprite(sourceSprite, 150, 149, '#e879f9', 35);
+            GLOW.source_logo = makeGlowSprite(sourceLogoSprite, 60, 60, '#facc15', 25);
 
             const enemyShapePath = (variant) => (cctx) => {
                 cctx.fillStyle = 'rgba(20, 0, 5, 0.9)'; cctx.strokeStyle = COLORS.enemy; cctx.lineWidth = 3; cctx.beginPath();
@@ -479,6 +502,11 @@
         octoSprite.src = "./octo.png";
         enemyShipSprite.src = "./enemyship.png";
         portalSprite.src = "./portal.png";
+        sourceSprite.src = "./egolossboss.png";
+        cloudSprite.src = "./cloud.png";
+        cloud2Sprite.src = "./cloud2.png";
+        sourceLogoSprite.src = "./theinvisiblepanchos.png";
+        wingShipSprite.src = "./wingship.png";
 
         const PLAYLIST = [
             { title: "BE RIGHT BACK", url: "./BE%20RIGHT%20BACK.mp3" }, { title: "SOLITARY", url: "./SOLITARY.mp3" },
@@ -502,8 +530,23 @@
 
         let particles = [], stars = [], entities = [], projectiles = [], enemyProjectiles = [];
         let powerUpActive = false, powerUpTimer = 0; let sideShotActive = false, sideShotTimer = 0; let doubleShipActive = false, doubleShipTimer = 0;
-        let rocket3Active = false, rocket3Timer = 0; let rocket3Cooldown = 0; const ROCKET3_DURATION = 900; 
-        
+        let rocket3Active = false, rocket3Timer = 0; let rocket3Cooldown = 0; const ROCKET3_DURATION = 900;
+
+        // ==========================================
+        // THE SOURCE: rare boss, Dissolve/Remember Home choice, memory-flight bonus mode
+        // ==========================================
+        let sourceCooldown = 0; const SOURCE_COOLDOWN_FRAMES = 5400; const SOURCE_MIN_SCORE = 30000; // 90s cooldown, rare-but-recurring
+        let choiceModalActive = false;
+        let memoryFlightActive = false, memoryFlightTimer = 0; const MEMORY_FLIGHT_DURATION = 900; // 15s
+        let memoryLogoSpawned = false, memoryLogoCaught = false;
+        // Session-scoped: unlocked tracks stay in rotation until the tab closes/reloads, then reset -
+        // every fresh visit has all three locked again, so there's always a reason to Remember Home.
+        let LOCKED_TRACKS = [
+            { title: "GET THE", url: "./GET%20THE.mp3" },
+            { title: "WINS & LOSSES", url: "./WINS%20%26%20LOSSES.mp3" },
+            { title: "LONG RUN", url: "./LONG%20RUN.mp3" }
+        ];
+
         let quoteTimer = null, trackTimer = null, levelUpMsgTimer = null; let currentTrackIndex = 0, isMuted = false;
         let lastQuoteFrame = -999999; const QUOTE_COOLDOWN_FRAMES = 600; // ~10s at 60fps, keeps quotes from flashing back-to-back
         let panchoPowerTimer = null, hudLivesFlashTimer = null, playerHitFlashTimer = null;
@@ -602,8 +645,8 @@
                 } else {
                     if (sideShotActive) { ctx.shadowBlur = dynamicGlow + 10; ctx.shadowColor = COLORS.alien; ctx.beginPath(); ctx.arc(0, 0, 55 + (currentBassIntensity*10), 0, Math.PI * 2); ctx.strokeStyle = `rgba(16, 185, 129, ${Math.random() * 0.5 + 0.4})`; ctx.lineWidth = 4; ctx.stroke(); } 
                     else if (powerUpActive) { ctx.shadowBlur = dynamicGlow + 10; ctx.shadowColor = COLORS.powerup; ctx.beginPath(); ctx.arc(0, 0, 50 + (currentBassIntensity*10), 0, Math.PI * 2); ctx.strokeStyle = `rgba(59, 130, 246, ${Math.random() * 0.5 + 0.2})`; ctx.lineWidth = 3; ctx.stroke(); } 
-                    else { ctx.shadowBlur = dynamicGlow; ctx.shadowColor = COLORS.ship; }
-                    ctx.drawImage(shipSprite, -this.width/2, -this.height/2, this.width, this.height);
+                    else { ctx.shadowBlur = dynamicGlow; ctx.shadowColor = memoryFlightActive ? '#fef08a' : COLORS.ship; }
+                    ctx.drawImage(memoryFlightActive ? wingShipSprite : shipSprite, -this.width/2, -this.height/2, this.width, this.height);
                     if (sideShotActive) { const pct = sideShotTimer / 300; ctx.fillStyle = COLORS.alien; ctx.fillRect(-20, -50, 40 * pct, 4); } 
                     else if (powerUpActive) { const pct = powerUpTimer / 300; ctx.fillStyle = COLORS.powerup; ctx.fillRect(-20, -50, 40 * pct, 4); }
                 }
@@ -634,10 +677,15 @@
                 else if (type === 'enemyship') { this.width = 65; this.height = 65; }
                 else if (type === 'snake') { this.width = 25; this.height = 25; }
                 else if (type === 'rocket3_item') { this.width = 45; this.height = 45; }
-                else if (type === 'portal') { this.width = 70; this.height = 70; } 
+                else if (type === 'portal') { this.width = 70; this.height = 70; }
+                else if (type === 'source') { this.width = 150; this.height = 149; this.hp = 10; }
+                else if (type === 'cloud') { this.width = 90; this.height = 49; }
+                else if (type === 'cloud2') { this.width = 80; this.height = 68; }
+                else if (type === 'source_logo') { this.width = 60; this.height = 60; }
 
                 this.x = Math.random() * (WIDTH - this.width) + this.width/2; this.y = -100;
                 this.speedY = type === 'enemy' || type === 'octo' ? gameSpeed * (0.8 + Math.random() * 0.5) : gameSpeed;
+                if (type === 'cloud' || type === 'cloud2' || type === 'source_logo') this.speedY = gameSpeed * 0.6;
                 this.markedForDeletion = false; this.rotation = 0; this.rotationSpeed = (Math.random() - 0.5) * 0.1;
                 this.oscillationOffset = Math.random() * Math.PI * 2; this.shapeVariant = Math.floor(Math.random() * 3);
                 this.inTrench = false;
@@ -659,8 +707,12 @@
                         }
                     }
                 } else if (this.type === 'octo') {
-                    this.y += this.speedY * 0.8 * globalSpeedMultiplier; 
+                    this.y += this.speedY * 0.8 * globalSpeedMultiplier;
                     if (!this.inTrench) this.x += Math.sin(frameCount * 0.02 + this.oscillationOffset) * 3;
+                } else if (this.type === 'source') {
+                    this.y += this.speedY * 0.4 * globalSpeedMultiplier;
+                    this.x += Math.sin(frameCount * 0.015 + this.oscillationOffset) * 2.5;
+                    this.rotation = Math.sin(frameCount * 0.01) * 0.05;
                 } else if (this.type === 'snake') {
                     this.y += this.speedY * 1.5 * globalSpeedMultiplier; 
                     if (!this.inTrench) this.x += Math.sin(frameCount * 0.1 + this.oscillationOffset) * 3; 
@@ -694,6 +746,14 @@
                 else if (this.type === 'enemyship') { drawGlow(GLOW.enemyship); }
                 else if (this.type === 'snake') { ctx.rotate(this.rotation); drawGlow(GLOW.snake); }
                 else if (this.type === 'rocket3_item') { drawGlow(GLOW.rocket3_item); }
+                else if (this.type === 'source') {
+                    ctx.rotate(this.rotation);
+                    drawGlow(GLOW.source);
+                    if (this.hp < 10) { ctx.fillStyle = '#1f0a2e'; ctx.fillRect(-35, -this.height/2 - 14, 70, 6); ctx.fillStyle = '#e879f9'; ctx.fillRect(-35, -this.height/2 - 14, 7 * this.hp, 6); }
+                }
+                else if (this.type === 'cloud') { ctx.shadowBlur = 12; ctx.shadowColor = '#bfe4ff'; ctx.drawImage(cloudSprite, -this.width/2, -this.height/2, this.width, this.height); }
+                else if (this.type === 'cloud2') { ctx.shadowBlur = 16; ctx.shadowColor = '#93c5fd'; ctx.drawImage(cloud2Sprite, -this.width/2, -this.height/2, this.width, this.height); }
+                else if (this.type === 'source_logo') { drawGlow(GLOW.source_logo); }
                 else if (this.type === 'portal') {
                     let pulse = Math.abs(Math.sin(frameCount * 0.1)) * 15;
                     ctx.shadowBlur = 30 + pulse; ctx.shadowColor = '#a855f7';
@@ -739,6 +799,7 @@
         function fitAllOverlays() {
             fitOverlay(document.querySelector('#start-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col'));
+            fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
         }
         const VOID_QUOTES = [
             "Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up.",
@@ -887,6 +948,8 @@
             currentDimension = 1; nextDimThreshold = 45000;
             entities = []; particles = []; projectiles = []; enemyProjectiles = [];
             powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
+            sourceCooldown = 0; choiceModalActive = false; memoryFlightActive = false; memoryFlightTimer = 0;
+            memoryLogoSpawned = false; memoryLogoCaught = false; sourceChoiceScreen.classList.add('hidden');
             
             snakeWarning.style.opacity = '0';
             tutorialToast.style.opacity = '0';
@@ -902,6 +965,7 @@
 
         function triggerPlayerHit() {
             sfxPlayerHit();
+            vibrate(150);
             resetCombo();
             playerLives--; updateCounters();
             createParticle(ship.x, ship.y, 'explosion'); for(let i=0; i<15; i++) createParticle(ship.x, ship.y, 'explosion');
@@ -916,8 +980,8 @@
             }
         }
 
-        function gameOver() {
-            sfxGameOver();
+        function gameOver(dissolved = false) {
+            if (dissolved) { vibrate([80, 40, 80, 40, 80, 40, 200]); } else { sfxGameOver(); vibrate([50, 50, 50, 50, 100]); }
             gameRunning = false; canvas.style.transform = "translate(5px, 5px)"; setTimeout(() => canvas.style.transform = "translate(0,0)", 50);
             let finalScore = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
             
@@ -943,9 +1007,69 @@
                 else { document.getElementById('score-submit-ui').classList.add('hidden'); }
             }
             finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`;
-            epilogueLineEl.innerText = `"${EPILOGUE_QUOTES[Math.floor(Math.random() * EPILOGUE_QUOTES.length)]}"`;
+            if (dissolved) {
+                gameOverHeading.innerText = "ASCENDED"; gameOverHeading.style.color = '#facc15'; gameOverHeading.style.textShadow = '0 0 20px #facc15';
+                epilogueLineEl.innerText = `"You are the frequency now."`;
+            } else {
+                gameOverHeading.innerText = "SIGNAL LOST"; gameOverHeading.style.color = ''; gameOverHeading.style.textShadow = '2px 2px 0px #000';
+                epilogueLineEl.innerText = `"${EPILOGUE_QUOTES[Math.floor(Math.random() * EPILOGUE_QUOTES.length)]}"`;
+            }
             gameOverScreen.classList.remove('hidden');
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col')); // score/epilogue text just changed the height
+        }
+
+        function announceSourceEncounter() {
+            const duration = 3000; const wait = claimOverlaySlot(duration);
+            if (levelUpMsgTimer) clearTimeout(levelUpMsgTimer);
+            levelUpMsgTimer = setTimeout(() => {
+                levelUpMsg.innerHTML = "THE SOURCE STIRS"; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#e879f9'; levelUpMsg.style.textShadow = '0 0 20px #e879f9';
+                levelUpMsgTimer = setTimeout(() => levelUpMsg.style.opacity = 0, duration);
+            }, wait);
+            sfxAnomaly(); vibrate([60, 40, 60, 40, 120]);
+        }
+
+        function triggerSourceDefeat(ent) {
+            sfxBigExplosion(); vibrate([100, 50, 100, 50, 200]);
+            for (let i = 0; i < 25; i++) createParticle(ent.x, ent.y, 'explosion');
+            bonusPoints += 3000;
+            sourceCooldown = SOURCE_COOLDOWN_FRAMES;
+            choiceModalActive = true;
+            sourceChoiceScreen.classList.remove('hidden');
+            fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
+        }
+
+        function chooseDissolve() {
+            sourceChoiceScreen.classList.add('hidden');
+            choiceModalActive = false;
+            gameOver(true);
+        }
+
+        function chooseRememberHome() {
+            sourceChoiceScreen.classList.add('hidden');
+            choiceModalActive = false;
+            startMemoryFlight();
+        }
+
+        function startMemoryFlight() {
+            memoryFlightActive = true; memoryFlightTimer = MEMORY_FLIGHT_DURATION;
+            memoryLogoSpawned = false; memoryLogoCaught = false;
+            entities.length = 0; enemyProjectiles.length = 0;
+            powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
+            invulnerableTimer = 60;
+            showPanchoPower("REMEMBER HOME");
+        }
+
+        function endMemoryFlight() {
+            memoryFlightActive = false;
+            entities.length = 0;
+            let unlockedTitle = null;
+            if (memoryLogoCaught && LOCKED_TRACKS.length > 0) {
+                const track = LOCKED_TRACKS.shift();
+                PLAYLIST.push(track);
+                unlockedTitle = track.title;
+            }
+            if (unlockedTitle) { showPanchoPower(`FREQUENCY UNLOCKED<br><span style="color:#60a5fa">${unlockedTitle}</span>`); }
+            else { showPanchoPower("WELCOME BACK"); }
         }
 
         function triggerAnomaly(forcedType = null) {
@@ -987,6 +1111,7 @@
 
         function triggerDimensionShift() {
             sfxDimension();
+            vibrate([30, 20, 30, 20, 60]);
             currentDimension++; nextDimThreshold += 45000; hudDimension.innerText = `DIMENSION: ${currentDimension}`;
             const missionLine = MISSION_CONTROL_LINES[Math.floor(Math.random() * MISSION_CONTROL_LINES.length)];
             const html = `DIMENSION ${currentDimension} BREACHED<br><span style='font-size:0.4em; color:#00fff9; display:block; margin-top:10px;'>${missionLine}</span>`;
@@ -1019,7 +1144,7 @@
                     if (ent.type === 'snake') {
                         if (invulnerableTimer > 0) return;
                         if (doubleShipActive || rocket3Active) { ent.markedForDeletion = true; createParticle(ent.x, ent.y, 'explosion'); sfxHit(); return; }
-                        sfxSnakeTax(); bonusPoints -= 500; ent.markedForDeletion = true; createParticle(ship.x, ship.y, 'explosion');
+                        sfxSnakeTax(); vibrate(100); bonusPoints -= 500; ent.markedForDeletion = true; createParticle(ship.x, ship.y, 'explosion');
                         hudTotalScore.style.color = '#ef4444'; hudTotalScore.style.textShadow = '0 0 15px #ef4444';
                         setTimeout(() => { hudTotalScore.style.color = '#f6e05e'; hudTotalScore.style.textShadow = '0 0 10px rgba(246, 224, 94, 0.5)'; }, 300);
                         return;
@@ -1038,12 +1163,21 @@
                             ent.markedForDeletion = true;
                             triggerPlayerHit();
                         }
-                    } else if (ent.type === 'orb') { sfxOrb(); bonusPoints += 1000; ent.markedForDeletion = true; showQuote(); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'orb'); }
-                    else if (ent.type === 'powerup') { sfxPickupBlue(); maybeShowTutorialTip('powerup'); powerUpActive = true; powerUpTimer = 300; ent.markedForDeletion = true; bonusPoints += 350; collectedBlue++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'alien') { sfxPickupGreen(); maybeShowTutorialTip('alien'); sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'astronaut') { sfxPowerBig(); maybeShowTutorialTip('astronaut'); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'rocket3_item') { sfxPowerBig(); maybeShowTutorialTip('rocket3_item'); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'portal') { ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); maybeShowTutorialTip('portal'); }
+                    } else if (ent.type === 'orb') { sfxOrb(); vibrate(15); bonusPoints += 1000; ent.markedForDeletion = true; showQuote(); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'orb'); }
+                    else if (ent.type === 'powerup') { sfxPickupBlue(); vibrate(15); maybeShowTutorialTip('powerup'); powerUpActive = true; powerUpTimer = 300; ent.markedForDeletion = true; bonusPoints += 350; collectedBlue++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'alien') { sfxPickupGreen(); vibrate(15); maybeShowTutorialTip('alien'); sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'astronaut') { sfxPowerBig(); vibrate([20,30,20]); maybeShowTutorialTip('astronaut'); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'rocket3_item') { sfxPowerBig(); vibrate([20,30,20]); maybeShowTutorialTip('rocket3_item'); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'portal') { vibrate([20,30,20]); ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); maybeShowTutorialTip('portal'); }
+                    else if (ent.type === 'source') {
+                        // Shielded body contact just bounces off - The Source only goes down to real
+                        // projectile damage, so a lucky power-up touch can't trivialize the fight.
+                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { createParticle(ent.x, ent.y, 'explosion'); }
+                        else if (invulnerableTimer <= 0) { triggerPlayerHit(); }
+                    }
+                    else if (ent.type === 'cloud') { sfxOrb(); vibrate(15); bonusPoints += 150; ent.markedForDeletion = true; for(let i=0; i<4; i++) createParticle(ent.x, ent.y, 'orb'); }
+                    else if (ent.type === 'cloud2') { sfxPickupBlue(); vibrate(15); bonusPoints += 300; ent.markedForDeletion = true; for(let i=0; i<6; i++) createParticle(ent.x, ent.y, 'orb'); }
+                    else if (ent.type === 'source_logo') { sfxComboTierUp(); vibrate([30,20,30,20,80]); bonusPoints += 5000; memoryLogoCaught = true; ent.markedForDeletion = true; for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
                 } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
                     // Near-miss: passed close without touching. Reward risky flying, once per entity.
                     const grazeScale = hitBoxScale * 1.8;
@@ -1077,14 +1211,18 @@
 
             projectiles.forEach(proj => {
                 entities.forEach(ent => {
-                    if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') && !ent.markedForDeletion && !proj.markedForDeletion) {
+                    if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'source') && !ent.markedForDeletion && !proj.markedForDeletion) {
                         const dx = Math.abs(proj.x - ent.x); const dy = Math.abs(proj.y - ent.y);
-                        if (dx < (ent.width/2 + proj.width/2) && dy < (ent.height/2 + proj.height/2)) { 
+                        if (dx < (ent.width/2 + proj.width/2) && dy < (ent.height/2 + proj.height/2)) {
                             proj.markedForDeletion = true;
                             if (ent.type === 'octo') {
                                 maybeShowTutorialTip('octo');
                                 ent.hp--; createParticle(proj.x, proj.y, 'explosion');
                                 if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(2000 * comboMultiplier); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                                else sfxHit();
+                            } else if (ent.type === 'source') {
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                if (ent.hp <= 0) { ent.markedForDeletion = true; triggerSourceDefeat(ent); }
                                 else sfxHit();
                             } else {
                                 sfxHit(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
@@ -1103,32 +1241,34 @@
                 
                 if (analyser && gameRunning) { analyser.getByteFrequencyData(dataArray); let sum = 0; for(let i = 0; i < 8; i++) { sum += dataArray[i]; } currentBassIntensity = (sum / 8) / 255; } else { currentBassIntensity = 0; }
 
-                ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
-                
-                let currentDimColor = DIMENSION_PALETTES[(currentDimension - 1) % DIMENSION_PALETTES.length];
-                if (currentBassIntensity > 0.3) { 
-                    ctx.fillStyle = `rgba(${currentDimColor}, ${currentBassIntensity * 0.15})`; 
-                    if (anomalyActive) { 
-                        if (anomalyType === 'green') ctx.fillStyle = `rgba(16, 185, 129, ${currentBassIntensity * 0.2})`;
-                        else if (anomalyType === 'enemy') ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2 + 0.1})`;
-                        else ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2})`;
-                    } 
-                    ctx.fillRect(0, 0, WIDTH, HEIGHT); 
+                ctx.fillStyle = memoryFlightActive ? "#bfe4ff" : "#050505"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+                if (!memoryFlightActive) {
+                    let currentDimColor = DIMENSION_PALETTES[(currentDimension - 1) % DIMENSION_PALETTES.length];
+                    if (currentBassIntensity > 0.3) {
+                        ctx.fillStyle = `rgba(${currentDimColor}, ${currentBassIntensity * 0.15})`;
+                        if (anomalyActive) {
+                            if (anomalyType === 'green') ctx.fillStyle = `rgba(16, 185, 129, ${currentBassIntensity * 0.2})`;
+                            else if (anomalyType === 'enemy') ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2 + 0.1})`;
+                            else ctx.fillStyle = `rgba(255, 0, 85, ${currentBassIntensity * 0.2})`;
+                        }
+                        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                    }
                 }
-                
+
                 if (anomalyActive) { if (Math.random() > 0.9) canvas.style.transform = `translate(${Math.random()*2 - 1}px, ${Math.random()*2 - 1}px)`; else canvas.style.transform = "none"; } else { canvas.style.transform = "none"; }
-                
+
                 if (anomalyActive) {
                     if (anomalyType === 'trench') {
-                        globalSpeedMultiplier = 1.5; 
+                        globalSpeedMultiplier = 1.5;
                     } else {
-                        globalSpeedMultiplier = 1.25; 
+                        globalSpeedMultiplier = 1.25;
                     }
                 } else {
-                    globalSpeedMultiplier = 1.0; 
+                    globalSpeedMultiplier = 1.0;
                 }
-                
-                stars.forEach(star => { star.update(); star.draw(); });
+
+                if (!memoryFlightActive) stars.forEach(star => { star.update(); star.draw(); });
                 
                 if (anomalyActive && anomalyType === 'trench' && portalWarningTimer <= 0) {
                     let targetGap = 220; 
@@ -1153,12 +1293,22 @@
                     }
                 } else { trenchGap = WIDTH; }
 
-                if (gameRunning) {
-                    frameCount++; 
+                if (gameRunning && !choiceModalActive) {
+                    frameCount++;
                     if (invulnerableTimer > 0) invulnerableTimer--;
 
                     if (rocket3Active) { rocket3Timer--; if (rocket3Timer <= 0) { rocket3Active = false; rocket3Cooldown = 1800; } }
                     if (rocket3Cooldown > 0) rocket3Cooldown--;
+                    if (sourceCooldown > 0) sourceCooldown--;
+
+                    if (memoryFlightActive) {
+                        memoryFlightTimer--;
+                        if (!memoryLogoSpawned && memoryFlightTimer <= Math.floor(MEMORY_FLIGHT_DURATION * 0.5)) {
+                            memoryLogoSpawned = true;
+                            entities.push(new Entity('source_logo'));
+                        }
+                        if (memoryFlightTimer <= 0) endMemoryFlight();
+                    }
 
                     let hasSnakes = entities.some(e => e.type === 'snake' && !e.markedForDeletion);
                     if (hasSnakes) { if (snakeWarning.style.opacity !== '1') snakeWarning.style.opacity = '1'; } 
@@ -1168,19 +1318,22 @@
                     distanceTraveled += currentSpeed * globalSpeedMultiplier * 0.1; let currentTotalScore = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
                     hudScore.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`; hudTotalScore.innerText = `SCORE: ${currentTotalScore}`;
                     
-                    if (currentTotalScore >= nextDimThreshold) triggerDimensionShift();
-                    
-                    if (anomalyActive) { 
-                        anomalyTimer--; 
-                        if (anomalyTimer <= 0) { 
-                            if (anomalyType === 'trench') { 
-                                bonusPoints += 10000; 
-                                showPanchoPower("PORTAL CLEARED<br><span style='color:#f6e05e'>+10000</span>"); 
+                    if (!memoryFlightActive && currentTotalScore >= nextDimThreshold) triggerDimensionShift();
+
+                    if (memoryFlightActive) {
+                        hudLevel.innerText = "ZONE: REMEMBERING";
+                    }
+                    else if (anomalyActive) {
+                        anomalyTimer--;
+                        if (anomalyTimer <= 0) {
+                            if (anomalyType === 'trench') {
+                                bonusPoints += 10000;
+                                showPanchoPower("PORTAL CLEARED<br><span style='color:#f6e05e'>+10000</span>");
                             }
-                            anomalyActive = false; 
-                            hudLevel.innerText = "ZONE: DEEP SPACE"; 
-                        } 
-                        else { 
+                            anomalyActive = false;
+                            hudLevel.innerText = "ZONE: DEEP SPACE";
+                        }
+                        else {
                             if (anomalyType === 'green') hudLevel.innerText = "ZONE: TOXIC ANOMALY";
                             else if (anomalyType === 'enemy') hudLevel.innerText = "ZONE: ENEMY ZONE";
                             else if (anomalyType === 'trench') {
@@ -1192,15 +1345,15 @@
                                         levelUpMsg.style.color = '#00fff9'; levelUpMsg.style.textShadow = '0 0 15px #00fff9';
                                         levelUpMsg.style.opacity = 1; setTimeout(() => levelUpMsg.style.opacity = 0, 2000);
                                         // ONE-TIME SHIELD INITIALIZATION (ALLOWS IT TO DRAIN/SHATTER)
-                                        powerUpActive = true; powerUpTimer = 300; sideShotActive = false; doubleShipActive = false; rocket3Active = false; 
+                                        powerUpActive = true; powerUpTimer = 300; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
                                     }
                                 } else {
                                     hudLevel.innerText = "ZONE: PANCHO PORTAL";
                                 }
                             }
                             else hudLevel.innerText = "ZONE: ANOMALY";
-                        } 
-                    } 
+                        }
+                    }
                     else { if (distanceTraveled < 1000) hudLevel.innerText = "ZONE: ORBIT"; else hudLevel.innerText = "ZONE: DEEP SPACE"; }
                     
                     if (powerUpActive) { powerUpTimer--; if (powerUpTimer <= 0) powerUpActive = false; }
@@ -1213,16 +1366,31 @@
                     
                     const spawnRate = Math.max(12, Math.floor(baseSpawnDelay / (1 + (distanceTraveled/4000))));
                     
-                    if (frameCount % spawnRate === 0) {
+                    if (memoryFlightActive) {
+                        // Hazard-free: only clouds, on a calmer cadence than normal enemy spawns.
+                        if (frameCount % 30 === 0) {
+                            entities.push(new Entity(Math.random() > 0.75 ? 'cloud2' : 'cloud'));
+                        }
+                    }
+                    else if (frameCount % spawnRate === 0) {
                         const rand = Math.random();
                         let spawnedSnakes = false;
-                        
+                        let spawnedSpecial = false;
+
                         let portalExists = entities.some(e => e.type === 'portal');
                         let astroExists = entities.some(e => e.type === 'astronaut');
                         let rocket3Exists = entities.some(e => e.type === 'rocket3_item');
+                        let sourceExists = entities.some(e => e.type === 'source');
 
-                        if (anomalyActive && anomalyType === 'green') {
-                            if (rand > 0.50) { 
+                        // The Source: rare-but-recurring, only in open space (not mid-anomaly), well-gated by score+cooldown.
+                        if (!sourceExists && !anomalyActive && sourceCooldown <= 0 && currentTotalScore > SOURCE_MIN_SCORE && Math.random() < 0.05) {
+                            entities.push(new Entity('source'));
+                            announceSourceEncounter();
+                            spawnedSpecial = true;
+                        }
+
+                        if (!spawnedSpecial && anomalyActive && anomalyType === 'green') {
+                            if (rand > 0.50) {
                                 let numSnakes = 2 + Math.floor(Math.random() * 3);
                                 let startX = Math.random() * WIDTH;
                                 for(let i=0; i<numSnakes; i++) { let s = new Entity('snake'); s.x = startX; s.y = -50 - (i * 180); entities.push(s); }
@@ -1230,7 +1398,7 @@
                             }
                         }
 
-                        if (!spawnedSnakes && !(anomalyActive && anomalyType === 'trench' && portalWarningTimer > 0)) {
+                        if (!spawnedSpecial && !spawnedSnakes && !(anomalyActive && anomalyType === 'trench' && portalWarningTimer > 0)) {
                             let inEnemyShipZone = currentTotalScore >= 45000 && ((currentTotalScore - 45000) % 25000 < 5000);
                             let tableKey = spawnTableKeyFor(anomalyActive, anomalyType);
                             let type = pickSpawnType(tableKey, rand, { astroExists, portalExists, rocket3Exists, rocket3Active, rocket3Cooldown, currentTotalScore, inEnemyShipZone, anomalyActive });
@@ -1238,7 +1406,7 @@
                             let e = new Entity(type);
                             if (anomalyActive && anomalyType === 'trench') {
                                 e.inTrench = true;
-                                e.x = WIDTH / 2 + (Math.random() * 40 - 20); 
+                                e.x = WIDTH / 2 + (Math.random() * 40 - 20);
                                 e.oscillationOffset = 0;
                             }
                             entities.push(e);
@@ -1251,7 +1419,7 @@
                 
                 for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].draw(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1); }
                 for (let i = enemyProjectiles.length - 1; i >= 0; i--) { enemyProjectiles[i].draw(); if (enemyProjectiles[i].markedForDeletion) enemyProjectiles.splice(i, 1); }
-                for (let i = entities.length - 1; i >= 0; i--) { entities[i].update(); entities[i].draw(); if (entities[i].markedForDeletion) entities.splice(i, 1); }
+                for (let i = entities.length - 1; i >= 0; i--) { if (!choiceModalActive) entities[i].update(); entities[i].draw(); if (entities[i].markedForDeletion) entities.splice(i, 1); }
                 for (let i = particles.length - 1; i >= 0; i--) {
                     let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay;
                     // Retire dead particles BEFORE drawing: once life goes negative the radius does too,
@@ -1274,7 +1442,10 @@
                 ship.targetX = cx; ship.targetY = cy; 
             };
             document.addEventListener('mousemove', handleInput); document.addEventListener('touchmove', handleInput, { passive: false });
-            startBtn.onclick = startGame; restartBtn.onclick = startGame; requestAnimationFrame(gameLoop);
+            startBtn.onclick = startGame; restartBtn.onclick = startGame;
+            document.getElementById('dissolve-btn').onclick = chooseDissolve;
+            document.getElementById('remember-btn').onclick = chooseRememberHome;
+            requestAnimationFrame(gameLoop);
         };
     </script>
 </body>
