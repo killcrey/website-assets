@@ -83,7 +83,9 @@
         
         #hud-level { position: absolute; top: 60px; left: 20px; font-family: 'VT323', monospace; font-size: 1.5rem; color: #00fff9; z-index: 9; text-shadow: 0 0 5px #000; }
         #hud-dimension { position: absolute; top: 85px; left: 20px; font-family: 'VT323', monospace; font-size: 1.5rem; color: #a855f7; z-index: 9; text-shadow: 0 0 5px #000; }
-        #hud-track { position: absolute; bottom: 60px; right: 20px; font-family: 'VT323', monospace; font-size: 1.2rem; color: #00fff9; z-index: 9; text-shadow: 0 0 5px #000; text-align: right; opacity: 0; transition: opacity 1s; }
+        #hud-track { position: absolute; bottom: 55px; right: 20px; width: 150px; overflow: hidden; white-space: nowrap; font-family: 'VT323', monospace; font-size: 1rem; color: #00fff9; z-index: 9; text-shadow: 0 0 5px #000; opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+        #hud-track .marquee-inner { display: inline-block; padding-left: 100%; animation: hud-track-scroll 14s linear infinite; }
+        @keyframes hud-track-scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         #level-up-msg { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); width: 100%; text-align: center; font-family: 'VT323', monospace; font-size: 4rem; color: #f6e05e; z-index: 15; text-shadow: 0 0 15px #f6e05e; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; }
         
         .instruction-box { border-left: 2px solid #00fff9; padding-left: 10px; text-align: left; margin-bottom: 4px; pointer-events: auto; }
@@ -577,7 +579,7 @@
             { title: "LONG RUN", url: "./LONG%20RUN.mp3" }
         ];
 
-        let quoteTimer = null, trackTimer = null, levelUpMsgTimer = null; let currentTrackIndex = 0, isMuted = false;
+        let quoteTimer = null, levelUpMsgTimer = null; let currentTrackIndex = 0, isMuted = false;
         let lastQuoteFrame = -999999; const QUOTE_COOLDOWN_FRAMES = 600; // ~10s at 60fps, keeps quotes from flashing back-to-back
         let panchoPowerTimer = null, hudLivesFlashTimer = null, playerHitFlashTimer = null;
         let lastTime = 0; const fpsInterval = 1000 / 60;
@@ -586,8 +588,7 @@
             if (index >= PLAYLIST.length) index = 0; if (index < 0) index = PLAYLIST.length - 1;
             currentTrackIndex = index; bgMusic.src = PLAYLIST[currentTrackIndex].url; bgMusic.load();
             if (!isMuted) { bgMusic.play().then(() => initAudioEngine()).catch(e => console.log("Audio wait")); }
-            hudTrack.innerHTML = `TRANSMISSION:<br>${PLAYLIST[currentTrackIndex].title}`; hudTrack.style.opacity = 1;
-            if (trackTimer) clearTimeout(trackTimer); trackTimer = setTimeout(() => hudTrack.style.opacity = 0, 4000);
+            hudTrack.innerHTML = `<span class="marquee-inner">TRANSMISSION: ${PLAYLIST[currentTrackIndex].title}</span>`; hudTrack.style.opacity = 0.75;
         }
         function initAudio() { const startIndex = Math.floor(Math.random() * PLAYLIST.length); playTrack(startIndex); bgMusic.addEventListener('ended', () => { playTrack(currentTrackIndex + 1); }); }
         function toggleMute() { isMuted = !isMuted; if (isMuted) { bgMusic.pause(); iconSoundOn.classList.add('hidden'); iconSoundOff.classList.remove('hidden'); } else { bgMusic.play().then(() => initAudioEngine()); iconSoundOn.classList.remove('hidden'); iconSoundOff.classList.add('hidden'); } }
@@ -1200,27 +1201,6 @@
             showPanchoPower("WELCOME BACK");
         }
 
-        function drawTrackMarquee() {
-            if (!gameRunning || choiceModalActive || invulnerableTimer > 0) return;
-            const track = PLAYLIST[currentTrackIndex];
-            if (!track) return;
-            const boxW = 130, boxH = 14;
-            const x = ship.x - boxW / 2, y = ship.y - ship.height / 2 - boxH - 6;
-            ctx.save();
-            ctx.beginPath(); ctx.rect(x, y, boxW, boxH); ctx.clip();
-            ctx.font = "12px 'VT323', monospace";
-            ctx.fillStyle = memoryFlightActive ? 'rgba(15, 23, 42, 0.45)' : 'rgba(0, 255, 249, 0.5)';
-            ctx.textBaseline = 'middle';
-            const text = track.title + '   •   ';
-            const textWidth = ctx.measureText(text).width;
-            if (textWidth > 0) {
-                const offset = (frameCount * 0.4) % textWidth;
-                let drawX = x - offset;
-                while (drawX < x + boxW) { ctx.fillText(text, drawX, y + boxH / 2); drawX += textWidth; }
-            }
-            ctx.restore();
-        }
-
         function triggerAnomaly(forcedType = null) {
             if (anomalyActive) return; anomalyActive = true; anomalyTimer = ANOMALY_DURATION; sfxAnomaly();
             
@@ -1611,7 +1591,6 @@
                 }
                 
                 ship.draw();
-                drawTrackMarquee();
 
                 for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].draw(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1); }
                 for (let i = enemyProjectiles.length - 1; i >= 0; i--) { enemyProjectiles[i].draw(); if (enemyProjectiles[i].markedForDeletion) enemyProjectiles.splice(i, 1); }
