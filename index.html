@@ -269,9 +269,10 @@
             <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
                 <img src="./egolossboss.png" class="w-28 md:w-40 mx-auto mb-2" alt="The Source">
                 <h2 class="glitch" data-text="THE SOURCE" style="color:#e879f9;">THE SOURCE</h2>
-                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3">Dissolve into everything. Or remember the way back.</p>
-                <button id="dissolve-btn" class="btn w-full max-w-xs">DISSOLVE INTO THE SOURCE</button>
-                <button id="remember-btn" class="btn w-full max-w-xs" style="margin-top:12px;">REMEMBER HOME</button>
+                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3">Remember the way back. Refuse it for now. Or dissolve into everything.</p>
+                <button id="remember-btn" class="btn w-full max-w-xs">REMEMBER HOME</button>
+                <button id="not-ready-btn" class="btn w-full max-w-xs" style="margin-top:12px;">I'M NOT READY</button>
+                <button id="dissolve-btn" class="btn w-full max-w-xs" style="margin-top:12px;">DISSOLVE INTO THE SOURCE</button>
             </div>
         </div>
     </div>
@@ -554,6 +555,7 @@
         // THE SOURCE: rare boss, Dissolve/Remember Home choice, memory-flight bonus mode
         // ==========================================
         let sourceCooldown = 0; const SOURCE_COOLDOWN_FRAMES = 5400; const SOURCE_MIN_SCORE = 30000; // 90s cooldown, rare-but-recurring
+        const NOT_READY_GODMODE_FRAMES = 1320; // "I'm Not Ready" grants an extended God Mode burst instead of ending the run
 
         // ==========================================
         // ANOMALY CAPSTONE BOSSES: Cobra (toxic) and Super Ego (enemy zone)
@@ -1164,6 +1166,16 @@
             startMemoryFlight();
         }
 
+        function chooseNotReady() {
+            sourceChoiceScreen.classList.add('hidden');
+            choiceModalActive = false;
+            sfxPowerBig(); vibrate([20, 30, 20]);
+            rocket3Active = true; rocket3Timer = NOT_READY_GODMODE_FRAMES;
+            powerUpActive = false; sideShotActive = false; doubleShipActive = false;
+            bonusPoints += 2000;
+            showPanchoPower("NOT YET<br><span style='color:#facc15'>GOD MODE ENGAGED</span>");
+        }
+
         function startMemoryFlight() {
             memoryFlightActive = true; memoryFlightTimer = MEMORY_FLIGHT_DURATION;
             memoryLogoSpawned = false; memoryLogoCaught = false;
@@ -1594,6 +1606,7 @@
             startBtn.onclick = startGame; restartBtn.onclick = startGame;
             document.getElementById('dissolve-btn').onclick = chooseDissolve;
             document.getElementById('remember-btn').onclick = chooseRememberHome;
+            document.getElementById('not-ready-btn').onclick = chooseNotReady;
             requestAnimationFrame(gameLoop);
         };
     </script>
