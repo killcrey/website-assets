@@ -186,6 +186,7 @@
 
         <div id="game-over-screen" class="ui-layer hidden" style="pointer-events: auto;">
             <h2 class="text-6xl font-vt323 text-red-600 animate-pulse" style="text-shadow: 2px 2px 0px #000;">SIGNAL LOST</h2>
+            <p id="epilogue-line" class="text-sm text-cyan-300 font-vt323 tracking-wide mt-0.5 opacity-80"></p>
             <p id="final-score" class="text-4xl mt-1 text-white font-bold font-vt323"></p>
             <p id="final-depth" class="text-xl mt-0.5 text-cyan-300 font-vt323"></p>
             <p id="final-highscore" class="text-lg mt-0.5 text-gray-400 font-vt323 hidden"></p>
@@ -239,6 +240,7 @@
         const loadingStatus = document.getElementById('loading-status');
         const finalScoreEl = document.getElementById('final-score'); const finalDepthEl = document.getElementById('final-depth');
         const finalHighScoreEl = document.getElementById('final-highscore'); const newRecordEl = document.getElementById('new-record');
+        const epilogueLineEl = document.getElementById('epilogue-line');
         
         const bgMusic = document.getElementById('bg-music');
         const btnMute = document.getElementById('btn-mute'); const btnSkip = document.getElementById('btn-skip');
@@ -307,6 +309,43 @@
             }
             if (audioCtx.state === 'suspended') { audioCtx.resume(); }
         }
+
+        // ==========================================
+        // SYNTHESIZED SFX (Web Audio oscillators/noise, no audio files)
+        // ==========================================
+        function sfxTone(freq, duration, type = 'square', vol = 0.15, freqEnd = null, delay = 0) {
+            if (!audioCtx || isMuted) return;
+            const t0 = audioCtx.currentTime + delay;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, t0);
+            if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + duration);
+            gain.gain.setValueAtTime(vol, t0); gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(t0); osc.stop(t0 + duration + 0.02);
+        }
+        function sfxNoise(duration, vol = 0.2, filterFreq = 1200) {
+            if (!audioCtx || isMuted) return;
+            const bufferSize = Math.floor(audioCtx.sampleRate * duration);
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            const noise = audioCtx.createBufferSource(); noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = filterFreq;
+            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            noise.start();
+        }
+        function sfxHit() { sfxNoise(0.12, 0.16, 1400); sfxTone(220, 0.09, 'sawtooth', 0.08, 70); }
+        function sfxBigExplosion() { sfxNoise(0.3, 0.28, 900); sfxTone(160, 0.25, 'sawtooth', 0.14, 40); }
+        function sfxSnakeTax() { sfxTone(400, 0.18, 'square', 0.14, 120); }
+        function sfxPlayerHit() { sfxNoise(0.25, 0.25, 500); sfxTone(150, 0.3, 'sawtooth', 0.15, 50); }
+        function sfxOrb() { sfxTone(880, 0.08, 'square', 0.1); }
+        function sfxPickupBlue() { sfxTone(660, 0.12, 'sine', 0.15, 990); }
+        function sfxPickupGreen() { sfxTone(523, 0.12, 'sine', 0.15, 784); }
+        function sfxPowerBig() { sfxTone(440, 0.12, 'square', 0.16, 880); sfxTone(880, 0.15, 'square', 0.16, 1320, 0.1); }
+        function sfxAnomaly() { sfxTone(200, 0.4, 'sawtooth', 0.16, 600); }
+        function sfxDimension() { sfxTone(300, 0.5, 'sine', 0.2, 900); }
+        function sfxGameOver() { sfxTone(300, 0.6, 'sawtooth', 0.2, 60); }
 
         // ==========================================
         // GAME ENGINE ENTITIES & LOGIC
@@ -597,7 +636,28 @@
 
         function createParticle(x, y, type) { particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: type === 'thrust' ? Math.random() * 4 + 2 : (Math.random() - 0.5) * 5, life: 1, decay: Math.random() * 0.03 + 0.02, type: type }); }
         function resize() { WIDTH = window.innerWidth; HEIGHT = window.innerHeight; canvas.width = WIDTH; canvas.height = HEIGHT; if(ship) ship.init(); trenchGap = WIDTH; }
-        function showQuote() { const quote = ["Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up."][Math.floor(Math.random() * 5)]; quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1; if (quoteTimer) clearTimeout(quoteTimer); quoteTimer = setTimeout(() => quoteBox.style.opacity = 0, 3000); }
+        const VOID_QUOTES = [
+            "Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up.",
+            "Juan Carlos, hold the line.", "Every layer hides another layer.", "The Source remembers you.",
+            "Luz is waiting on the ground.", "Eduardo counts every second you're gone.", "Fear is just a fuel line.",
+            "We came for stars, we found ourselves.", "The grind and the void feel the same at 3am.",
+            "Choose the Earth. Choose them.", "Isolation is a signal, not a sentence.", "You are more than the mission.",
+            "The anomaly is just your reflection.", "Sacrifice has a return address.", "Two artists, two astronauts, one frequency.",
+            "Transcendence can wait. Go home.", "Every regret is a coordinate.", "The glasses become the sunglasses. Keep flying.",
+            "Barrio Logan to the edge of the universe.", "The mission was never just the mission.",
+            "Love is the loudest frequency in the void."
+        ];
+        const EPILOGUE_QUOTES = [
+            "Signal lost. The Source keeps listening.", "Christopher chose to come home. Did you?",
+            "Every fall is just re-entry.", "The void remembers your name.", "Somewhere, Luz still watches the sky.",
+            "Eduardo logs another one for the record.", "The layers close. For now.", "You'll find the frequency again."
+        ];
+        const MISSION_CONTROL_LINES = [
+            "EDUARDO: Telemetry's holding. Keep going.", "EDUARDO: We see you out there.",
+            "EDUARDO: Luz asked about you again.", "EDUARDO: Bring something back this time.",
+            "EDUARDO: The Source is close. Stay sharp."
+        ];
+        function showQuote() { const quote = VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]; quoteBox.innerText = `"${quote}"`; quoteBox.style.opacity = 1; if (quoteTimer) clearTimeout(quoteTimer); quoteTimer = setTimeout(() => quoteBox.style.opacity = 0, 3000); }
         function updateCounters() { hudCounterBlue.innerText = `SIGHT: ${collectedBlue}/5`; hudCounterGreen.innerText = `EGO: ${collectedGreen}/3`; hudLives.innerText = `LIVES: ${playerLives}`; }
 
         // ==========================================
@@ -673,6 +733,7 @@
         }
 
         function triggerPlayerHit() {
+            sfxPlayerHit();
             playerLives--; updateCounters();
             createParticle(ship.x, ship.y, 'explosion'); for(let i=0; i<15; i++) createParticle(ship.x, ship.y, 'explosion');
             
@@ -687,6 +748,7 @@
         }
 
         function gameOver() {
+            sfxGameOver();
             gameRunning = false; canvas.style.transform = "translate(5px, 5px)"; setTimeout(() => canvas.style.transform = "translate(0,0)", 50);
             let finalScore = Math.max(0, Math.floor(distanceTraveled) + bonusPoints);
             
@@ -705,11 +767,13 @@
                 if (qualifiesForTop5 && finalScore > 0) { document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = ""; } 
                 else { document.getElementById('score-submit-ui').classList.add('hidden'); }
             }
-            finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`; gameOverScreen.classList.remove('hidden');
+            finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`;
+            epilogueLineEl.innerText = `"${EPILOGUE_QUOTES[Math.floor(Math.random() * EPILOGUE_QUOTES.length)]}"`;
+            gameOverScreen.classList.remove('hidden');
         }
 
         function triggerAnomaly(forcedType = null) {
-            if (anomalyActive) return; anomalyActive = true; anomalyTimer = ANOMALY_DURATION; 
+            if (anomalyActive) return; anomalyActive = true; anomalyTimer = ANOMALY_DURATION; sfxAnomaly();
             
             if (forcedType) {
                 anomalyType = forcedType;
@@ -747,8 +811,10 @@
         }
 
         function triggerDimensionShift() {
+            sfxDimension();
             currentDimension++; nextDimThreshold += 45000; hudDimension.innerText = `DIMENSION: ${currentDimension}`;
-            levelUpMsg.innerHTML = `DIMENSION ${currentDimension} BREACHED`; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
+            const missionLine = MISSION_CONTROL_LINES[Math.floor(Math.random() * MISSION_CONTROL_LINES.length)];
+            levelUpMsg.innerHTML = `DIMENSION ${currentDimension} BREACHED<br><span style='font-size:0.4em; color:#00fff9; display:block; margin-top:10px;'>${missionLine}</span>`; levelUpMsg.style.opacity = 1; levelUpMsg.style.color = '#fff'; levelUpMsg.style.textShadow = '0 0 20px #fff';
             setTimeout(() => { levelUpMsg.style.opacity = 0; levelUpMsg.style.color = '#f6e05e'; levelUpMsg.style.textShadow = '0 0 15px #f6e05e'; }, 4000);
             flashOverlay.style.opacity = '0.8'; setTimeout(() => flashOverlay.style.opacity = '0', 400);
         }
@@ -772,15 +838,16 @@
                     
                     if (ent.type === 'snake') {
                         if (invulnerableTimer > 0) return;
-                        if (doubleShipActive || rocket3Active) { ent.markedForDeletion = true; createParticle(ent.x, ent.y, 'explosion'); return; }
-                        bonusPoints -= 500; ent.markedForDeletion = true; createParticle(ship.x, ship.y, 'explosion');
+                        if (doubleShipActive || rocket3Active) { ent.markedForDeletion = true; createParticle(ent.x, ent.y, 'explosion'); sfxHit(); return; }
+                        sfxSnakeTax(); bonusPoints -= 500; ent.markedForDeletion = true; createParticle(ship.x, ship.y, 'explosion');
                         hudTotalScore.style.color = '#ef4444'; hudTotalScore.style.textShadow = '0 0 15px #ef4444';
                         setTimeout(() => { hudTotalScore.style.color = '#f6e05e'; hudTotalScore.style.textShadow = '0 0 10px rgba(246, 224, 94, 0.5)'; }, 300);
                         return;
                     }
                     if (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') {
-                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { 
-                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; bonusPoints += 250; 
+                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) {
+                            if (ent.type === 'octo') sfxBigExplosion(); else sfxHit();
+                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; bonusPoints += 250;
                             if(ent.type === 'octo') bonusPoints += 2000;
                             
                             // SHATTER SHIELD LOGIC
@@ -791,11 +858,11 @@
                             ent.markedForDeletion = true;
                             triggerPlayerHit();
                         }
-                    } else if (ent.type === 'orb') { bonusPoints += 1000; ent.markedForDeletion = true; showQuote(); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'orb'); } 
-                    else if (ent.type === 'powerup') { powerUpActive = true; powerUpTimer = 300; ent.markedForDeletion = true; bonusPoints += 350; collectedBlue++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); } 
-                    else if (ent.type === 'alien') { sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); } 
-                    else if (ent.type === 'astronaut') { doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
-                    else if (ent.type === 'rocket3_item') { rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    } else if (ent.type === 'orb') { sfxOrb(); bonusPoints += 1000; ent.markedForDeletion = true; showQuote(); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'orb'); }
+                    else if (ent.type === 'powerup') { sfxPickupBlue(); powerUpActive = true; powerUpTimer = 300; ent.markedForDeletion = true; bonusPoints += 350; collectedBlue++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'alien') { sfxPickupGreen(); sideShotActive = true; sideShotTimer = 300; ent.markedForDeletion = true; bonusPoints += 600; collectedGreen++; updateCounters(); if (collectedBlue >= 5 && collectedGreen >= 3) triggerAnomaly(); for(let i=0; i<8; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'astronaut') { sfxPowerBig(); doubleShipActive = true; doubleShipTimer = 900; ent.markedForDeletion = true; bonusPoints += 1000; powerUpActive = false; sideShotActive = false; showPanchoPower(); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'rocket3_item') { sfxPowerBig(); rocket3Active = true; rocket3Timer = ROCKET3_DURATION; ent.markedForDeletion = true; bonusPoints += 2000; powerUpActive = false; sideShotActive = false; doubleShipActive = false; showPanchoPower("GOD MODE"); for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
                     else if (ent.type === 'portal') { ent.markedForDeletion = true; bonusPoints += 1500; triggerAnomaly('trench'); }
                 }
             });
@@ -804,9 +871,9 @@
                 if (!ep.markedForDeletion) {
                     const dx = Math.abs(ship.x - ep.x); const dy = Math.abs(ship.y - ep.y);
                     if (dx < ship.width/2.5 && dy < ship.height/2.5) {
-                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) { 
-                            ep.markedForDeletion = true; 
-                            createParticle(ep.x, ep.y, 'explosion');
+                        if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) {
+                            ep.markedForDeletion = true;
+                            sfxHit(); createParticle(ep.x, ep.y, 'explosion');
                             
                             // SHATTER SHIELD LOGIC
                             if (powerUpActive && !rocket3Active && !doubleShipActive) {
@@ -826,12 +893,13 @@
                     if ((ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') && !ent.markedForDeletion && !proj.markedForDeletion) {
                         const dx = Math.abs(proj.x - ent.x); const dy = Math.abs(proj.y - ent.y);
                         if (dx < (ent.width/2 + proj.width/2) && dy < (ent.height/2 + proj.height/2)) { 
-                            proj.markedForDeletion = true; 
+                            proj.markedForDeletion = true;
                             if (ent.type === 'octo') {
                                 ent.hp--; createParticle(proj.x, proj.y, 'explosion');
-                                if (ent.hp <= 0) { ent.markedForDeletion = true; bonusPoints += 2000; for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                                if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; bonusPoints += 2000; for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                                else sfxHit();
                             } else {
-                                ent.markedForDeletion = true; bonusPoints += 250; for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion'); 
+                                sfxHit(); ent.markedForDeletion = true; bonusPoints += 250; for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
                             }
                         }
                     }
