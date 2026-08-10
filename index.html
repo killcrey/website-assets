@@ -20,7 +20,7 @@
         canvas { display: block; width: 100%; height: 100%; }
 
         /* UI Overlay Styles */
-        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #e2e8f0; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); z-index: 10; background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(2px); transition: opacity 0.5s ease; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #e2e8f0; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); z-index: 10; background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(2px); transition: opacity 0.5s ease; overflow-y: auto; touch-action: pan-y; padding: 16px 0; box-sizing: border-box; }
         .hidden { opacity: 0 !important; pointer-events: none !important; visibility: hidden; }
 
         /* Tiled Background for Start Screen */
@@ -192,19 +192,24 @@
         <div id="game-over-screen" class="ui-layer hidden" style="pointer-events: auto;">
             <h2 class="text-6xl font-vt323 text-red-600 animate-pulse" style="text-shadow: 2px 2px 0px #000;">SIGNAL LOST</h2>
             <p id="epilogue-line" class="text-sm text-cyan-300 font-vt323 tracking-wide mt-0.5 opacity-80"></p>
-            <p id="final-score" class="text-4xl mt-1 text-white font-bold font-vt323"></p>
-            <p id="final-depth" class="text-xl mt-0.5 text-cyan-300 font-vt323"></p>
-            <p id="final-highscore" class="text-lg mt-0.5 text-gray-400 font-vt323 hidden"></p>
-            <p id="new-record" class="text-yellow-400 font-bold mt-1 hidden text-lg animate-bounce">NEW LOCAL HIGH SCORE</p>
 
-            <div class="leaderboard-panel flex-shrink-0 w-full max-w-xs mt-2 mb-1">
-                <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
-                <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
-                <div id="lb-content-gameover">
-                    <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
+            <div class="flex flex-col md:flex-row items-center md:items-start md:justify-center gap-1 md:gap-8 w-full max-w-xs md:max-w-none mt-1">
+                <div class="flex flex-col items-center text-center flex-shrink-0">
+                    <p id="final-score" class="text-4xl mt-1 text-white font-bold font-vt323"></p>
+                    <p id="final-depth" class="text-xl mt-0.5 text-cyan-300 font-vt323"></p>
+                    <p id="final-highscore" class="text-lg mt-0.5 text-gray-400 font-vt323 hidden"></p>
+                    <p id="new-record" class="text-yellow-400 font-bold mt-1 hidden text-lg animate-bounce">NEW LOCAL HIGH SCORE</p>
+                </div>
+
+                <div class="leaderboard-panel flex-shrink-0 w-full max-w-xs md:w-64 mt-2 md:mt-0 mb-1">
+                    <h3>ASTRONAUT RANKINGS - ELITE 5</h3>
+                    <div class="lb-entry lb-header"><span>PILOT</span><span>SCORE</span></div>
+                    <div id="lb-content-gameover">
+                        <div class="text-center text-gray-500 text-xs py-1">Uplink Pending...</div>
+                    </div>
                 </div>
             </div>
-            
+
             <div id="score-submit-ui" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
                 <p class="text-yellow-400 font-vt323 text-xl uppercase mb-1 animate-pulse" style="text-shadow: 0 0 10px #facc15;">YOU HAVE A HIGH SCORE!</p>
                 <div class="flex gap-2 w-full justify-center">
