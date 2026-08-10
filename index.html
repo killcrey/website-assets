@@ -114,16 +114,13 @@
 
         /* PC SCALING FIX - both screens are now wide two-column layouts that fit most desktop
            windows at full size; this only kicks in for genuinely short windows as a fallback.
-           transform:scale doesn't shrink the element's layout box, so scrollHeight still reads
-           as the pre-scale size and overflow-y:auto would show a scrollbar even though the
-           scaled content visually fits - overflow-y:hidden here is safe since scale reliably
-           makes it fit within each of these breakpoints. */
-        @media (min-width: 768px) and (max-height: 700px) { #start-screen > .flex.flex-col, #game-over-screen > .flex.flex-col { transform: scale(0.85); transform-origin: center; } #start-screen, #game-over-screen { overflow-y: hidden; } }
+           overflow-y:auto on .ui-layer (above) is the real safety net - real-world font
+           rendering can vary enough that scale alone isn't guaranteed to fit, so content
+           always stays reachable via scroll rather than risking silent clipping. */
+        @media (min-width: 768px) and (max-height: 700px) { #start-screen > .flex.flex-col, #game-over-screen > .flex.flex-col { transform: scale(0.85); transform-origin: center; } }
         @media (min-width: 768px) and (max-height: 600px) { #start-screen > .flex.flex-col, #game-over-screen > .flex.flex-col { transform: scale(0.7); transform-origin: center; } }
         @media (min-width: 768px) and (max-height: 490px) { #start-screen > .flex.flex-col, #game-over-screen > .flex.flex-col { transform: scale(0.55); transform-origin: center; } }
         @media (min-width: 768px) and (max-height: 390px) { #start-screen > .flex.flex-col, #game-over-screen > .flex.flex-col { transform: scale(0.45); transform-origin: center; } }
-        /* Below the smallest scale step, fall back to scrollable rather than silently clipping. */
-        @media (min-width: 768px) and (max-height: 320px) { #start-screen, #game-over-screen { overflow-y: auto; } }
     </style>
 </head>
 <body>
