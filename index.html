@@ -1062,14 +1062,7 @@
         function endMemoryFlight() {
             memoryFlightActive = false;
             entities.length = 0;
-            let unlockedTitle = null;
-            if (memoryLogoCaught && LOCKED_TRACKS.length > 0) {
-                const track = LOCKED_TRACKS.shift();
-                PLAYLIST.push(track);
-                unlockedTitle = track.title;
-            }
-            if (unlockedTitle) { showPanchoPower(`FREQUENCY UNLOCKED<br><span style="color:#60a5fa">${unlockedTitle}</span>`); }
-            else { showPanchoPower("WELCOME BACK"); }
+            showPanchoPower("WELCOME BACK");
         }
 
         function triggerAnomaly(forcedType = null) {
@@ -1177,7 +1170,16 @@
                     }
                     else if (ent.type === 'cloud') { sfxOrb(); vibrate(15); bonusPoints += 150; ent.markedForDeletion = true; for(let i=0; i<4; i++) createParticle(ent.x, ent.y, 'orb'); }
                     else if (ent.type === 'cloud2') { sfxPickupBlue(); vibrate(15); bonusPoints += 300; ent.markedForDeletion = true; for(let i=0; i<6; i++) createParticle(ent.x, ent.y, 'orb'); }
-                    else if (ent.type === 'source_logo') { sfxComboTierUp(); vibrate([30,20,30,20,80]); bonusPoints += 5000; memoryLogoCaught = true; ent.markedForDeletion = true; for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust'); }
+                    else if (ent.type === 'source_logo') {
+                        sfxComboTierUp(); vibrate([30,20,30,20,80]); bonusPoints += 5000; memoryLogoCaught = true; ent.markedForDeletion = true;
+                        for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust');
+                        if (LOCKED_TRACKS.length > 0) {
+                            const track = LOCKED_TRACKS.shift();
+                            PLAYLIST.push(track);
+                            playTrack(PLAYLIST.length - 1);
+                            showPanchoPower(`FREQUENCY UNLOCKED<br><span style="color:#60a5fa">${track.title}</span>`);
+                        }
+                    }
                 } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
                     // Near-miss: passed close without touching. Reward risky flying, once per entity.
                     const grazeScale = hitBoxScale * 1.8;
