@@ -588,7 +588,7 @@
             if (index >= PLAYLIST.length) index = 0; if (index < 0) index = PLAYLIST.length - 1;
             currentTrackIndex = index; bgMusic.src = PLAYLIST[currentTrackIndex].url; bgMusic.load();
             if (!isMuted) { bgMusic.play().then(() => initAudioEngine()).catch(e => console.log("Audio wait")); }
-            hudTrack.innerHTML = `<span class="marquee-inner">TRANSMISSION: ${PLAYLIST[currentTrackIndex].title}</span>`; hudTrack.style.opacity = 0.75;
+            hudTrack.innerHTML = `<span class="marquee-inner">SONG: ${PLAYLIST[currentTrackIndex].title}</span>`; hudTrack.style.opacity = 0.75;
         }
         function initAudio() { const startIndex = Math.floor(Math.random() * PLAYLIST.length); playTrack(startIndex); bgMusic.addEventListener('ended', () => { playTrack(currentTrackIndex + 1); }); }
         function toggleMute() { isMuted = !isMuted; if (isMuted) { bgMusic.pause(); iconSoundOn.classList.add('hidden'); iconSoundOff.classList.remove('hidden'); } else { bgMusic.play().then(() => initAudioEngine()); iconSoundOn.classList.remove('hidden'); iconSoundOff.classList.add('hidden'); } }
