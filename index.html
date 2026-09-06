@@ -281,6 +281,7 @@
 
             <div id="score-submit-ui" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
                 <p class="text-yellow-400 font-vt323 text-xl uppercase mb-1 animate-pulse" style="text-shadow: 0 0 10px #facc15;">YOU HAVE A HIGH SCORE!</p>
+                <input type="email" id="score-email-input" placeholder="Frequency (email) to claim your spot" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-base w-full text-center mb-1 focus:outline-none focus:border-yellow-400">
                 <div class="flex gap-2 w-full justify-center">
                     <input type="text" id="pilot-initials" maxlength="6" placeholder="TAG123" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-xl w-24 text-center uppercase focus:outline-none focus:border-yellow-400" title="1 to 3 letters, followed by 0 to 3 numbers.">
                     <button id="submit-score-btn" class="btn !mt-0 !py-1">TRANSMIT</button>
@@ -396,16 +397,24 @@
         document.getElementById('submit-score-btn').addEventListener('click', async () => {
             const inputField = document.getElementById('pilot-initials'); const username = inputField.value.toUpperCase();
             const statusText = document.getElementById('submit-status'); const submitBtn = document.getElementById('submit-score-btn');
+            const emailInput = document.getElementById('score-email-input');
+            const emailRequired = !emailInput.classList.contains('hidden');
+            const email = emailInput.value.trim();
 
             if(username.length === 0 || !db) return;
             const tagRegex = /^[A-Z]{1,3}[0-9]{0,3}$/;
             if (!tagRegex.test(username)) { statusText.innerText = "FORMAT ERROR: 1-3 LETTERS THEN 0-3 NUMBERS."; return; }
-            
+            if (emailRequired && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "ENTER A VALID FREQUENCY (EMAIL) TO CLAIM YOUR SPOT."; return; }
+
             statusText.innerText = "TRANSMITTING..."; submitBtn.disabled = true;
 
             try {
                 const { error } = await db.from('void_runner_scores').insert([{ username: username, score: Math.floor(distanceTraveled) + bonusPoints }]);
                 if (error) throw error;
+                if (emailRequired) {
+                    try { await db.from('email_signups').insert([{ email }]); localStorage.setItem(EMAIL_SUBMITTED_KEY, '1'); }
+                    catch (e) { /* score is already in - don't fail the whole submission over the email side-effect */ }
+                }
                 statusText.innerText = "DATA RECEIVED."; document.getElementById('score-submit-ui').classList.add('hidden');
                 fetchLeaderboard();
             } catch (e) { statusText.innerText = "ERROR UPLOADING."; submitBtn.disabled = false; }
@@ -1145,9 +1154,15 @@
             overlayBusyUntil = 0;
 
             if (finalScore > highScore) { highScore = finalScore; localStorage.setItem('layers_highscore', highScore); newRecordEl.classList.remove('hidden'); hudHighScore.innerText = `REC: ${highScore}`; }
-            if(db) { 
+            let emailAskedViaScoreUI = false;
+            if(db) {
                 let qualifiesForTop5 = (topScoreCount < 5 || finalScore > lowestTopScore);
-                if (qualifiesForTop5 && finalScore > 0) { document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = ""; } 
+                if (qualifiesForTop5 && finalScore > 0) {
+                    document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = "";
+                    const scoreEmailInput = document.getElementById('score-email-input');
+                    if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { scoreEmailInput.classList.add('hidden'); }
+                    else { scoreEmailInput.classList.remove('hidden'); scoreEmailInput.value = ""; emailAskedViaScoreUI = true; }
+                }
                 else { document.getElementById('score-submit-ui').classList.add('hidden'); }
             }
             finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`;
@@ -1160,12 +1175,14 @@
             }
             gameOverScreen.classList.remove('hidden');
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col')); // score/epilogue text just changed the height
-            maybeShowEmailCapture();
+            maybeShowEmailCapture(emailAskedViaScoreUI);
         }
 
         const EMAIL_CAPTURE_KEY = 'layers_email_prompted';
-        function maybeShowEmailCapture() {
-            if (localStorage.getItem(EMAIL_CAPTURE_KEY)) return;
+        const EMAIL_SUBMITTED_KEY = 'layers_email_submitted'; // distinct from EMAIL_CAPTURE_KEY: this one means "we actually have their email", not just "we asked"
+        function maybeShowEmailCapture(alreadyAskedThisScreen = false) {
+            if (alreadyAskedThisScreen) return; // the high-score flow is already asking for it on this exact screen - don't double-ask
+            if (localStorage.getItem(EMAIL_CAPTURE_KEY) || localStorage.getItem(EMAIL_SUBMITTED_KEY)) return;
             localStorage.setItem(EMAIL_CAPTURE_KEY, '1'); // marks it seen immediately - shows once ever, regardless of submit or skip
             setTimeout(() => {
                 emailCaptureScreen.classList.remove('hidden');
@@ -1184,6 +1201,7 @@
             try {
                 const { error } = await db.from('email_signups').insert([{ email }]);
                 if (error) throw error;
+                localStorage.setItem(EMAIL_SUBMITTED_KEY, '1');
                 emailCaptureStatus.innerText = "Signal locked.";
                 setTimeout(() => emailCaptureScreen.classList.add('hidden'), 1200);
             } catch (e) {
