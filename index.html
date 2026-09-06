@@ -313,6 +313,19 @@
                 <button id="dissolve-btn" class="btn w-full max-w-xs" style="margin-top:12px;">DISSOLVE INTO THE SOURCE</button>
             </div>
         </div>
+
+        <div id="email-capture-screen" class="ui-layer hidden">
+            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
+                <h2 class="glitch" data-text="STAY IN TRANSMISSION RANGE" style="color:#00fff9; font-size:2.2rem;">STAY IN TRANSMISSION RANGE</h2>
+                <p class="text-sm md:text-base text-cyan-300 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency. We'll send word when new transmissions drop.</p>
+                <div class="flex flex-col gap-2 w-full max-w-xs">
+                    <input type="email" id="email-capture-input" placeholder="you@frequency.com" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
+                    <button id="email-capture-submit-btn" class="btn w-full">STAY TUNED</button>
+                </div>
+                <p id="email-capture-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
+                <button id="email-capture-skip-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1" style="background:none; border:none; cursor:pointer;">Not now</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -338,6 +351,10 @@
         const epilogueLineEl = document.getElementById('epilogue-line');
         const gameOverHeading = document.getElementById('game-over-heading');
         const sourceChoiceScreen = document.getElementById('source-choice-screen');
+        const emailCaptureScreen = document.getElementById('email-capture-screen');
+        const emailCaptureInput = document.getElementById('email-capture-input');
+        const emailCaptureSubmitBtn = document.getElementById('email-capture-submit-btn');
+        const emailCaptureStatus = document.getElementById('email-capture-status');
         
         const bgMusic = document.getElementById('bg-music');
         const btnMute = document.getElementById('btn-mute'); const btnSkip = document.getElementById('btn-skip');
@@ -921,6 +938,7 @@
             fitOverlay(document.querySelector('#start-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
+            fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
         }
         const VOID_QUOTES = [
             "Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up.",
@@ -1142,6 +1160,36 @@
             }
             gameOverScreen.classList.remove('hidden');
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col')); // score/epilogue text just changed the height
+            maybeShowEmailCapture();
+        }
+
+        const EMAIL_CAPTURE_KEY = 'layers_email_prompted';
+        function maybeShowEmailCapture() {
+            if (localStorage.getItem(EMAIL_CAPTURE_KEY)) return;
+            localStorage.setItem(EMAIL_CAPTURE_KEY, '1'); // marks it seen immediately - shows once ever, regardless of submit or skip
+            setTimeout(() => {
+                emailCaptureScreen.classList.remove('hidden');
+                fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
+            }, 2500);
+        }
+        function dismissEmailCapture() { emailCaptureScreen.classList.add('hidden'); }
+        async function submitEmailSignup() {
+            const email = emailCaptureInput.value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                emailCaptureStatus.innerText = "That doesn't look like a valid frequency.";
+                return;
+            }
+            emailCaptureSubmitBtn.disabled = true;
+            emailCaptureStatus.innerText = "Locking signal...";
+            try {
+                const { error } = await db.from('email_signups').insert([{ email }]);
+                if (error) throw error;
+                emailCaptureStatus.innerText = "Signal locked.";
+                setTimeout(() => emailCaptureScreen.classList.add('hidden'), 1200);
+            } catch (e) {
+                emailCaptureStatus.innerText = "Transmission failed. Try again.";
+                emailCaptureSubmitBtn.disabled = false;
+            }
         }
 
         function announceSourceEncounter() {
@@ -1668,6 +1716,8 @@
             document.getElementById('dissolve-btn').onclick = chooseDissolve;
             document.getElementById('remember-btn').onclick = chooseRememberHome;
             document.getElementById('not-ready-btn').onclick = chooseNotReady;
+            emailCaptureSubmitBtn.onclick = submitEmailSignup;
+            document.getElementById('email-capture-skip-btn').onclick = dismissEmailCapture;
             requestAnimationFrame(gameLoop);
         };
     </script>
