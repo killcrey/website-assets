@@ -325,7 +325,7 @@
                     <button id="elite8-submit-btn" class="btn w-full">LOCK IT IN</button>
                 </div>
                 <p id="elite8-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
-                <button id="elite8-skip-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1 text-center" style="background:none; border:none; cursor:pointer;">Skip — the score stands, the name doesn't</button>
+                <button id="elite8-skip-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1 text-center" style="background:none; border:none; cursor:pointer;">Skip — your run won't appear on the board</button>
             </div>
         </div>
 
@@ -1265,8 +1265,8 @@
                 revealGameOverScreen(false, true);
             } catch (e) { statusText.innerText = "ERROR UPLOADING."; submitBtn.disabled = false; }
         });
-        document.getElementById('elite8-skip-btn').addEventListener('click', async () => {
-            try { await db.from('void_runner_scores').insert([{ username: 'ANO', score: pendingElite8Score }]); fetchLeaderboard(); } catch (e) { /* anonymous entry is best-effort */ }
+        document.getElementById('elite8-skip-btn').addEventListener('click', () => {
+            // No email, no board entry - the run's score still shows on the death screen itself, just never reaches void_runner_scores.
             elite8CaptureScreen.classList.add('hidden');
             revealGameOverScreen(false, true);
         });
