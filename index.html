@@ -98,6 +98,9 @@
         .btn:hover { background: #00fff9; color: #000; box-shadow: 0 0 20px rgba(0, 255, 249, 0.8); }
         
         .insta-cta { margin-top: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 2px solid rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.15); border-radius: 12px; animation: purple-pulse 2s infinite alternate; max-width: 90%; pointer-events: auto !important; }
+        .insta-cta-secondary { margin-top: 8px; animation: none; padding: 6px 10px; border-width: 1px; opacity: 0.75; }
+        .insta-cta-secondary .insta-logo { width: 22px; height: 22px; }
+        .insta-cta-secondary p { font-size: 0.7rem !important; }
         .insta-logo { width: 35px; height: 35px; filter: drop-shadow(0 0 15px #d8b4fe) brightness(1.5); transition: all 0.3s ease-in-out; }
         .insta-cta a:hover .insta-logo { transform: scale(1.15) rotate(5deg); filter: drop-shadow(0 0 25px #ffffff) brightness(1.7); }
         @keyframes purple-pulse { 0% { box-shadow: 0 0 5px rgba(168, 85, 247, 0.3); border-color: rgba(168, 85, 247, 0.4); } 100% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.7); border-color: rgba(168, 85, 247, 1); } }
@@ -259,7 +262,7 @@
                     <p id="final-highscore" class="text-lg md:text-xl mt-0.5 text-gray-400 font-vt323 hidden"></p>
                     <p id="new-record" class="text-yellow-400 font-bold mt-1 hidden text-lg animate-bounce">NEW LOCAL HIGH SCORE</p>
                     <div class="hidden md:block w-full">
-                        <div class="insta-cta">
+                        <div class="insta-cta insta-cta-secondary">
                             <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
                                 SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
                             </p>
@@ -279,9 +282,18 @@
                 </div>
             </div>
 
+            <div id="death-email-capture" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
+                <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight">LOG YOUR FREQUENCY TO CLAIM YOUR RANK</p>
+                <div class="flex flex-col gap-1 w-full mt-1">
+                    <input type="email" id="death-email-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-base w-full text-center focus:outline-none focus:border-yellow-400">
+                    <button id="death-email-submit-btn" class="btn w-full !py-1">TRANSMIT</button>
+                </div>
+                <p id="death-email-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
+                <button id="death-email-run-again-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1" style="background:none; border:none; cursor:pointer;">RUN AGAIN</button>
+            </div>
+
             <div id="score-submit-ui" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
                 <p class="text-yellow-400 font-vt323 text-xl uppercase mb-1 animate-pulse" style="text-shadow: 0 0 10px #facc15;">YOU HAVE A HIGH SCORE!</p>
-                <input type="email" id="score-email-input" placeholder="Frequency (email) to claim your spot" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-base w-full text-center mb-1 focus:outline-none focus:border-yellow-400">
                 <div class="flex gap-2 w-full justify-center">
                     <input type="text" id="pilot-initials" maxlength="6" placeholder="TAG123" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-xl w-24 text-center uppercase focus:outline-none focus:border-yellow-400" title="1 to 3 letters, followed by 0 to 3 numbers.">
                     <button id="submit-score-btn" class="btn !mt-0 !py-1">TRANSMIT</button>
@@ -290,7 +302,7 @@
             </div>
 
             <div class="md:hidden">
-                <div class="insta-cta">
+                <div class="insta-cta insta-cta-secondary">
                     <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight" style="text-shadow: 0 0 8px #a855f7;">
                         SCREEN CAP YOUR HIGH SCORE<br>AND TAG @THEINVISIBLEPANCHOS
                     </p>
@@ -301,6 +313,20 @@
             </div>
 
             <button id="restart-btn" class="btn">ATTEMPT RE-ENTRY</button>
+            </div>
+        </div>
+
+        <div id="elite8-capture-screen" class="ui-layer hidden">
+            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
+                <h2 class="glitch" data-text="YOU MADE THE ELITE 8" style="color:#facc15; font-size:2rem;">YOU MADE THE ELITE 8</h2>
+                <p class="text-sm md:text-base text-yellow-200 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency to lock your name on the board.</p>
+                <div class="flex flex-col gap-2 w-full max-w-xs">
+                    <input type="email" id="elite8-email-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
+                    <input type="text" id="elite8-tag-input" maxlength="6" placeholder="TAG123" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-xl w-full text-center uppercase focus:outline-none focus:border-yellow-400" title="1 to 3 letters, followed by 0 to 3 numbers.">
+                    <button id="elite8-submit-btn" class="btn w-full">LOCK IT IN</button>
+                </div>
+                <p id="elite8-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
+                <button id="elite8-skip-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1 text-center" style="background:none; border:none; cursor:pointer;">Skip — the score stands, the name doesn't</button>
             </div>
         </div>
 
@@ -317,11 +343,11 @@
 
         <div id="email-capture-screen" class="ui-layer hidden">
             <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
-                <h2 class="glitch" data-text="STAY IN TRANSMISSION RANGE" style="color:#00fff9; font-size:2.2rem;">STAY IN TRANSMISSION RANGE</h2>
-                <p class="text-sm md:text-base text-cyan-300 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency. We'll send word when new transmissions drop.</p>
+                <h2 class="glitch" data-text="THE SOURCE REMEMBERS YOU" style="color:#e879f9; font-size:2rem;">THE SOURCE REMEMBERS YOU</h2>
+                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency. We'll send word when new transmissions drop.</p>
                 <div class="flex flex-col gap-2 w-full max-w-xs">
-                    <input type="email" id="email-capture-input" placeholder="you@frequency.com" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
-                    <button id="email-capture-submit-btn" class="btn w-full">STAY TUNED</button>
+                    <input type="email" id="email-capture-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
+                    <button id="email-capture-submit-btn" class="btn w-full">TRANSMIT</button>
                 </div>
                 <p id="email-capture-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
                 <button id="email-capture-skip-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1" style="background:none; border:none; cursor:pointer;">Not now</button>
@@ -356,6 +382,7 @@
         const emailCaptureInput = document.getElementById('email-capture-input');
         const emailCaptureSubmitBtn = document.getElementById('email-capture-submit-btn');
         const emailCaptureStatus = document.getElementById('email-capture-status');
+        const elite8CaptureScreen = document.getElementById('elite8-capture-screen');
         
         const bgMusic = document.getElementById('bg-music');
         const btnMute = document.getElementById('btn-mute'); const btnSkip = document.getElementById('btn-skip');
@@ -394,27 +421,21 @@
             } catch (e) { console.log("LB Fetch Error", e); }
         }
 
+        // Only reached when an email is already on file (Elite 8 first-time claims go through
+        // #elite8-capture-screen instead, which submits the score itself) - initials only.
         document.getElementById('submit-score-btn').addEventListener('click', async () => {
             const inputField = document.getElementById('pilot-initials'); const username = inputField.value.toUpperCase();
             const statusText = document.getElementById('submit-status'); const submitBtn = document.getElementById('submit-score-btn');
-            const emailInput = document.getElementById('score-email-input');
-            const emailRequired = !emailInput.classList.contains('hidden');
-            const email = emailInput.value.trim();
 
             if(username.length === 0 || !db) return;
             const tagRegex = /^[A-Z]{1,3}[0-9]{0,3}$/;
             if (!tagRegex.test(username)) { statusText.innerText = "FORMAT ERROR: 1-3 LETTERS THEN 0-3 NUMBERS."; return; }
-            if (emailRequired && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "ENTER A VALID FREQUENCY (EMAIL) TO CLAIM YOUR SPOT."; return; }
 
             statusText.innerText = "TRANSMITTING..."; submitBtn.disabled = true;
 
             try {
                 const { error } = await db.from('void_runner_scores').insert([{ username: username, score: Math.floor(distanceTraveled) + bonusPoints }]);
                 if (error) throw error;
-                if (emailRequired) {
-                    try { await db.from('email_signups').insert([{ email }]); localStorage.setItem(EMAIL_SUBMITTED_KEY, '1'); }
-                    catch (e) { /* score is already in - don't fail the whole submission over the email side-effect */ }
-                }
                 statusText.innerText = "DATA RECEIVED."; document.getElementById('score-submit-ui').classList.add('hidden');
                 fetchLeaderboard();
             } catch (e) { statusText.innerText = "ERROR UPLOADING."; submitBtn.disabled = false; }
@@ -948,6 +969,7 @@
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
+            fitOverlay(document.querySelector('#elite8-capture-screen > .flex.flex-col'));
         }
         const VOID_QUOTES = [
             "Panchos never die!", "The void is just a layer.", "I matter.", "Connection established.", "Christopher, wake up.",
@@ -1154,17 +1176,7 @@
             overlayBusyUntil = 0;
 
             if (finalScore > highScore) { highScore = finalScore; localStorage.setItem('layers_highscore', highScore); newRecordEl.classList.remove('hidden'); hudHighScore.innerText = `REC: ${highScore}`; }
-            let emailAskedViaScoreUI = false;
-            if(db) {
-                let qualifiesForTop5 = (topScoreCount < 5 || finalScore > lowestTopScore);
-                if (qualifiesForTop5 && finalScore > 0) {
-                    document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = "";
-                    const scoreEmailInput = document.getElementById('score-email-input');
-                    if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { scoreEmailInput.classList.add('hidden'); }
-                    else { scoreEmailInput.classList.remove('hidden'); scoreEmailInput.value = ""; emailAskedViaScoreUI = true; }
-                }
-                else { document.getElementById('score-submit-ui').classList.add('hidden'); }
-            }
+
             finalScoreEl.innerText = `SCORE: ${finalScore}`; finalDepthEl.innerText = `DEPTH: ${Math.floor(distanceTraveled)}m`;
             if (dissolved) {
                 gameOverHeading.innerText = "ASCENDED"; gameOverHeading.style.color = '#facc15'; gameOverHeading.style.textShadow = '0 0 20px #facc15';
@@ -1173,23 +1185,114 @@
                 gameOverHeading.innerText = "SIGNAL LOST"; gameOverHeading.style.color = ''; gameOverHeading.style.textShadow = '2px 2px 0px #000';
                 epilogueLineEl.innerText = `"${EPILOGUE_QUOTES[Math.floor(Math.random() * EPILOGUE_QUOTES.length)]}"`;
             }
-            gameOverScreen.classList.remove('hidden');
-            fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col')); // score/epilogue text just changed the height
-            maybeShowEmailCapture(emailAskedViaScoreUI);
+
+            const hasEmail = !!localStorage.getItem(EMAIL_SUBMITTED_KEY);
+            const qualifiesForTop5 = db && (topScoreCount < 5 || finalScore > lowestTopScore);
+
+            if (qualifiesForTop5 && finalScore > 0 && !hasEmail) {
+                showElite8Capture(finalScore); // Task 2 - blocks reveal of the death screen until resolved, then reveals it itself
+            } else {
+                revealGameOverScreen(qualifiesForTop5 && finalScore > 0, false);
+            }
         }
 
-        const EMAIL_CAPTURE_KEY = 'layers_email_prompted';
-        const EMAIL_SUBMITTED_KEY = 'layers_email_submitted'; // distinct from EMAIL_CAPTURE_KEY: this one means "we actually have their email", not just "we asked"
-        function maybeShowEmailCapture(alreadyAskedThisScreen = false) {
-            if (alreadyAskedThisScreen) return; // the high-score flow is already asking for it on this exact screen - don't double-ask
-            if (localStorage.getItem(EMAIL_CAPTURE_KEY) || localStorage.getItem(EMAIL_SUBMITTED_KEY)) return;
-            localStorage.setItem(EMAIL_CAPTURE_KEY, '1'); // marks it seen immediately - shows once ever, regardless of submit or skip
-            setTimeout(() => {
-                emailCaptureScreen.classList.remove('hidden');
-                fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
-            }, 2500);
+        function revealGameOverScreen(showScoreSubmitUI, elite8AlreadyAskedThisScreen) {
+            if (showScoreSubmitUI) {
+                document.getElementById('score-submit-ui').classList.remove('hidden'); document.getElementById('submit-score-btn').disabled = false; document.getElementById('submit-status').innerText = ""; document.getElementById('pilot-initials').value = "";
+            } else {
+                document.getElementById('score-submit-ui').classList.add('hidden');
+            }
+            if (!elite8AlreadyAskedThisScreen) maybeShowDeathEmailCapture(); else document.getElementById('death-email-capture').classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+            fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col'));
         }
-        function dismissEmailCapture() { emailCaptureScreen.classList.add('hidden'); }
+
+        const EMAIL_SUBMITTED_KEY = 'layers_email_submitted'; // "we actually have their email" - gates all three capture gates below
+
+        // ===== TASK 1: death-screen inline capture (SIGNAL LOST, non-qualifying or already-claimed runs) =====
+        function maybeShowDeathEmailCapture() {
+            const el = document.getElementById('death-email-capture');
+            if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { el.classList.add('hidden'); return; }
+            document.getElementById('death-email-input').value = "";
+            document.getElementById('death-email-status').innerText = "";
+            document.getElementById('death-email-submit-btn').disabled = false;
+            el.classList.remove('hidden');
+        }
+        document.getElementById('death-email-submit-btn').addEventListener('click', async () => {
+            const email = document.getElementById('death-email-input').value.trim();
+            const statusText = document.getElementById('death-email-status');
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "That doesn't look like a valid frequency."; return; }
+            document.getElementById('death-email-submit-btn').disabled = true;
+            statusText.innerText = "Locking signal...";
+            try {
+                const { error } = await db.from('email_signups').insert([{ email, source: 'game_death' }]);
+                if (error) throw error;
+                localStorage.setItem(EMAIL_SUBMITTED_KEY, '1');
+                statusText.innerText = "Signal locked.";
+                setTimeout(() => { document.getElementById('death-email-capture').classList.add('hidden'); fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col')); }, 1000);
+            } catch (e) {
+                statusText.innerText = "Transmission failed. Try again.";
+                document.getElementById('death-email-submit-btn').disabled = false;
+            }
+        });
+        document.getElementById('death-email-run-again-btn').addEventListener('click', () => {
+            document.getElementById('death-email-capture').classList.add('hidden');
+            startGame();
+        });
+
+        // ===== TASK 2: Elite 8 claim gate (replaces Task 1 on qualifying runs, only while no email on file) =====
+        let pendingElite8Score = 0;
+        function showElite8Capture(finalScore) {
+            pendingElite8Score = finalScore;
+            document.getElementById('elite8-email-input').value = "";
+            document.getElementById('elite8-tag-input').value = "";
+            document.getElementById('elite8-status').innerText = "";
+            document.getElementById('elite8-submit-btn').disabled = false;
+            elite8CaptureScreen.classList.remove('hidden');
+            fitOverlay(document.querySelector('#elite8-capture-screen > .flex.flex-col'));
+        }
+        document.getElementById('elite8-submit-btn').addEventListener('click', async () => {
+            const email = document.getElementById('elite8-email-input').value.trim();
+            const tag = document.getElementById('elite8-tag-input').value.toUpperCase();
+            const statusText = document.getElementById('elite8-status');
+            const submitBtn = document.getElementById('elite8-submit-btn');
+            const tagRegex = /^[A-Z]{1,3}[0-9]{0,3}$/;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "ENTER A VALID FREQUENCY."; return; }
+            if (!tagRegex.test(tag)) { statusText.innerText = "FORMAT ERROR: 1-3 LETTERS THEN 0-3 NUMBERS."; return; }
+            submitBtn.disabled = true; statusText.innerText = "LOCKING IN...";
+            try {
+                const { error: scoreError } = await db.from('void_runner_scores').insert([{ username: tag, score: pendingElite8Score }]);
+                if (scoreError) throw scoreError;
+                try { await db.from('email_signups').insert([{ email, source: 'game_elite8' }]); localStorage.setItem(EMAIL_SUBMITTED_KEY, '1'); }
+                catch (e) { /* score already landed - don't fail the whole claim over the email side-effect */ }
+                fetchLeaderboard();
+                elite8CaptureScreen.classList.add('hidden');
+                revealGameOverScreen(false, true);
+            } catch (e) { statusText.innerText = "ERROR UPLOADING."; submitBtn.disabled = false; }
+        });
+        document.getElementById('elite8-skip-btn').addEventListener('click', async () => {
+            try { await db.from('void_runner_scores').insert([{ username: 'ANO', score: pendingElite8Score }]); fetchLeaderboard(); } catch (e) { /* anonymous entry is best-effort */ }
+            elite8CaptureScreen.classList.add('hidden');
+            revealGameOverScreen(false, true);
+        });
+
+        // ===== TASK 3: THE SOURCE capture gate (Remember Home / I'm Not Ready only - never Dissolve, which goes straight to the death screen above) =====
+        let pendingSourceConsequence = null;
+        function showSourceEmailCapture(consequence) {
+            pendingSourceConsequence = consequence;
+            emailCaptureInput.value = "";
+            emailCaptureStatus.innerText = "";
+            emailCaptureSubmitBtn.disabled = false;
+            emailCaptureScreen.classList.remove('hidden');
+            fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
+        }
+        function resolveSourceEmailCapture() {
+            emailCaptureScreen.classList.add('hidden');
+            choiceModalActive = false;
+            const consequence = pendingSourceConsequence; pendingSourceConsequence = null;
+            if (consequence) consequence();
+        }
+        function dismissEmailCapture() { resolveSourceEmailCapture(); }
         async function submitEmailSignup() {
             const email = emailCaptureInput.value.trim();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1199,11 +1302,11 @@
             emailCaptureSubmitBtn.disabled = true;
             emailCaptureStatus.innerText = "Locking signal...";
             try {
-                const { error } = await db.from('email_signups').insert([{ email }]);
+                const { error } = await db.from('email_signups').insert([{ email, source: 'game_source' }]);
                 if (error) throw error;
                 localStorage.setItem(EMAIL_SUBMITTED_KEY, '1');
                 emailCaptureStatus.innerText = "Signal locked.";
-                setTimeout(() => emailCaptureScreen.classList.add('hidden'), 1200);
+                setTimeout(resolveSourceEmailCapture, 900);
             } catch (e) {
                 emailCaptureStatus.innerText = "Transmission failed. Try again.";
                 emailCaptureSubmitBtn.disabled = false;
@@ -1285,18 +1388,21 @@
 
         function chooseRememberHome() {
             sourceChoiceScreen.classList.add('hidden');
-            choiceModalActive = false;
-            startMemoryFlight();
+            if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { choiceModalActive = false; startMemoryFlight(); }
+            else { showSourceEmailCapture(startMemoryFlight); } // game stays paused (choiceModalActive still true) until this resolves
         }
 
         function chooseNotReady() {
             sourceChoiceScreen.classList.add('hidden');
-            choiceModalActive = false;
-            sfxPowerBig(); vibrate([20, 30, 20]);
-            rocket3Active = true; rocket3Timer = NOT_READY_GODMODE_FRAMES;
-            powerUpActive = false; sideShotActive = false; doubleShipActive = false;
-            bonusPoints += 2000;
-            showPanchoPower("NOT YET<br><span style='color:#facc15'>GOD MODE ENGAGED</span>");
+            const applyNotReady = () => {
+                sfxPowerBig(); vibrate([20, 30, 20]);
+                rocket3Active = true; rocket3Timer = NOT_READY_GODMODE_FRAMES;
+                powerUpActive = false; sideShotActive = false; doubleShipActive = false;
+                bonusPoints += 2000;
+                showPanchoPower("NOT YET<br><span style='color:#facc15'>GOD MODE ENGAGED</span>");
+            };
+            if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { choiceModalActive = false; applyNotReady(); }
+            else { showSourceEmailCapture(applyNotReady); }
         }
 
         function startMemoryFlight() {
