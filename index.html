@@ -289,7 +289,6 @@
                     <button id="death-email-submit-btn" class="btn w-full !py-1">TRANSMIT</button>
                 </div>
                 <p id="death-email-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
-                <button id="death-email-run-again-btn" class="text-xs text-gray-500 font-vt323 uppercase tracking-widest mt-1" style="background:none; border:none; cursor:pointer;">RUN AGAIN</button>
             </div>
 
             <div id="score-submit-ui" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
@@ -1234,10 +1233,6 @@
                 statusText.innerText = "Transmission failed. Try again.";
                 document.getElementById('death-email-submit-btn').disabled = false;
             }
-        });
-        document.getElementById('death-email-run-again-btn').addEventListener('click', () => {
-            document.getElementById('death-email-capture').classList.add('hidden');
-            startGame();
         });
 
         // ===== TASK 2: Elite 8 claim gate (replaces Task 1 on qualifying runs, only while no email on file) =====
