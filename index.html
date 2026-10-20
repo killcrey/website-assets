@@ -408,14 +408,25 @@
             try {
                 const { data, error } = await db.from('void_runner_scores').select('username, score').order('score', { ascending: false }).limit(8);
                 if (error) throw error;
-                let lbHTML = ''; topScoreCount = data ? data.length : 0;
-                
-                if (topScoreCount > 0) {
-                    lowestTopScore = data[topScoreCount - 1].score;
-                    data.forEach((entry) => { lbHTML += `<div class="lb-entry"><span>${entry.username}</span><span>${entry.score}</span></div>`; });
-                } else { lowestTopScore = 0; lbHTML = '<div class="text-center text-gray-500 text-xs py-1">No Uplinks Found</div>'; }
+                topScoreCount = data ? data.length : 0;
+                const buildRows = () => {
+                    const frag = document.createDocumentFragment();
+                    if (topScoreCount > 0) {
+                        data.forEach((entry) => {
+                            const row = document.createElement('div'); row.className = 'lb-entry';
+                            const name = document.createElement('span'); name.textContent = entry.username;
+                            const score = document.createElement('span'); score.textContent = entry.score;
+                            row.append(name, score); frag.appendChild(row);
+                        });
+                    } else {
+                        const empty = document.createElement('div'); empty.className = 'text-center text-gray-500 text-xs py-1'; empty.textContent = 'No Uplinks Found';
+                        frag.appendChild(empty);
+                    }
+                    return frag;
+                };
+                lowestTopScore = topScoreCount > 0 ? data[topScoreCount - 1].score : 0;
 
-                document.getElementById('lb-content-start').innerHTML = lbHTML; document.getElementById('lb-content-gameover').innerHTML = lbHTML;
+                document.getElementById('lb-content-start').replaceChildren(buildRows()); document.getElementById('lb-content-gameover').replaceChildren(buildRows());
                 fitAllOverlays(); // leaderboard rows just changed the height
             } catch (e) { console.log("LB Fetch Error", e); }
         }
