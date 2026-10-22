@@ -9,7 +9,7 @@ Earth, not space. The 2D game is dark neon void; the 3D section is **daytime San
 ## Decisions (2026-10-22)
 - **Trigger:** a **rare portal in the blue-sky cloud section** of the 2D game (the hazard-free `memoryFlightActive` stretch that currently spawns only clouds). It reuses the existing portal entity (`portal.png`, drawn in `Entity.draw`) with a different color and glow so it can't be confused with the purple Pancho Portal. Tint it with an offscreen canvas and `source-atop` (works everywhere; `ctx.filter` isn't reliable on iOS). Handoff stays behind a test flag until the 3D side is ready.
 - **No music unlocks in 3D** — the 2D game already does that. Vinyl and tape therefore pay out as points and utility, not tracks.
-- **Thermos removed** (and Domingo no longer carries one).
+- **Thermos removed.** **Domingo removed** as a character (the record store can still exist as a safe-house location, with no keeper).
 
 ## Collectibles (built in the prototype, carried until you escape; lost if caught)
 | Item | Count | What it does |
@@ -53,7 +53,6 @@ Heat rises when you're seen, run in the open, use digital things, or grab loot i
 |---|---|
 | **Pancho** (Frank Edison) | Bodega = main safe house and bank point. Sells hints ("foil hats are half off") for cards. |
 | **Pancho's father (H-3)** | Appears near the bodega; a distraction or helper ("Right here, son"). |
-| **Domingo** | Record store safe house, almost silent; hands you a reel-to-reel tape (analog cloak), turns the reel-to-reel off when nobody has anything left to say. |
 | **Luz** ("light") | Guide: a light that shows the way to safe houses / the Tear. |
 | **Juan Carlos** | Voice on an analog speaker/radio: hints, and the second mind that doubles Low C time. |
 | **The Kid** | Runs around with a stack of cards; chase/pickup side-challenge ("I watch greatness, kid"). |

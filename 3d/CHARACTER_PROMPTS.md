@@ -51,12 +51,6 @@ An elderly man in his eighties, Black, thin and frail but standing straight, cal
 cardigan over an old button shirt, slippers. Quietly dignified. Slight look of someone waking up after a long time.
 ```
 
-**Domingo** (50s, record store keeper, few words)
-```
-A man in his fifties, Latino, stocky, quiet and watchful, gray-flecked beard, worn flannel shirt,
-holding a boxed reel-to-reel tape under one arm. Wears headphones around his neck. Record-store basement vibe.
-```
-
 **Luz** (Eduardo's wife; scientist; "light")
 ```
 A woman in her forties, Latina, composed and commanding, hair tied back, warm cream blazer over a simple
