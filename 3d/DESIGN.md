@@ -6,11 +6,28 @@ The Lore Book's last page already describes this section: "The anomaly takes you
 ## Art direction (decided 2026-10-22)
 Earth, not space. The 2D game is dark neon void; the 3D section is **daytime San Diego**: blue sky, sun, terracotta / adobe / cream / sage stucco, tan sidewalks, green palms, painted shop signs, ink-brown outlines. Neon is reserved for the one surreal thing: **the Tear** (a dark geometric rip with a cyan-white glow) — it should pop against the warm world. Agency vehicles and Suits are matte black/charcoal so they read instantly against the earth tones. The prototype is already re-themed this way. Character prompts for Nano Banana are in `CHARACTER_PROMPTS.md`.
 
+## Decisions (2026-10-22)
+- **Trigger:** a **rare portal in the blue-sky cloud section** of the 2D game (the hazard-free `memoryFlightActive` stretch that currently spawns only clouds). It reuses the existing portal entity (`portal.png`, drawn in `Entity.draw`) with a different color and glow so it can't be confused with the purple Pancho Portal. Tint it with an offscreen canvas and `source-atop` (works everywhere; `ctx.filter` isn't reliable on iOS). Handoff stays behind a test flag until the 3D side is ready.
+- **No music unlocks in 3D** — the 2D game already does that. Vinyl and tape therefore pay out as points and utility, not tracks.
+- **Thermos removed** (and Domingo no longer carries one).
+
+## Collectibles (built in the prototype, carried until you escape; lost if caught)
+| Item | Count | What it does |
+|---|---|---|
+| **Tony Gwynn card** | 8 | +300 each; full set (eight batting titles) +5,000. Later: each card thins "the cover" so the exit Tear shows through. |
+| **Scratcher** | 6 | Scratch-off roll: 100 (70%) / 250 (20%) / 500 (8%) / 2,000 jackpot (2%). Lore: they bought scratchers before every launch. |
+| **Copper wire** | 3 | +50 and a longer Low C hold (stored as a boost for when the ability exists). Placed on the sidewalk edges. |
+| **Vinyl** | 3 | +1,000 — the big prize, in out-of-the-way spots (later: near van routes). |
+| **Reel-to-reel tape** | 2 | +200 and an 8-second **analog cloak** (stacks to 12s): the Agency can't see you (heat won't rise from sight). |
+| **Fruit basket** | 2 | **Trap.** Looks like a gift, has a tiny blinking red bug light. Taking it raises heat one level for ~12s. No points. |
+
+Tuning numbers live at the top of the collectibles block in `3d/index.html`.
+
 ## Flow
-1. **2D game:** a rare **Tear** opens in the void (trigger TBD — suggested: after a boss). Fly in.
+1. **2D game:** the rare Tear-portal drifts through the blue-sky section. Fly in.
 2. **3D, "Earth":** land on a San Diego street (home: 32.72° N, "DAYGO"). Goal: find and reach the **exit Tear** while the Agency hunts you.
-3. **Escape:** exit Tear -> back to the 2D run, with bonuses, any unlocked Memories of Home sample, and a brief "P1. Out." sign-off.
-4. **Captured:** thrown straight back into the 2D void as **STATUS: NULL** — carried 3D bonuses lost, plus a score penalty (size TBD), no unlock.
+3. **Escape:** exit Tear -> back to the 2D run, with the loot you carried as bonus points, and a brief "P1. Out." sign-off.
+4. **Captured:** thrown straight back into the 2D void as **STATUS: NULL** — carried 3D bonuses lost, plus a score penalty (size TBD).
 
 Handoff is a small saved object passed between the two pages (score, dimension, power-ups, song). A missing/broken handoff just starts a normal 2D run.
 
@@ -27,18 +44,16 @@ Heat rises when you're seen, run in the open, use digital things, or grab loot i
 - **Analog beats digital:** copper-mesh spots (the bodega back room, the record store) hide you completely. Phones/cameras/digital signs raise heat.
 - **Sprint/hide:** alleys, dumpsters, ducking behind palms. Mobile: auto-hide when you stop in cover.
 
-## Collectibles (carried until you exit; optionally bank at safe houses)
-- **Tony Gwynn cards** — 8 of them (eight batting titles). Complete the set = big bonus.
-- **Scratchers**, **copper wire**, **vinyl / reel-to-reel tape** (these carry the Memories of Home sample unlocks), **thermos** (Domingo's: stamina/heat relief).
-- **Fruit basket** — looks like a gift pickup, actually bugged. Taking it spikes heat (lore trap).
-- Collecting thins "the cover" -> the exit Tear becomes visible (lore: when the material runs low, the Tear shows through).
+## Possible later use of collectibles
+- Gwynn cards could thin "the cover" so the exit Tear only shows through once you've collected enough (lore: when the material runs low, the Tear shows through). Cards could also be spent with Pancho for hints ("foil hats are half off").
+- Optionally bank loot at safe houses (bodega / record store) so a capture doesn't cost everything.
 
 ## Characters and what they do
 | Character | Role in the level |
 |---|---|
 | **Pancho** (Frank Edison) | Bodega = main safe house and bank point. Sells hints ("foil hats are half off") for cards. |
 | **Pancho's father (H-3)** | Appears near the bodega; a distraction or helper ("Right here, son"). |
-| **Domingo** | Record store safe house, almost silent; gives the thermos, turns the tape off. |
+| **Domingo** | Record store safe house, almost silent; hands you a reel-to-reel tape (analog cloak), turns the reel-to-reel off when nobody has anything left to say. |
 | **Luz** ("light") | Guide: a light that shows the way to safe houses / the Tear. |
 | **Juan Carlos** | Voice on an analog speaker/radio: hints, and the second mind that doubles Low C time. |
 | **The Kid** | Runs around with a stack of cards; chase/pickup side-challenge ("I watch greatness, kid"). |

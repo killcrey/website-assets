@@ -15,6 +15,9 @@
   .vt { font-family: 'VT323', monospace; }
   #hud-loc { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 16px; font-size: clamp(1.05rem, 4.6vw, 1.5rem); letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
   #hud-obj { position: fixed; top: calc(40px + env(safe-area-inset-top)); left: 16px; font-size: 1.2rem; color: #ffe08a; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
+  #hud-loot { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 16px; font-size: 1.15rem; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
+  #hud-status { position: fixed; top: calc(86px + env(safe-area-inset-top)); left: 16px; font-size: 1.05rem; color: #ffb347; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: pre; }
+  #toast { position: fixed; left: 0; right: 0; top: 24%; text-align: center; font-size: clamp(1.6rem, 7vw, 2.4rem); color: #ffe08a; text-shadow: 0 2px 4px #000, 0 0 14px rgba(0,0,0,.6); pointer-events: none; opacity: 0; transition: opacity .25s; }
   #hud-debug { position: fixed; bottom: 6px; left: 8px; font-size: .9rem; color: #a0aec0; pointer-events: none; white-space: pre; display: none; }
   .btn { background: rgba(5,5,5,.6); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 10px rgba(0,255,249,.2); text-decoration: none; display: inline-block; }
   .btn.pink { border-color: #ff6ec7; color: #ff6ec7; background: rgba(5,5,5,.6); box-shadow: 0 0 14px rgba(255,110,199,.35); }
@@ -41,6 +44,9 @@
 <div id="stage"></div>
 <div id="hud-loc" class="vt">SAN DIEGO // GASLAMP QUARTER</div>
 <div id="hud-obj" class="vt">FIND THE TEAR</div>
+<div id="hud-loot" class="vt">CARRYING 0  |  CARDS 0/8</div>
+<div id="hud-status" class="vt"></div>
+<div id="toast" class="vt"></div>
 <div id="hud-debug" class="vt"></div>
 <button id="mute" class="btn vt" type="button">SND ON</button>
 <a id="back" class="btn" href="../">&#9664; Void Runner</a>
@@ -156,6 +162,7 @@ function glowTexture() {
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+const glowTex = glowTexture();
 
 // ---- world ----
 const STREET_END = -138, STREET_START = 12, HALF_WIDTH = 7.2;
@@ -335,6 +342,127 @@ const eyeP = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.Mes
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.08; player.add(shadow);
 player.position.set(0, 0, 6);
 
+// ---- collectibles (carried loot; the plan is you lose it if you're caught) ----
+const loot = { points: 0, cards: 0, scratchers: 0, wire: 0, vinyl: 0, tape: 0 };
+const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 8;
+let heat = 0, heatTimer = 0, cloak = 0, toastTimer = 0, lowCBoost = 0;
+const HEAT_NAMES = ['CLEAR', 'WATCH', 'CULTIVATE', 'CONTAIN'];
+const pickups = [];
+const prng = mulberry32(77);
+const mkMat = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
+function mkCard() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.76, 0.05), mkMat(0xe3b52e)));
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.64, 0.06), mkMat(0x6b4423)); g.add(inner);
+  const head = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), flat(0xd8a878)); head.position.set(0, 0.1, 0.04); g.add(head);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.07), mkMat(0xe3b52e)); bar.position.set(0, -0.2, 0); g.add(bar);
+  return g;
+}
+function mkScratcher() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.82, 0.04), mkMat(0x3f9a5a)));
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.05), mkMat(0xc9ccd1)); strip.position.y = -0.05; g.add(strip);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.05), mkMat(0xe3b52e)); top.position.y = 0.28; g.add(top);
+  return g;
+}
+function mkWire() {
+  const g = new THREE.Group(), m = mkMat(0xb8733a);
+  for (let i = 0; i < 3; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.07, 8, 18), m); t.position.z = (i - 1) * 0.12; g.add(t); }
+  return g;
+}
+function mkVinyl() {
+  const g = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.04, 28), mkMat(0x1a1a1f)); disc.rotation.x = Math.PI / 2; g.add(disc);
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.055, 18), mkMat(0xc9744c)); label.rotation.x = Math.PI / 2; g.add(label);
+  return g;
+}
+function mkTape() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.52, 0.08), mkMat(0xe9d8b4)));
+  for (const x of [-0.19, 0.19]) {
+    const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 16), mkMat(0x2a2a2a)); reel.rotation.x = Math.PI / 2; reel.position.set(x, 0.02, 0.06); g.add(reel);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 10), mkMat(0xe9d8b4)); hub.rotation.x = Math.PI / 2; hub.position.set(x, 0.02, 0.07); g.add(hub);
+  }
+  return g;
+}
+let basketBlink = null;
+function mkBasket() {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.34, 0.56), mkMat(0xb08a4a)); base.position.y = -0.2; g.add(base);
+  [[-0.2, 0xd2452f], [0.05, 0xf0a830], [0.25, 0x6aa84f]].forEach(([x, c], i) => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), mkMat(c)); f.position.set(x, 0.05 + (i % 2) * 0.05, 0); g.add(f); });
+  const cello = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.62, 0.62), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false })); cello.position.y = 0.02; g.add(cello);
+  const bug = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), flat(0xff2b2b)); bug.position.set(0.1, -0.36, 0.3); g.add(bug); g.userData.bug = bug;
+  return g;
+}
+const GLOWCOL = { card: 0xffd966, scratcher: 0x9ff0b0, wire: 0xffa860, vinyl: 0xfff3c4, tape: 0xffe9b8, basket: 0xffe9b8 };
+const MAKERS = { card: mkCard, scratcher: mkScratcher, wire: mkWire, vinyl: mkVinyl, tape: mkTape, basket: mkBasket };
+function addPickup(kind, x, z) {
+  const model = MAKERS[kind](), holder = new THREE.Group();
+  holder.add(model); holder.position.set(x, 1.0, z); holder.scale.setScalar(1.35);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: GLOWCOL[kind], blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.55 }));
+  glow.scale.set(1.9, 1.9, 1); holder.add(glow);
+  scene.add(holder); pickups.push({ kind, holder, model, phase: prng() * 6.28, taken: false });
+}
+[[-4, -14], [2.5, -26.5], [-2.5, -39], [4, -51.5], [-4.5, -64], [1.5, -76.5], [-1.5, -89], [3.5, -101.5]].forEach(([x, z]) => addPickup('card', x, z));
+[[-1, -9], [3.2, -30], [-3.4, -45], [2.4, -60], [-2, -82], [3.6, -97]].forEach(([x, z]) => addPickup('scratcher', x, z));
+[[-6.9, -38], [6.9, -72], [0.5, -108]].forEach(([x, z]) => addPickup('wire', x, z));
+[[-6.9, -55], [6.9, -88], [-6.9, -112]].forEach(([x, z]) => addPickup('vinyl', x, z));
+[[1.2, -40], [-1.0, -93]].forEach(([x, z]) => addPickup('tape', x, z));
+[[0, -20], [0.4, -76]].forEach(([x, z]) => addPickup('basket', x, z));
+
+function showToast(msg, color) { const t = $('toast'); t.textContent = msg; t.style.color = color || '#ffe08a'; t.style.opacity = 1; toastTimer = 1.5; }
+function updateLootHud() {
+  $('hud-loot').textContent = 'CARRYING ' + loot.points.toLocaleString() + '  |  CARDS ' + loot.cards + '/' + CARD_SET;
+  const lines = [];
+  if (heat > 0) lines.push('HEAT: ' + HEAT_NAMES[heat]);
+  if (cloak > 0) lines.push('ANALOG CLOAK ' + Math.ceil(cloak) + 's');
+  if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
+  $('hud-status').textContent = lines.join('\n');
+}
+function pickSfx(kind) {
+  if (!ac || ac.state !== 'running' || muted) return; const t = ac.currentTime;
+  if (kind === 'card') { tone('square', 660, t, 0.08, 0.07, 3000); tone('square', 990, t + 0.07, 0.12, 0.07, 3000); }
+  else if (kind === 'scratcher') { for (let i = 0; i < 4; i++) tone('square', 520 + i * 140, t + i * 0.05, 0.06, 0.05, 3000); }
+  else if (kind === 'wire') { tone('sawtooth', 140, t, 0.16, 0.09, 900); tone('sawtooth', 210, t + 0.05, 0.14, 0.07, 900); }
+  else if (kind === 'vinyl') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, t + i * 0.06, 0.25, 0.08, 4000)); }
+  else if (kind === 'tape') { tone('sawtooth', 330, t, 0.25, 0.06, 1200); tone('sawtooth', 165, t + 0.12, 0.3, 0.06, 900); }
+  else { tone('sawtooth', 90, t, 0.35, 0.12, 400); tone('square', 60, t + 0.1, 0.3, 0.1, 300); }
+}
+function rollScratcher() { const r = Math.random(); return r < 0.02 ? 2000 : r < 0.1 ? 500 : r < 0.3 ? 250 : 100; }
+function collect(p) {
+  p.taken = true; p.holder.visible = false; pickSfx(p.kind);
+  if (p.kind === 'card') {
+    loot.cards++; loot.points += CARD_VALUE; showToast('+' + CARD_VALUE + '  CARD ' + loot.cards + '/' + CARD_SET);
+    if (loot.cards === CARD_SET) { loot.points += CARD_SET_BONUS; showToast('FULL SET! +' + CARD_SET_BONUS, '#ffd966'); }
+  } else if (p.kind === 'scratcher') {
+    const v = rollScratcher(); loot.scratchers++; loot.points += v; showToast(v >= 2000 ? 'JACKPOT! +' + v : '+' + v + '  SCRATCHER', v >= 500 ? '#ffd966' : '#9ff0b0');
+  } else if (p.kind === 'wire') {
+    loot.wire++; loot.points += WIRE_VALUE; lowCBoost++; showToast('+' + WIRE_VALUE + '  COPPER  •  LOW C LONGER', '#ffa860');
+  } else if (p.kind === 'vinyl') {
+    loot.vinyl++; loot.points += VINYL_VALUE; showToast('+' + VINYL_VALUE + '  VINYL');
+  } else if (p.kind === 'tape') {
+    loot.tape++; loot.points += TAPE_VALUE; cloak = Math.min(12, cloak + CLOAK_SECONDS); showToast('+' + TAPE_VALUE + '  TAPE  •  ANALOG CLOAK', '#e9d8b4');
+  } else {
+    heat = Math.min(3, heat + 1); heatTimer = 12; showToast('IT WAS BUGGED!', '#ff6b5e');
+  }
+  updateLootHud();
+}
+function updatePickups(dt) {
+  const p = player.position;
+  for (const k of pickups) {
+    if (k.taken) continue;
+    k.phase += dt * 2.4; k.holder.position.y = 1.0 + Math.sin(k.phase) * 0.12; k.model.rotation.y += dt * 1.6;
+    if (k.kind === 'vinyl') k.model.rotation.x = 0.35;
+    if (k.kind === 'basket') k.model.userData.bug.visible = Math.sin(tAccum * 5) > 0.6;
+    if (Math.hypot(p.x - k.holder.position.x, p.z - k.holder.position.z) < 1.2) collect(k);
+  }
+  let changed = false;
+  if (cloak > 0) { cloak = Math.max(0, cloak - dt); changed = true; }
+  if (heat > 0) { heatTimer -= dt; if (heatTimer <= 0) { heat--; heatTimer = 10; } changed = true; }
+  if (changed) updateLootHud();
+  if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').style.opacity = 0; }
+}
+
 // ---- input ----
 const keys = {};
 window.addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'KeyE' || e.code === 'Enter') tryEnterPortal(); startAudio(); });
@@ -423,6 +551,7 @@ function update(dt) {
   const p = player.position; p.x += vel.x * dt; p.z += vel.z * dt;
   p.x = Math.max(-HALF_WIDTH, Math.min(HALF_WIDTH, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
   for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + 0.45; if (d < min && d > 0.0001) { p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; } }
+  updatePickups(dt);
   const spd = Math.hypot(vel.x, vel.z);
   if (spd > 0.5) { const target = Math.atan2(vel.x, vel.z); let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
   player.rotation.y = faceAngle;
@@ -457,7 +586,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, set yaw(v) { yaw = v; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, get heat() { return heat; }, get cloak() { return cloak; }, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, set yaw(v) { yaw = v; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>

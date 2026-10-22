@@ -54,7 +54,7 @@ cardigan over an old button shirt, slippers. Quietly dignified. Slight look of s
 **Domingo** (50s, record store keeper, few words)
 ```
 A man in his fifties, Latino, stocky, quiet and watchful, gray-flecked beard, worn flannel shirt,
-holding a steel thermos. Wears headphones around his neck. Record-store basement vibe.
+holding a boxed reel-to-reel tape under one arm. Wears headphones around his neck. Record-store basement vibe.
 ```
 
 **Luz** (Eduardo's wife; scientist; "light")
@@ -118,8 +118,8 @@ reading PANCHOS BODEGA and below it ALWAYS FRESH FOO. Show front, side and rear 
 **Collectibles** (icon-style, simple silhouettes)
 ```
 Set of game pickups on a plain background, each shown separately: a baseball card in brown and gold with a generic player drawing,
-a lottery scratcher ticket, a coil of copper wire, a vinyl record, a reel-to-reel tape, a steel thermos,
-a fruit basket with cellophane. Low-poly stylized, warm earth tones.
+a lottery scratcher ticket, a coil of copper wire, a vinyl record, a reel-to-reel tape,
+a fruit basket with cellophane and a tiny blinking red light hidden in the base. Low-poly stylized, warm earth tones.
 ```
 
 **Panchos Bodega storefront**
