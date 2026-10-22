@@ -13,17 +13,17 @@
   #stage { position: fixed; inset: 0; height: 100dvh; }
   canvas { display: block; width: 100%; height: 100%; }
   .vt { font-family: 'VT323', monospace; }
-  #hud-loc { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 16px; font-size: clamp(1.05rem, 4.6vw, 1.5rem); letter-spacing: 1px; text-shadow: 0 0 8px rgba(0,255,249,.7); pointer-events: none; }
-  #hud-obj { position: fixed; top: calc(40px + env(safe-area-inset-top)); left: 16px; font-size: 1.2rem; color: #ff6ec7; text-shadow: 0 0 8px rgba(255,110,199,.7); pointer-events: none; }
+  #hud-loc { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 16px; font-size: clamp(1.05rem, 4.6vw, 1.5rem); letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
+  #hud-obj { position: fixed; top: calc(40px + env(safe-area-inset-top)); left: 16px; font-size: 1.2rem; color: #ffe08a; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
   #hud-debug { position: fixed; bottom: 6px; left: 8px; font-size: .9rem; color: #a0aec0; pointer-events: none; white-space: pre; display: none; }
-  .btn { background: rgba(0,255,249,.1); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 10px rgba(0,255,249,.2); text-decoration: none; display: inline-block; }
-  .btn.pink { border-color: #ff6ec7; color: #ff6ec7; background: rgba(255,110,199,.1); box-shadow: 0 0 14px rgba(255,110,199,.35); }
+  .btn { background: rgba(5,5,5,.6); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 10px rgba(0,255,249,.2); text-decoration: none; display: inline-block; }
+  .btn.pink { border-color: #ff6ec7; color: #ff6ec7; background: rgba(5,5,5,.6); box-shadow: 0 0 14px rgba(255,110,199,.35); }
   #mute { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 14px; padding: 4px 10px; }
   #back { position: fixed; top: calc(52px + env(safe-area-inset-top)); right: 14px; padding: 4px 10px; font-size: .85rem; }
   #enter-btn { position: fixed; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: none; font-size: 1.3rem; padding: 12px 26px; z-index: 5; }
   #stick { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border: 2px solid rgba(0,255,249,.45); border-radius: 50%; display: none; pointer-events: none; }
   #knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(0,255,249,.35); box-shadow: 0 0 12px rgba(0,255,249,.6); }
-  #hint { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 1.15rem; color: rgba(255,255,255,.55); pointer-events: none; transition: opacity .6s; }
+  #hint { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 1.15rem; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; transition: opacity .6s; }
   .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(5,5,5,.78); z-index: 10; }
   #fail { display: none; background: #050505; z-index: 20; }
   .title { font-size: clamp(2rem, 9vw, 3.4rem); color: #fff; letter-spacing: .12em; text-shadow: 0 0 14px #00fff9; line-height: 1; }
@@ -40,11 +40,11 @@
 <body>
 <div id="stage"></div>
 <div id="hud-loc" class="vt">SAN DIEGO // GASLAMP QUARTER</div>
-<div id="hud-obj" class="vt">FIND THE PORTAL</div>
+<div id="hud-obj" class="vt">FIND THE TEAR</div>
 <div id="hud-debug" class="vt"></div>
 <button id="mute" class="btn vt" type="button">SND ON</button>
 <a id="back" class="btn" href="../">&#9664; Void Runner</a>
-<button id="enter-btn" class="btn pink vt" type="button">ENTER THE PORTAL</button>
+<button id="enter-btn" class="btn pink vt" type="button">ENTER THE TEAR</button>
 <div id="stick"><div id="knob"></div></div>
 <div id="hint" class="vt">LEFT THUMB: MOVE &nbsp;|&nbsp; RIGHT SIDE: LOOK</div>
 
@@ -104,15 +104,17 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefau
 renderer.domElement.addEventListener('webglcontextrestored', () => location.reload());
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07040f);
-scene.fog = new THREE.FogExp2(0x07040f, 0.016);
+{ const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, '#2f7fd1'); gr.addColorStop(0.55, '#7db9e8'); gr.addColorStop(1, '#d6e8f2'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t; }
+scene.fog = new THREE.FogExp2(0xd6e8f2, 0.0095);
 const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 400);
 
 let composer, bloom;
 function buildComposer() {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.9, 0.5, 0.55);
+  bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.4, 0.92);
   const origSetSize = bloom.setSize.bind(bloom);
   bloom.setSize = (w, h) => origSetSize(w * (tier === 1 ? 0.5 : 1), h * (tier === 1 ? 0.5 : 1));
   composer.addPass(bloom);
@@ -147,88 +149,6 @@ const edgeMats = { cyan: new THREE.LineBasicMaterial({ color: CYAN }), pink: new
 const colliders = []; // circles {x, z, r}
 try { await Promise.race([document.fonts.load('bold 92px VT323'), new Promise((r) => setTimeout(r, 1500))]); } catch (e) { /* font optional */ }
 
-// ---- world ----
-const STREET_END = -138, STREET_START = 12, HALF_WIDTH = 7.2;
-
-// ground + synthwave grid
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 340), new THREE.MeshBasicMaterial({ color: 0x07060f }));
-ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, -100); scene.add(ground);
-const grid = new THREE.GridHelper(340, 170, 0x0e6b70, 0x0e6b70); grid.position.set(0, 0.02, -100); scene.add(grid);
-
-// curb neon + dashed road line
-for (const [x, col] of [[-5.4, CYAN], [5.4, PINK]]) {
-  const curb = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 160), new THREE.MeshBasicMaterial({ color: col }));
-  curb.position.set(x, 0.07, -62); scene.add(curb);
-}
-const dashGeo = new THREE.PlaneGeometry(0.22, 2.2); dashGeo.rotateX(-Math.PI / 2);
-const dashes = new THREE.InstancedMesh(dashGeo, new THREE.MeshBasicMaterial({ color: PINK }), 30);
-const dm = new THREE.Matrix4();
-for (let i = 0; i < 30; i++) { dm.setPosition(0, 0.04, STREET_START - i * 5); dashes.setMatrixAt(i, dm); }
-scene.add(dashes);
-
-// stars
-{
-  const n = 700, pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const a = rnd() * Math.PI * 2, b = Math.acos(rnd() * 0.9), r = 320;
-    pos[i * 3] = Math.sin(b) * Math.cos(a) * r; pos[i * 3 + 1] = Math.cos(b) * r * 0.8 + 20; pos[i * 3 + 2] = Math.sin(b) * Math.sin(a) * r - 80;
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false })));
-}
-
-// sign atlas (neon words, additive so the black vanishes)
-const SIGN_WORDS = ['TACOS', 'CERVEZA', 'OPEN', 'PANCHOS', 'VINYL', 'LIVE', 'BAR', 'CAFE'];
-const SIGN_COLS = ['#00fff9', '#ff6ec7', '#f6e05e', '#ff6ec7', '#00fff9', '#10b981', '#f6e05e', '#00fff9'];
-function makeAtlas() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 512);
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 92px VT323, monospace';
-  SIGN_WORDS.forEach((w, i) => {
-    const cx = (i % 4) * 256 + 128, cy = Math.floor(i / 4) * 256 + 128, col = SIGN_COLS[i];
-    g.shadowColor = col; g.shadowBlur = 22; g.fillStyle = col; g.fillText(w, cx, cy + 4);
-    g.strokeStyle = col; g.lineWidth = 4; g.strokeRect(cx - 118, cy - 58, 236, 116); g.shadowBlur = 0;
-  });
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-const atlas = makeAtlas();
-const signMat = new THREE.MeshBasicMaterial({ map: atlas, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-function addSign(word, x, y, z, side) {
-  const geo = new THREE.PlaneGeometry(4.6, 2.3), i = word, col = i % 4, row = Math.floor(i / 4);
-  const u0 = col * 0.25, u1 = u0 + 0.25, v1 = 1 - (row * 256 + 64) / 512, v0 = 1 - (row * 256 + 192) / 512;
-  const uv = geo.attributes.uv; uv.setXY(0, u0, v1); uv.setXY(1, u1, v1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0);
-  const m = new THREE.Mesh(geo, signMat); m.position.set(x, y, z); m.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
-}
-
-// buildings both sides (inner face at |x| = 8)
-const windowGeo = new THREE.PlaneGeometry(1.0, 1.35);
-const windows = new THREE.InstancedMesh(windowGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), 3000);
-windows.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-let wCount = 0; const wm = new THREE.Matrix4(), wq = new THREE.Quaternion(), wc = new THREE.Color();
-const WIN_COLS = [GOLD, GOLD, CYAN, PINK, 0xfff1c9];
-for (const side of [-1, 1]) {
-  let z = STREET_START;
-  while (z > STREET_END - 10) {
-    const w = 8 + rnd() * 4, depth = 10, h = 8 + rnd() * 10 + Math.min(14, Math.abs(z) * 0.1);
-    const shade = rnd();
-    const bld = new THREE.Mesh(new THREE.BoxGeometry(depth, h, w), new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(0.03 + shade * 0.04, 0.025 + shade * 0.03, 0.09 + shade * 0.07) }));
-    bld.position.set(side * (8 + depth / 2), h / 2, z - w / 2); scene.add(bld);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(bld.geometry), rnd() > 0.5 ? edgeMats.cyan : edgeMats.pink);
-    edges.position.copy(bld.position); scene.add(edges);
-    // lit windows on the street-facing side
-    wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
-    const cols = Math.floor((w - 1.2) / 2.2), rows = Math.floor((h - 2) / 3);
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      if (rnd() > 0.46 || wCount >= 3000) continue;
-      wm.compose(new THREE.Vector3(side * 7.97, 2.6 + r * 3, z - 1.4 - c * 2.2 - (w - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
-      windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(WIN_COLS[Math.floor(rnd() * WIN_COLS.length)])); wCount++;
-    }
-    if (rnd() > 0.55 && z < STREET_START - 14) addSign(Math.floor(rnd() * 8), side * 7.9, 3.4 + rnd() * 2.6, z - w / 2, side);
-    z -= w + 1.2;
-  }
-}
-windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.instanceColor) windows.instanceColor.needsUpdate = true; scene.add(windows);
-
 // glow sprite texture
 function glowTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -236,76 +156,183 @@ function glowTexture() {
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-const glowTex = glowTexture();
+
+// ---- world ----
+const STREET_END = -138, STREET_START = 12, HALF_WIDTH = 7.2;
+const TERRA = 0xc9744c, ADOBE = 0xd9a766, CREAM = 0xe9d8b4, SAGE = 0x8d9b6e, BRICK = 0xb85c3e, SAND = 0xd6b88a, DUSTY = 0x7f9bb0;
+const STUCCO = [TERRA, ADOBE, CREAM, SAGE, BRICK, SAND, CREAM, ADOBE, DUSTY];
+const INK = new THREE.LineBasicMaterial({ color: 0x3b2a1e });
+const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
+const flat = (c) => new THREE.MeshBasicMaterial({ color: c });
+
+// daylight: warm sun + sky/ground bounce (no shadows, cheap)
+scene.add(new THREE.HemisphereLight(0xcfe4ff, 0xa88a60, 2.4));
+const sun = new THREE.DirectionalLight(0xfff0d2, 2.4); sun.position.set(-30, 50, 25); scene.add(sun);
+
+// ground, road, sidewalks
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 340), flat(0x9a8566));
+ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, -100); scene.add(ground);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(10.8, 340), flat(0x5d5852));
+road.rotation.x = -Math.PI / 2; road.position.set(0, 0.03, -100); scene.add(road);
+for (const x of [-6.7, 6.7]) {
+  const walk = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 340), flat(0xcdbd9f));
+  walk.rotation.x = -Math.PI / 2; walk.position.set(x, 0.06, -100); scene.add(walk);
+  const curb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 340), flat(0xe3d8c0)); curb.position.set(x > 0 ? 5.4 : -5.4, 0.08, -100); scene.add(curb);
+}
+// painted road line (dashed yellow, like the real thing)
+const dashGeo = new THREE.PlaneGeometry(0.22, 2.4); dashGeo.rotateX(-Math.PI / 2);
+const dashes = new THREE.InstancedMesh(dashGeo, flat(0xe3b52e), 32);
+const dm = new THREE.Matrix4();
+for (let i = 0; i < 32; i++) { dm.setPosition(0, 0.05, STREET_START - i * 5); dashes.setMatrixAt(i, dm); }
+scene.add(dashes);
+
+// sun disc + soft clouds
+{
+  const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff2c4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  sunSpr.scale.set(70, 70, 1); sunSpr.position.set(-70, 85, -250); scene.add(sunSpr);
+  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+  for (let i = 0; i < 9; i++) {
+    const g = new THREE.Group(), n = 3 + Math.floor(rnd() * 3);
+    for (let j = 0; j < n; j++) { const b = new THREE.Mesh(new THREE.SphereGeometry(5 + rnd() * 4, 8, 6), cloudMat); b.position.set(j * 7 - n * 3, rnd() * 2, rnd() * 3); b.scale.y = 0.55; g.add(b); }
+    g.position.set(-130 + i * 32 + rnd() * 10, 55 + rnd() * 30, -260 - rnd() * 40); scene.add(g);
+  }
+}
+
+// painted signs (atlas): colored boards with cream lettering
+const SIGN_WORDS = ['TACOS', 'CERVEZA', 'ABIERTO', 'PANCHOS', 'VINYL', 'LIVE', 'BAR', 'CAFE'];
+const SIGN_BG = ['#b85c3e', '#2f5d8a', '#3f6b45', '#8a3b2e', '#d9a766', '#2f5d8a', '#3f6b45', '#8a3b2e'];
+function makeAtlas() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 512);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 92px VT323, monospace';
+  SIGN_WORDS.forEach((w, i) => {
+    const cx = (i % 4) * 256 + 128, cy = Math.floor(i / 4) * 256 + 128;
+    g.fillStyle = SIGN_BG[i]; g.fillRect(cx - 120, cy - 60, 240, 120);
+    g.strokeStyle = '#f4ead2'; g.lineWidth = 5; g.strokeRect(cx - 112, cy - 52, 224, 104);
+    g.fillStyle = i === 4 ? '#2a1f16' : '#f4ead2'; g.fillText(w, cx, cy + 4);
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const atlas = makeAtlas();
+const signMat = new THREE.MeshBasicMaterial({ map: atlas, side: THREE.DoubleSide });
+function addSign(word, x, y, z, side) {
+  const geo = new THREE.PlaneGeometry(4.6, 2.3), col = word % 4, row = Math.floor(word / 4);
+  const u0 = col * 0.25, u1 = u0 + 0.25, v1 = 1 - (row * 256 + 64) / 512, v0 = 1 - (row * 256 + 192) / 512;
+  const uv = geo.attributes.uv; uv.setXY(0, u0, v1); uv.setXY(1, u1, v1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0);
+  const m = new THREE.Mesh(geo, signMat); m.position.set(x, y, z); m.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
+}
+
+// stucco buildings both sides (inner face at |x| = 8): terracotta, adobe, cream, sage
+const windowGeo = new THREE.PlaneGeometry(1.0, 1.35);
+const windows = new THREE.InstancedMesh(windowGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), 3000);
+windows.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+let wCount = 0; const wm = new THREE.Matrix4(), wq = new THREE.Quaternion(), wc = new THREE.Color();
+const WIN_COLS = [0x35546b, 0x35546b, 0x4a6a82, 0x4a6a82, 0x2c4358, 0xf0d9a0];
+const AWNINGS = [0xb85c3e, 0x2f5d8a, 0x3f6b45, 0xd9a766];
+for (const side of [-1, 1]) {
+  let z = STREET_START;
+  while (z > STREET_END - 10) {
+    const w = 8 + rnd() * 4, depth = 10, h = 6 + rnd() * 6 + Math.min(8, Math.abs(z) * 0.05);
+    const bld = new THREE.Mesh(new THREE.BoxGeometry(depth, h, w), lam(STUCCO[Math.floor(rnd() * STUCCO.length)]));
+    bld.position.set(side * (8 + depth / 2), h / 2, z - w / 2); scene.add(bld);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(bld.geometry), INK); edges.position.copy(bld.position); scene.add(edges);
+    const parapet = new THREE.Mesh(new THREE.BoxGeometry(depth + 0.3, 0.7, w + 0.3), lam(0x8a6f4d)); parapet.position.set(bld.position.x, h + 0.2, bld.position.z); scene.add(parapet);
+    // storefront awning
+    if (rnd() > 0.35) {
+      const aw = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.18, Math.min(w - 1.5, 6)), lam(AWNINGS[Math.floor(rnd() * AWNINGS.length)]));
+      aw.position.set(side * 7.1, 3.0, z - w / 2); aw.rotation.z = side * 0.18; scene.add(aw);
+    }
+    // glass windows on the street-facing side
+    wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
+    const cols = Math.floor((w - 1.2) / 2.2), rows = Math.floor((h - 2) / 3);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (rnd() > 0.7 || wCount >= 3000) continue;
+      wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, z - 1.4 - c * 2.2 - (w - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
+      windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(WIN_COLS[Math.floor(rnd() * WIN_COLS.length)])); wCount++;
+    }
+    if (rnd() > 0.5 && z < STREET_START - 14) addSign(Math.floor(rnd() * 8), side * 7.9, 3.8 + rnd() * 1.4, z - w / 2, side);
+    z -= w + 1.2;
+  }
+}
+windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.instanceColor) windows.instanceColor.needsUpdate = true; scene.add(windows);
 
 // street lamps + palms
-const palmTrunkMat = new THREE.MeshBasicMaterial({ color: 0x1a1230 });
-const frondMat = new THREE.MeshBasicMaterial({ color: GREEN });
-const frondGeo = new THREE.BoxGeometry(0.28, 0.06, 3.0); frondGeo.translate(0, 0, 1.5);
-const trunkGeo = new THREE.CylinderGeometry(0.2, 0.32, 6.6, 6); trunkGeo.translate(0, 3.3, 0);
-const lampPostGeo = new THREE.BoxGeometry(0.14, 5.2, 0.14); lampPostGeo.translate(0, 2.6, 0);
+const palmTrunkMat = lam(0x8a6a45);
+const frondMats = [lam(0x4f7d3a), lam(0x5f9244)];
+const frondGeo = new THREE.BoxGeometry(0.34, 0.06, 3.2); frondGeo.translate(0, 0, 1.6);
+const trunkGeo = new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7); trunkGeo.translate(0, 3.3, 0);
+const lampPostGeo = new THREE.BoxGeometry(0.16, 4.8, 0.16); lampPostGeo.translate(0, 2.4, 0);
+const lampMat = lam(0x1f3a2e), lanternMat = flat(0xffe2a0);
 for (let i = 0; i < 9; i++) {
   const z = STREET_START - 8 - i * 15;
   for (const side of [-1, 1]) {
     const x = side * 6.3;
-    const post = new THREE.Mesh(lampPostGeo, new THREE.MeshBasicMaterial({ color: 0x2a2540 })); post.position.set(x, 0, z); scene.add(post);
-    const col = side > 0 ? PINK : CYAN;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.5), new THREE.MeshBasicMaterial({ color: col })); head.position.set(x, 5.3, z); scene.add(head);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); glow.scale.set(5, 5, 1); glow.position.set(x, 5.3, z); scene.add(glow);
+    const post = new THREE.Mesh(lampPostGeo, lampMat); post.position.set(x, 0, z); scene.add(post);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.42), lanternMat); head.position.set(x, 5.05, z); scene.add(head);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 0.6), lampMat); cap.position.set(x, 5.4, z); scene.add(cap);
     colliders.push({ x, z, r: 0.3 });
   }
-  // palm between lamps
   const px = (i % 2 ? 1 : -1) * 5.0, pz = z - 7.5;
   const trunk = new THREE.Mesh(trunkGeo, palmTrunkMat); trunk.position.set(px, 0, pz); scene.add(trunk);
-  for (let f = 0; f < 8; f++) {
-    const fr = new THREE.Mesh(frondGeo, frondMat); fr.position.set(px, 6.5, pz); fr.rotation.y = (f / 8) * Math.PI * 2; fr.rotation.x = 0.55; scene.add(fr);
+  for (let f = 0; f < 9; f++) {
+    const fr = new THREE.Mesh(frondGeo, frondMats[f % 2]); fr.position.set(px, 6.5, pz); fr.rotation.y = (f / 9) * Math.PI * 2; fr.rotation.x = 0.5; scene.add(fr);
   }
   colliders.push({ x: px, z: pz, r: 0.5 });
 }
 
-// GASLAMP QUARTER arch
+// GASLAMP QUARTER arch (green board, gold lettering)
 {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
-  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 256);
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 120px VT323, monospace';
-  g.shadowColor = '#ff6ec7'; g.shadowBlur = 30; g.fillStyle = '#ff6ec7'; g.fillText('GASLAMP QUARTER', 512, 116);
-  g.shadowColor = '#00fff9'; g.shadowBlur = 16; g.strokeStyle = '#00fff9'; g.lineWidth = 5; g.strokeRect(24, 24, 976, 208); g.shadowBlur = 0;
+  const g = c.getContext('2d'); g.fillStyle = '#1f3a2e'; g.fillRect(0, 0, 1024, 256);
+  g.strokeStyle = '#e3b52e'; g.lineWidth = 8; g.strokeRect(14, 14, 996, 228);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 124px VT323, monospace'; g.fillStyle = '#f0d58a'; g.fillText('GASLAMP QUARTER', 512, 126);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14.5, 3.6), new THREE.MeshBasicMaterial({ map: t, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(14.5, 3.6), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
   sign.position.set(0, 9.4, -30); scene.add(sign);
-  for (const x of [-7.2, 7.2]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.28, 10, 0.28), new THREE.MeshBasicMaterial({ color: CYAN })); p.position.set(x, 5, -30); scene.add(p); }
+  for (const x of [-7.2, 7.2]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.34, 10, 0.34), lam(0x1f3a2e)); p.position.set(x, 5, -30); scene.add(p); }
 }
 
-// distant skyline + a bridge span (placeholder for Coronado)
+// distant hills, a pale skyline, the bay, and a bridge span (placeholder for Coronado)
 {
-  const skyMat = new THREE.MeshBasicMaterial({ color: 0x0c0a1e });
-  for (let i = 0; i < 26; i++) {
-    const w = 5 + rnd() * 8, h = 18 + rnd() * 50, x = -90 + i * 7.2 + rnd() * 3;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), skyMat); b.position.set(x, h / 2, -178 - rnd() * 14); scene.add(b);
-    const e = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry), rnd() > 0.5 ? edgeMats.cyan : edgeMats.pink); e.position.copy(b.position); scene.add(e);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(500, 160), flat(0x4f9cc9)); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.1, -240); scene.add(sea);
+  const hillMat = flat(0xa4b9cb);
+  for (let i = 0; i < 7; i++) {
+    const h = new THREE.Mesh(new THREE.ConeGeometry(34 + rnd() * 20, 22 + rnd() * 18, 5), hillMat); h.position.set(-150 + i * 50 + rnd() * 10, 8, -300 - rnd() * 20); scene.add(h);
   }
-  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-120, 6, -150), new THREE.Vector3(-40, 70, -165), new THREE.Vector3(60, 6, -150));
-  const bridge = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.5, 5, false), new THREE.MeshBasicMaterial({ color: PINK })); scene.add(bridge);
+  const skyMat = lam(0xc4cdd6);
+  for (let i = 0; i < 24; i++) {
+    const w = 5 + rnd() * 8, h = 16 + rnd() * 46, x = -86 + i * 7.4 + rnd() * 3;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), skyMat); b.position.set(x, h / 2, -176 - rnd() * 14); scene.add(b);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry), INK); e.position.copy(b.position); scene.add(e);
+  }
+  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-130, 6, -215), new THREE.Vector3(-40, 62, -225), new THREE.Vector3(70, 6, -215));
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.6, 5, false), lam(0xe9e2d2)));
 }
 
-// end-of-street bollards
-for (let x = -7; x <= 7; x += 2.3) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.4), new THREE.MeshBasicMaterial({ color: GOLD })); b.position.set(x, 0.55, STREET_END); scene.add(b); }
+// end-of-street planters
+for (let x = -7; x <= 7; x += 2.3) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), lam(TERRA)); b.position.set(x, 0.35, STREET_END); scene.add(b); }
 
-// the portal (placeholder: leads into the 2D Void Runner)
+// the Tear (placeholder exit): a silent, geometric rip in the sky — the one surreal thing on Earth
 const PORTAL = { x: 0, z: -118 };
-const portal = new THREE.Group(); portal.position.set(PORTAL.x, 3.6, PORTAL.z); scene.add(portal);
-const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.2, 10, 40), new THREE.MeshBasicMaterial({ color: PINK })); portal.add(ring);
-const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.1, 8, 36), new THREE.MeshBasicMaterial({ color: CYAN })); portal.add(ring2);
-const disc = new THREE.Mesh(new THREE.CircleGeometry(3.0, 32), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x9b4dff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); portal.add(disc);
-const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 60, 6, 1, true), new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })); beam.position.set(PORTAL.x, 30, PORTAL.z); scene.add(beam);
+const portal = new THREE.Group(); portal.position.set(PORTAL.x, 5.2, PORTAL.z); scene.add(portal);
+const tearPts = [[0, 5.4], [0.9, 3.0], [0.45, 2.0], [1.35, 0.4], [0.7, -0.7], [1.15, -2.4], [0, -5.2], [-0.85, -2.6], [-0.4, -1.3], [-1.25, 0.2], [-0.6, 1.5], [-1.0, 3.0]];
+const tearShape = new THREE.Shape(tearPts.map((p) => new THREE.Vector2(p[0], p[1])));
+const tearFill = new THREE.Mesh(new THREE.ShapeGeometry(tearShape), new THREE.MeshBasicMaterial({ color: 0x120a2e, side: THREE.DoubleSide, fog: false })); portal.add(tearFill);
+const outlineGeo = new THREE.BufferGeometry().setFromPoints(tearPts.map((p) => new THREE.Vector3(p[0], p[1], 0.02)));
+const tearEdge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0xeafffe, fog: false })); portal.add(tearEdge);
+const tearEdge2 = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0x00fff9, fog: false })); tearEdge2.scale.set(0.72, 0.72, 1); tearEdge2.position.z = 0.03; portal.add(tearEdge2);
+const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); tearGlow.scale.set(16, 22, 1); tearGlow.position.z = -0.05; portal.add(tearGlow);
+portal.scale.setScalar(1.3);
+const disc = tearGlow, ring = tearEdge, ring2 = tearEdge2; // names used by the update loop
+const beam = { visible: false };
 
 // ---- player (placeholder pancho: capsule + glowing eye) ----
 const player = new THREE.Group(); scene.add(player);
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.9, 4, 10), new THREE.MeshBasicMaterial({ color: 0x1d1b3a })); body.position.y = 0.95; player.add(body);
-const outline = new THREE.Mesh(new THREE.CapsuleGeometry(0.47, 0.95, 4, 10), new THREE.MeshBasicMaterial({ color: CYAN, side: THREE.BackSide })); outline.position.y = 0.95; player.add(outline);
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.9, 4, 10), lam(0x2f5d8a)); body.position.y = 0.95; player.add(body);
+const outline = new THREE.Mesh(new THREE.CapsuleGeometry(0.47, 0.95, 4, 10), new THREE.MeshBasicMaterial({ color: 0xf4ead2, side: THREE.BackSide })); outline.position.y = 0.95; player.add(outline);
 const eyeW = new THREE.Mesh(new THREE.SphereGeometry(0.27, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); eyeW.position.set(0, 1.25, 0.34); player.add(eyeW);
-const eyeP = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ color: PINK })); eyeP.position.set(0, 1.25, 0.57); player.add(eyeP);
-const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; player.add(shadow);
+const eyeP = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ color: 0x1b1b2a })); eyeP.position.set(0, 1.25, 0.57); player.add(eyeP);
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.08; player.add(shadow);
 player.position.set(0, 0, 6);
 
 // ---- input ----
@@ -408,9 +435,9 @@ function update(dt) {
   camera.position.lerp(camTarget, 1 - Math.exp(-7 * dt));
   lookTarget.set(p.x, 1.6, p.z); camera.lookAt(lookTarget);
 
-  ring.rotation.z += dt * 0.6; ring2.rotation.z -= dt * 1.1; disc.material.opacity = 0.7 + Math.sin(tAccum * 3) * 0.2; portal.scale.setScalar(1 + Math.sin(tAccum * 2.2) * 0.03);
+  ring2.scale.setScalar(0.72 + Math.sin(tAccum * 2.4) * 0.05); disc.material.opacity = 0.7 + Math.sin(tAccum * 3) * 0.2; portal.scale.setScalar(1.3 * (1 + Math.sin(tAccum * 2.2) * 0.025));
   const dist = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.z);
-  $('hud-obj').textContent = dist < 5 ? 'PORTAL OPEN' : 'FIND THE PORTAL  ▸  ' + Math.round(dist) + 'm';
+  $('hud-obj').textContent = dist < 5 ? 'THE TEAR IS OPEN' : 'FIND THE TEAR  ▸  ' + Math.round(dist) + 'm';
   $('enter-btn').style.display = (started && dist < 5) ? 'block' : 'none';
 }
 function render() { if (tier === 0) renderer.render(scene, camera); else composer.render(); }
