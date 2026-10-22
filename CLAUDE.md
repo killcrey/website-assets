@@ -12,9 +12,10 @@
 - **Assets**: PNG sprites and MP3 tracks sit at repo root, referenced by relative `./filename.ext` paths. Many filenames contain spaces/`&` and must stay URL-encoded in `src` attributes (e.g. `./WINS%20%26%20LOSSES.mp3`).
 
 ## Directory Structure
-Flat — no subfolders.
+Flat — no subfolders, except `3d/` (see below).
 ```
 index.html          entire game: markup, styles, logic
+3d/index.html       LAYERS: San Diego — 3D prototype (Three.js, no build step). Separate from the 2D game; noindex
 CNAME                GitHub Pages custom domain -> game.theinvisiblepanchos.com
 *.png                sprites (ship, enemies, bosses, pickups) — root level
 *.mp3                background tracks — root level
@@ -50,6 +51,8 @@ Then open `http://localhost:8935`. No build command, no test command — none ex
 - **Boss/anomaly system**: three bosses exist — Octopus (`octo`, common), The Source (`source`, rare, triggers a Dissolve/Remember Home/I'm-Not-Ready choice + optional memory-flight bonus mode), Cobra (`cobra`, Toxic-anomaly capstone) and Super Ego (`superego`, Enemy-Zone capstone). Capstone bosses roll eligibility once when their anomaly starts (25% chance, score-gated, own cooldown) and spawn partway through if eligible.
 - **Leaderboard hardening SQL is drafted but not applied** — score-range/username-format constraints were written for the user to run manually in the Supabase SQL editor; this repo/session has no service-role access to apply schema changes directly.
 - No test suite exists and none is planned — verification is manual, via the Browser tools against the local static server and/or the live domain.
+
+- **`3d/` prototype (2026-10-22)**: "LAYERS: San Diego", a Three.js third-person neon street (Gaslamp Quarter) that portals back to the 2D game (`../`). It lives in its own folder so the 2D game can't be affected by it. Three.js is pinned (`0.186.1`) via an import map from jsDelivr — no build step. WebGL renderer only (no WebGPU: in-app browsers like Instagram's can fail adapter requests). Break-proofing: any engine-load or WebGL failure shows a fallback screen linking to the 2D game; quality tiers 0/1/2 (no bloom / half-res bloom / full) with an adaptive step-down on slow frames; `?tier=N` and `?debug` URL params; `window.__g` exposes `update`/`render`/`setTier` for headless testing. `noindex` until it's ready. In the Browser pane, a hidden pane reports `innerWidth` 0 — `resize()` ignores sizes under 2px.
 
 ## AI Interaction Directives
 - Never rewrite the whole file for a small change — use targeted edits scoped to the exact function/block.
