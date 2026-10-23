@@ -1009,8 +1009,8 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseLowC = false; btnLowC = false; });
-const stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 }, look = { id: null, lx: 0, ly: 0 };
-const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 50;
+const stick = { x: 0, y: 0, raw: 0, id: null, ox: 0, oy: 0 }, look = { id: null, lx: 0, ly: 0 };
+const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 62;
 function updateHint(flash) {
   const h = $('hint');
   h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD ANYWHERE FOR LOW C (TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C  |  F: EGO BLAST');
@@ -1029,8 +1029,8 @@ window.addEventListener('pointerdown', (e) => {
     if (e.button === 0) mouseLowC = true;
     return;
   }
-  if (e.pointerType !== 'mouse' && e.clientX >= window.innerWidth / 2 && e.clientY > window.innerHeight * 0.35 && lcBtnId === null) { lcDown(e.pointerId); return; } // the whole lower right is the LOW C thumb, no aiming at a circle
-  if (e.clientX < window.innerWidth / 2 && stick.id === null && e.pointerType !== 'mouse') {
+  if (e.pointerType !== 'mouse' && e.clientX >= window.innerWidth * 0.56 && e.clientY > window.innerHeight * 0.35 && lcBtnId === null) { lcDown(e.pointerId); return; } // the whole lower right is the LOW C thumb, no aiming at a circle
+  if (e.clientX < window.innerWidth * 0.56 && stick.id === null && e.pointerType !== 'mouse') {
     stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY;
     stickEl.style.left = e.clientX + 'px'; stickEl.style.top = e.clientY + 'px'; stickEl.style.display = 'block'; knobEl.style.transform = 'none';
   } else if (look.id === null && e.pointerType === 'mouse') { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; } // on a phone the lower right belongs to the thumb buttons
@@ -1038,7 +1038,7 @@ window.addEventListener('pointerdown', (e) => {
 window.addEventListener('pointermove', (e) => {
   if (e.pointerId === stick.id) {
     let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy; const d = Math.hypot(dx, dy);
-    if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
+    stick.raw = d / STICK_R; if (d > STICK_R) { dx *= STICK_R / d; dy *= STICK_R / d; }
     stick.x = dx / STICK_R; stick.y = -dy / STICK_R; knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
   } else if (e.pointerId === look.id) {
     yaw -= (e.clientX - look.lx) * 0.006; pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch + (e.clientY - look.ly) * 0.003));
@@ -1046,7 +1046,7 @@ window.addEventListener('pointermove', (e) => {
   }
 });
 function endPointer(e) {
-  if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; stickEl.style.display = 'none'; }
+  if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; stick.raw = 0; stickEl.style.display = 'none'; }
   if (e.pointerId === look.id) look.id = null;
   if (e.pointerType === 'mouse' && e.button === 0) mouseLowC = false;
   if (e.type === 'pointercancel') { if (e.pointerId === lcBtnId) { lcBtnId = null; btnLowC = false; } } else lcUp(e.pointerId);
@@ -1304,6 +1304,7 @@ makePair(-102, [-70, -150]); // pairs walk together and raise each other's alarm
 makeEnemy('suit', 0, -168, [-125, -205]);
 makePair(-218, [-175, -255]);
 makeEnemy('suit', 0, -270, [-235, -295]);
+makeEnemy('suit', 0, -135, [-40, -270]); // a roamer with a long beat
 
 function updateEnemy(e, dt) {
   const p = player.position, wire = loot.wire, lvl = heatLevel();
@@ -1610,13 +1611,13 @@ function tryEnterPortal() { if (started && tearOpen && Math.hypot(player.positio
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
 // ---- game loop ----
-const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
+const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', leanYaw = 0, backT = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
 const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(); let camDist = 6.4;
 const SPEED = 7.2;
 function update(dt) {
   tAccum += dt;
   let ix = stick.x, iy = stick.y;
-  const sm = Math.hypot(ix, iy); if (sm < 0.12) { ix = iy = 0; } else { const sc = Math.min(1, (sm - 0.12) / 0.78) / sm; ix *= sc; iy *= sc; } // dead zone, then a smooth ramp
+  const sm = Math.hypot(ix, iy); if (sm < 0.08) { ix = iy = 0; } else { const sc = Math.min(1, (sm - 0.08) / 0.84) / sm; ix *= sc; iy *= sc; } // dead zone, then a smooth ramp
   if (started && !captured) {
     if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
     if (keys.KeyW || keys.ArrowUp) iy += 1; if (keys.KeyS || keys.ArrowDown) iy -= 1;
@@ -1624,18 +1625,21 @@ function update(dt) {
   } else { ix = iy = 0; }
   const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
   if (inTruck) { if (m > 0.25) leaveTruck(); else ix = iy = 0; }
-  // the camera stays behind the way you're heading: any turn of more than ~15 degrees from the view, or a push back toward it, and the view follows round.
-  // The stick keeps its old meaning until you let go, flip it, or push 'forward' again once the view has caught up, so nothing lurches or spirals.
+  // Precise controls: the stick is always relative to the camera, and the camera never swings on its own while you walk, with one deliberate exception:
+  // hold the stick back toward the camera for a moment and the view spins round behind you (the stick keeps meaning the way you were going until you let go or push forward).
+  // Pushing left or right only leans the camera a little that way so you can see round corners; it never changes which way the stick points.
   const lockLen = Math.hypot(lockX, lockY), lockDot = ix * lockX + iy * lockY;
   if (isTouchDevice) { const gs = started && !captured && stick.id === null ? 'block' : 'none'; if (gs !== ghostShown) { ghostShown = gs; $('stick-ghost').style.display = gs; } }
+  backT = (started && !captured && !inTruck && m > 0.3 && iy < -0.5 * m) ? backT + dt : 0;
   if (!frameLocked) inYaw = yaw;
-  else if (m < 0.1 || lockDot < 0.25 * m * lockLen || (!swinging && iy > 0.5 * m && lockDot < 0.9 * m * lockLen)) { frameLocked = false; inYaw = yaw; }
-  if (!frameLocked && started && !captured && !inTruck && m > 0.3 && iy < 0.966 * m && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
-  if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25) { // follow where you're trying to go (not the velocity, so a wall in a tight spot doesn't fool it)
+  else if (m < 0.1 || lockDot < 0.25 * m * lockLen || (!swinging && iy > 0.5 * m)) { frameLocked = false; inYaw = yaw; }
+  if (!frameLocked && backT > 0.2 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25) {
     const wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix;
-    swingYaw = Math.atan2(-wx, -wz); const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-7 * dt)); swinging = Math.abs(d) > 0.12;
+    swingYaw = Math.atan2(-wx, -wz); const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-6 * dt)); swinging = Math.abs(d) > 0.12;
   } else swinging = false;
-  const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && sm > 0.97)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
+  { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
+  const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.35)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
   vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
@@ -1675,10 +1679,10 @@ function update(dt) {
     if (Math.hypot(vel.x, vel.z) > 1) tgtYaw = Math.abs(vel.x) > Math.abs(vel.z) ? (vel.x > 0 ? -Math.PI / 2 : Math.PI / 2) : (vel.z > 0 ? Math.PI : 0); else recenter = false;
   }
   if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = faceAngle + Math.PI; // otherwise settle in behind whichever way the character is facing
-  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !frameLocked) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
+  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !frameLocked && Math.hypot(vel.x, vel.z) < 0.6) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
   const baseD = camera.aspect < 1 ? 6.6 : 6.0, wantD = baseD, cp = Math.cos(pitch); // steady distance: turning no longer zooms, only a wall in the way pulls it in
   camDist += (wantD - camDist) * (1 - Math.exp(-6 * dt));
-  let ox = Math.sin(yaw) * cp * camDist, oz = Math.cos(yaw) * cp * camDist;
+  const yc = yaw + leanYaw; let ox = Math.sin(yc) * cp * camDist, oz = Math.cos(yc) * cp * camDist;
   let hitT = firstHit(p.x, p.z, p.x + ox, p.z + oz, false); // cover counts too, so a dumpster can't block your view
   { const fl = Math.hypot(ox, oz) || 1, qx = -oz / fl * 0.7, qz = ox / fl * 0.7; // two more rays to either side of the lens so a corner can't slice the picture
     hitT = Math.min(hitT, firstHit(p.x, p.z, p.x + ox + qx, p.z + oz + qz, false), firstHit(p.x, p.z, p.x + ox - qx, p.z + oz - qz, false)); }
