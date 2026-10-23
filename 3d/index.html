@@ -1683,10 +1683,15 @@ const HUM_MAT = new THREE.SpriteMaterial({ map: markTex('\u25C6', '#7ff6ff'), fo
 const luzBar = makeBar('#ffd9a8', 'LUZ');
 // always-on markers: red over the Kid (cards), gold over Pancho (copper), blue over his dad (power up)
 const MARKERS = [[2, '#ff4d4d', 1.3], [0, '#ffd54a', 1.75], [1, '#6fb3ff', 1.7]].map(([i, col, h]) => {
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex('▼', col), fog: false, depthTest: false })); sp.renderOrder = 11; scene.add(sp); return { n: NPCS[i], h, sp };
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex('▼', col), fog: false, depthTest: false })); sp.renderOrder = 11; scene.add(sp);
+  const names = ['PANCHO', 'PANCHO’S DAD', 'THE KID'], cv = document.createElement('canvas'); cv.width = 128; cv.height = 24; // a small name over their head, in their colour
+  const cg = cv.getContext('2d'); cg.font = 'bold 19px VT323, monospace'; cg.textAlign = 'center'; cg.textBaseline = 'middle'; cg.lineWidth = 4; cg.strokeStyle = '#000'; cg.strokeText(names[i === 0 ? 0 : i === 1 ? 1 : 2], 64, 12); cg.fillStyle = '#fff'; cg.fillText(names[i === 0 ? 0 : i === 1 ? 1 : 2], 64, 12);
+  const ct = new THREE.CanvasTexture(cv); ct.colorSpace = THREE.SRGBColorSpace;
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, fog: false, depthTest: false, transparent: true })); label.scale.set(2.2, 0.41, 1); label.renderOrder = 10; label.visible = false; scene.add(label);
+  return { n: NPCS[i], h, sp, label };
 });
 function updateHelpers(dt) {
-  for (const m of MARKERS) { const g = m.n.b.group.position, d = Math.hypot(camera.position.x - g.x, camera.position.z - g.z), sc = Math.max(0.7, d * 0.03); m.sp.scale.set(sc, sc, 1); m.sp.position.set(g.x, m.h + 0.6 + sc * 0.35 + Math.sin(tAccum * 3) * 0.08, g.z); }
+  for (const m of MARKERS) { const g = m.n.b.group.position, d = Math.hypot(camera.position.x - g.x, camera.position.z - g.z), sc = Math.max(0.7, d * 0.03); m.sp.scale.set(sc, sc, 1); m.sp.position.set(g.x, m.h + 0.6 + sc * 0.35 + Math.sin(tAccum * 3) * 0.08, g.z); const nb = Math.hypot(player.position.x - g.x, player.position.z - g.z) < 45; m.label.visible = nb; if (nb) { const ls = Math.max(1, Math.min(2, d * 0.06)); m.label.scale.set(2.2 * ls, 0.41 * ls, 1); m.label.position.set(g.x, m.h + 0.4 + 0.1 * ls, g.z); } }
   luzCool = Math.max(0, luzCool - dt);
   if (humT > 0) { const c0 = Math.ceil(humT); humT = Math.max(0, humT - dt); if (humT === 0) showToast('THE HUM FADES', '#ffb347'); if (Math.ceil(humT) !== c0) updateLootHud(); }
   const show = humT > 0;
