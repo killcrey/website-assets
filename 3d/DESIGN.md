@@ -32,6 +32,12 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - Christopher, Juan Carlos and Eduardo stand near the Tear for now (no role in the hunt yet).
 - Approaching an NPC shows a line from the script. NPCs and Agency figures turn to face the player; none of them can catch you yet.
 
+## Controls and camera (built 2026-10-22)
+- **PC:** W A S D (or arrows) move, **mouse aims** (click the game once to capture the mouse, Esc frees it), **hold Left Click or Space = Low C**, Shift runs, E / Enter enters the Tear. Pressing any key on the title screen starts the game.
+- **Phone:** floating left thumb stick (with a dead zone and a smooth ramp) moves, dragging on the right side looks (left/right turns, up/down tilts), and a round **LOW C** button on the right is held to use the power.
+- **Camera:** it orbits behind the player, **zooms in when you turn toward the walls**, never leaves the street corridor (it slides along the wall and never sits inside the character), eases back behind you about 1.3 seconds after you let go of the look control, and the mouse tilts it up and down. Tested across 135 angle/position combinations: it never passed x = 7.5.
+- **Low C** is the trigger: a 30-second meter (each copper wire adds 10), cyan ripples and a screen pulse while held, a 65 Hz tone (phones can't play 32.7 Hz), and it can overstrain ("waking hurts": locked out until the meter recovers to 30%, slower movement). It doesn't stall anything yet because the Agency doesn't chase you yet; the hook is `lowCActive` in `3d/index.html`.
+
 ## Flow
 1. **2D game:** the rare Tear-portal drifts through the blue-sky section. Fly in.
 2. **3D, "Earth":** land on a San Diego street (home: 32.72° N, "DAYGO"). Goal: find and reach the **exit Tear** while the Agency hunts you.
