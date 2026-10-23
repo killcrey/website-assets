@@ -39,6 +39,13 @@
   #compass-dist { font-size: .95rem; color: #fff; }
   .hb { display: inline-block; width: 64px; height: 7px; margin-left: 8px; border: 1px solid rgba(255,255,255,.8); background: rgba(0,0,0,.4); vertical-align: middle; } .hb i { display: block; height: 100%; background: linear-gradient(90deg, #ffd54a, #ff4d4d); }
   #ego-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,40,.08) 30%, rgba(255,40,40,.5) 100%); transition: opacity .3s; }
+  #tip { position: fixed; left: 50%; top: 33%; transform: translateX(-50%); width: min(86vw, 440px); text-align: center; font-size: 1.15rem; line-height: 1.15; color: #fff; padding: 5px 12px; background: rgba(0,0,0,.38); border-radius: 6px; text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #tip b { display: block; color: #ffe08a; font-size: .9rem; letter-spacing: 2px; }
+  #start { overflow-y: auto; }
+  .how { display: flex; flex-direction: column; gap: 7px; margin: 10px 0 4px; max-width: 360px; width: 100%; text-align: left; }
+  .how > div { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: rgba(255,255,255,.05); font-size: 1.05rem; color: #fff; line-height: 1.1; }
+  .how img { width: 36px; height: 36px; object-fit: contain; flex: none; }
+  .how b { color: #ffe08a; }
   #vibes { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,110,199,0) 45%, rgba(255,110,199,.5) 100%); }
   #invis { position: fixed; left: 50%; top: calc(124px + env(safe-area-inset-top)); transform: translateX(-50%); display: none; font-size: clamp(1.6rem, 7vw, 2.4rem); letter-spacing: 3px; color: #7ff6ff; text-shadow: 0 0 12px #00fff9, 0 2px 4px #000; pointer-events: none; white-space: nowrap; }
   #hud-debug { position: fixed; bottom: 6px; left: 8px; font-size: .9rem; color: #a0aec0; pointer-events: none; white-space: pre; display: none; }
@@ -73,6 +80,7 @@
 <div id="hud-status" class="vt"></div>
 <div id="goals" class="vt"></div>
 <div id="toast" class="vt"></div>
+<div id="tip" class="vt"></div>
 <div id="lowc-fx"></div>
 <div id="vibes"></div>
 <div id="ego-fx"></div>
@@ -93,7 +101,13 @@
   <div class="title vt">LAYERS</div>
   <div class="sub vt">SAN DIEGO &mdash; EARLY PROTOTYPE</div>
   <button id="start-btn" class="btn pink vt" type="button" style="font-size:1.4rem;padding:12px 30px;">TAP TO START</button>
-  <div class="small vt">PC: WASD to move, mouse to aim (click the game to capture it), hold Left Click or Space for LOW C, Shift to run, F for an EGO BLAST.<br>Phone: left thumb moves (push to the rim to run); hold anywhere on the lower right for LOW C, or tap once to latch it on.<br>Take baseball cards to the Kid and copper wire to Pancho to charge up. At 100% the Tear opens, but only for a little while.</div>
+  <div class="how vt">
+    <div><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right: it shoves enemies back, then freezes them. It drains, so be stingy.</span></div>
+    <div><img src="art/sprites/item_card.webp" alt=""><img src="art/sprites/kid_front.webp" alt=""><span><b>7 cards</b> to the <b>Kid</b> = a full charge.</span></div>
+    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>3 copper wires</b> to <b>Pancho</b> = a full charge.</span></div>
+    <div><span>At <b>100%</b> the <b>TEAR</b> opens, but only for a short time. Run for it. Too hot? Find <b>Eduardo</b>.</span></div>
+  </div>
+  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C, Shift run, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
 </div>
 
@@ -1515,6 +1529,58 @@ function updateTear(dt) {
   if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
 }
 
+// ---- first-contact tips: one short line the first time you meet each thing (remembered in the browser; add ?tips to the address to see them all again) ----
+const TIPS = {
+  card: 'BASEBALL CARD|Take cards to the Kid. Seven fill your Low C.',
+  wire: 'COPPER WIRE|Take three to Pancho for a full charge. Each one you carry makes the Suits faster.',
+  scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
+  vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
+  tape: 'ANALOG TAPE|30 seconds of static: enemies can’t see straight.',
+  basket: 'GIFT BASKET|A real gift (+Low C), or a bug that sends the Suits after you. Luz can tell which.',
+  kid: 'THE KID|He turns baseball cards into Low C. Follow the red arrow.',
+  pancho: 'PANCHO|He turns copper into Low C. He walks to the crew and back: follow the gold arrow.',
+  dad: 'PANCHO’S FATHER|Hold still next to him to power up. It heats you up, so pick your moment. Blue arrow.',
+  luz: 'LUZ|Her hum shows every enemy and which baskets are bugged.',
+  juancarlos: 'JUAN CARLOS|Invisible to the Agency for 20 seconds. The crew recharge: watch the bar over their heads.',
+  christopher: 'CHRISTOPHER|Doubles your Low C.',
+  eduardo: 'EDUARDO|Wipes your heat to zero. Find him when it gets hot.',
+  e_suit: 'AGENCY SUIT|Stay out of its narrow cone. Being seen = heat. Low C shoves it back.',
+  e_thug: 'THUG|Hits hard and drains your Low C. Freeze it or run.',
+  e_van: 'AGENCY VAN|Its beam sees you too. At maximum heat it unloads thugs.',
+  truck: 'BREAD TRUCK|Stand still on its street side to hide inside. It drives off now and then.',
+  heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
+  lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It drains while on. A quick tap latches it.',
+  tear: 'THE TEAR|It’s open. Run for it before it closes.',
+  closed: 'THE TEAR|Fill your Low C to 100% and it opens, for a short time.'
+};
+let tipsSeen = new Set(); try { if (!params.has('tips')) tipsSeen = new Set(JSON.parse(localStorage.getItem('layers3d_tips_v1') || '[]')); } catch (err) { /* private mode: they just show again next visit */ }
+const tipQueue = []; let tipT = 0, tipGap = 0, tipScanT = 0;
+function tip(id) {
+  if (tipsSeen.has(id) || !TIPS[id]) return; tipsSeen.add(id); tipQueue.push(id);
+  try { localStorage.setItem('layers3d_tips_v1', JSON.stringify([...tipsSeen])); } catch (err) { /* fine */ }
+}
+function updateTips(dt) {
+  if (tipT > 0) { tipT -= dt; if (tipT <= 0) { $('tip').style.opacity = 0; tipGap = 0.5; } return; }
+  tipGap = Math.max(0, tipGap - dt);
+  if (tipGap > 0 || !tipQueue.length || captured) return;
+  const urgent = tipQueue[0].startsWith('e_') || tipQueue[0] === 'tear' || tipQueue[0] === 'heat';
+  if (heatLevel() >= 2 && !urgent) return; // nothing to read while you're being hunted, except what helps right now
+  const [title, text] = TIPS[tipQueue.shift()].split('|'); $('tip').innerHTML = '<b>' + title + '</b>' + text; $('tip').style.opacity = 1; tipT = 4.8;
+}
+function scanTips(dt) {
+  tipScanT -= dt; if (tipScanT > 0) return; tipScanT = 0.25;
+  const p = player.position, near = (x, z, r) => Math.hypot(p.x - x, p.z - z) < r;
+  for (const k of pickups) if (!k.taken && near(k.holder.position.x, k.holder.position.z, 7)) tip(k.kind);
+  [['kid', NPCS[2]], ['pancho', NPCS[0]], ['dad', NPCS[1]], ['luz', NPCS[3]]].forEach(([id, n]) => { const g = n.b.group.position; if (near(g.x, g.z, 7)) tip(id); });
+  CREW.forEach((c) => { if (near(c.x, c.z, 7)) tip(c.key); });
+  for (const e of enemies) if (!e.dead && near(e.x, e.z, 26)) tip('e_' + e.kind);
+  if (near(van.x, van.z, 30)) tip('e_van');
+  if (near(TRUCK.x, TRUCK.z, 9)) tip('truck');
+  if (heatF > 0.4) tip('heat');
+  if (lowC > 0.1) tip('lowc');
+  if (tearOpen) tip('tear'); else if (tAccum > 14 && lowC < lowCMax() * 0.9) tip('closed');
+}
+
 function updateHunt(dt) {
   if (!started) return;
   if (invis > 0) { invis = Math.max(0, invis - dt); $('invis').style.display = 'block'; $('invis').textContent = 'INVISIBLE  ' + Math.ceil(invis); if (invis === 0) { $('invis').style.display = 'none'; showToast('YOU CAN BE SEEN AGAIN', '#ffb347'); } }
@@ -1522,7 +1588,7 @@ function updateHunt(dt) {
   { const cg = invis > 0; cloakGlow.visible = cg; if (cg) cloakGlow.material.opacity = 0.34 + 0.12 * Math.sin(tAccum * 4); }
   aura = Math.max(0, aura - dt * 3);
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGoals(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
   // heat goes up while anything sees you and cools off when you break line of sight (faster when hidden)
@@ -1658,7 +1724,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>
