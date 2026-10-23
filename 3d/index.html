@@ -19,8 +19,8 @@
   #hud-loot { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 16px; font-size: 1.15rem; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
   #hud-status { position: fixed; top: calc(86px + env(safe-area-inset-top)); left: 16px; font-size: 1.05rem; color: #ffb347; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: pre; }
   #toast { position: fixed; left: 0; right: 0; top: 24%; text-align: center; font-size: clamp(1.6rem, 7vw, 2.4rem); color: #ffe08a; text-shadow: 0 2px 4px #000, 0 0 14px rgba(0,0,0,.6); pointer-events: none; opacity: 0; transition: opacity .25s; }
-  #speech { position: fixed; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(92vw, 520px); text-align: center; padding: 8px 14px; background: rgba(5,5,5,.62); border: 1px solid rgba(255,255,255,.35); border-radius: 6px; font-size: 1.3rem; color: #fff; text-shadow: 0 1px 2px #000; opacity: 0; transition: opacity .25s; pointer-events: none; }
-  #speech b { display: block; font-size: .95rem; letter-spacing: 2px; margin-bottom: 2px; }
+  #speech { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(80vw, 400px); text-align: left; padding: 3px 10px; background: rgba(0,0,0,.3); border-left: 3px solid rgba(255,255,255,.55); border-radius: 4px; font-size: 1.02rem; line-height: 1.12; color: #fff; text-shadow: 0 1px 2px #000; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  #speech b { display: inline; font-size: .85rem; letter-spacing: 2px; margin-right: 8px; }
   #lowc { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(58px + env(safe-area-inset-bottom)); width: 170px; display: none; pointer-events: none; text-align: center; font-size: .95rem; letter-spacing: 2px; color: #00fff9; text-shadow: 0 1px 3px #000; }
   #lowc-bar { height: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,.6); background: rgba(0,0,0,.45); }
   #lowc-fill { height: 100%; width: 100%; background: #00fff9; box-shadow: 0 0 8px #00fff9; }
@@ -28,6 +28,14 @@
   #lowc-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,255,249,0) 40%, rgba(0,255,249,.38) 100%); transition: opacity .15s; }
   #lowc-btn { position: fixed; right: 16px; bottom: calc(max(15vh, 96px) + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: 1.15rem; z-index: 5; touch-action: none; }
   #lowc-btn.on { background: rgba(255,110,199,.45); box-shadow: 0 0 22px rgba(255,110,199,.8); }
+  #swap-btn { position: fixed; right: 24px; bottom: calc(max(15vh, 96px) + 118px + env(safe-area-inset-bottom)); width: 68px; height: 68px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .85rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ffb347; color: #ffc46b; box-shadow: 0 0 14px rgba(255,179,71,.5); }
+  #lowc-btn.gunmode { border-color: #ffb347; color: #ffc46b; box-shadow: 0 0 14px rgba(255,179,71,.45); }
+  #lowc-btn.gunmode.on { background: rgba(255,179,71,.4); box-shadow: 0 0 22px rgba(255,179,71,.8); }
+  #void { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); height: 22px; display: none; z-index: 6; pointer-events: none; background: rgba(90,0,16,.7); border-bottom: 1px solid #ff4a5a; }
+  #void i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #a30018, #ff2a3a); }
+  #void span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; }
+  #void.hot span { animation: voidblink .5s steps(2) infinite; } @keyframes voidblink { 50% { opacity: .35; } }
+  body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-loot, body.void-on #hud-status, body.void-on #goals, body.void-on #mute, body.void-on #back { transform: translateY(24px); }
   #ego-btn { position: fixed; right: 126px; bottom: calc(max(15vh, 96px) + 92px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .9rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
   #stick-ghost { position: fixed; left: 24%; bottom: calc(max(19vh, 128px) + env(safe-area-inset-bottom)); width: 110px; height: 110px; margin-left: -55px; border: 2px dashed rgba(0,255,249,.3); border-radius: 50%; display: none; pointer-events: none; }
   #stick-ghost::after { content: ''; position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: rgba(0,255,249,.16); }
@@ -41,7 +49,19 @@
   #ego-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,40,.08) 30%, rgba(255,40,40,.5) 100%); transition: opacity .3s; }
   #tip { position: fixed; left: 50%; top: 33%; transform: translateX(-50%); width: min(86vw, 440px); text-align: center; font-size: 1.15rem; line-height: 1.15; color: #fff; padding: 5px 12px; background: rgba(0,0,0,.38); border-radius: 6px; text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #tip b { display: block; color: #ffe08a; font-size: .9rem; letter-spacing: 2px; }
-  #start { overflow-y: auto; }
+  #start { overflow-y: auto; justify-content: flex-start; }
+  #start > :first-child { margin-top: auto; } #start > :last-child { margin-bottom: auto; }
+  @media (min-aspect-ratio: 1/1) {
+    #start { padding: 8px 16px; }
+    #start .title { font-size: clamp(1.8rem, 6vh, 3rem); }
+    #start .sub { margin: 2px 0 8px; font-size: 1.15rem; }
+    #start-btn { font-size: 1.15rem !important; padding: 7px 26px !important; }
+    #start .how { display: grid; grid-template-columns: 1fr 1fr; max-width: 760px; gap: 6px; margin: 8px 0 2px; }
+    #start .how > div { font-size: .95rem; padding: 4px 9px; }
+    #start .how img { width: 28px; height: 28px; }
+    #start .small { margin-top: 4px !important; font-size: .9rem; }
+    #start a.btn { margin-top: 8px !important; padding: 4px 14px; }
+  }
   .how { display: flex; flex-direction: column; gap: 7px; margin: 10px 0 4px; max-width: 360px; width: 100%; text-align: left; }
   .how > div { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: rgba(255,255,255,.05); font-size: 1.05rem; color: #fff; line-height: 1.1; }
   .how img { width: 36px; height: 36px; object-fit: contain; flex: none; }
@@ -88,6 +108,8 @@
 <div id="lowc" class="vt">LOW C<div id="lowc-bar"><div id="lowc-fill"></div></div></div>
 <button id="lowc-btn" class="btn pink vt" type="button">LOW C</button>
 <button id="ego-btn" class="btn vt" type="button">EGO<br>BLAST</button>
+<button id="swap-btn" class="btn vt" type="button">GUN</button>
+<div id="void" class="vt"><i></i><span></span></div>
 <div id="speech" class="vt"><b id="speech-name"></b><span id="speech-line"></span></div>
 <div id="hud-debug" class="vt"></div>
 <button id="mute" class="btn vt" type="button">SND ON</button>
@@ -104,10 +126,10 @@
   <div class="how vt">
     <div><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right: it shoves enemies back, then freezes them. It drains, so be stingy.</span></div>
     <div><img src="art/sprites/item_card.webp" alt=""><img src="art/sprites/kid_front.webp" alt=""><span><b>7 cards</b> to the <b>Kid</b> = a full charge.</span></div>
-    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>3 copper wires</b> to <b>Pancho</b> = a full charge.</span></div>
+    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>3 copper wires</b> to <b>Pancho</b> = <b>ammo</b> for the auto-aim gun. A new circle swaps gun and LOW C.</span></div>
     <div><span>At <b>100%</b> the <b>TEAR</b> opens, but only for a short time. Run for it. Too hot? Find <b>Eduardo</b>.</span></div>
   </div>
-  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C, Shift run, F = EGO BLAST.</div>
+  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C / FIRE, R = swap gun, Shift run, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
 </div>
 
@@ -165,9 +187,15 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefau
 renderer.domElement.addEventListener('webglcontextrestored', () => location.reload());
 
 const scene = new THREE.Scene();
-{ const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, '#2f7fd1'); gr.addColorStop(0.55, '#7db9e8'); gr.addColorStop(1, '#d6e8f2'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t; }
+const skyC = document.createElement('canvas'); skyC.width = 4; skyC.height = 256;
+const skyG = skyC.getContext('2d'), skyTex = new THREE.CanvasTexture(skyC); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
+const SKY_A = ['#2f7fd1', '#7db9e8', '#d6e8f2'], SKY_B = ['#3a0a28', '#a3234f', '#ff8a5a']; // blue day -> the void bleeding in
+function paintSky(k) {
+  const gr = skyG.createLinearGradient(0, 0, 0, 256), mix = (x, y) => '#' + new THREE.Color(x).lerp(new THREE.Color(y), k).getHexString();
+  gr.addColorStop(0, mix(SKY_A[0], SKY_B[0])); gr.addColorStop(0.55, mix(SKY_A[1], SKY_B[1])); gr.addColorStop(1, mix(SKY_A[2], SKY_B[2]));
+  skyG.fillStyle = gr; skyG.fillRect(0, 0, 4, 256); skyTex.needsUpdate = true;
+}
+paintSky(0);
 scene.fog = new THREE.FogExp2(0xd6e8f2, 0.0095);
 const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 400);
 
@@ -234,8 +262,9 @@ function inst(geo, mat, list) {
 }
 
 // daylight: warm sun + sky/ground bounce (no shadows, cheap)
-scene.add(new THREE.HemisphereLight(0xcfe4ff, 0xa88a60, 2.4));
+const hemiLight = new THREE.HemisphereLight(0xcfe4ff, 0xa88a60, 2.4); scene.add(hemiLight);
 const sun = new THREE.DirectionalLight(0xfff0d2, 2.4); sun.position.set(-30, 50, 25); scene.add(sun);
+const HEMI_A = new THREE.Color(0xcfe4ff), HEMI_B = new THREE.Color(0xff8f86), SUN_A = new THREE.Color(0xfff0d2), SUN_B = new THREE.Color(0xff6a5a); // the light goes red with the sky
 
 // collision map: axis-aligned boxes. cover = true means low enough to hide behind (and it blocks enemy sight, but not the camera)
 const walls = [];
@@ -934,9 +963,11 @@ function updateLootHud() {
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (inTruck) lines.push('IN THE BREAD TRUCK  <span style="opacity:.7">(MOVE TO GET OUT)</span>'); else if (hidden) lines.push('HIDDEN');
   if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
+  if (ammo > 0) lines.push('<b style="color:#ffd27a">AMMO ' + ammo + '/' + AMMO_MAX + (weapon === 'gun' ? '  \u2022  GUN ON' : '') + (isTouchDevice ? '' : '  (R: swap)') + '</b>');
   if (humT > 0) lines.push('<b style="color:#ffd9a8">THE HUM  ' + Math.ceil(humT) + 's  \u2022  RED BASKETS ARE BUGGED</b>');
   if (dadOn) lines.push('<b style="color:#bcd4ff">POWERING UP  ' + Math.round(100 * lowC / lowCMax()) + '%  \u2022  HEAT RISING</b>');
   if (lureT > 0) lines.push('<b style="color:#ff6b5e">TRACKED  ' + Math.ceil(lureT) + 's</b>');
+  { const sb = $('swap-btn'); sb.style.display = (started && isTouchDevice && ammo > 0) ? 'flex' : 'none'; sb.innerHTML = weapon === 'gun' ? 'LOW C' : 'GUN<br>' + ammo; $('lowc-btn').textContent = weapon === 'gun' ? 'FIRE' : 'LOW C'; $('lowc-btn').classList.toggle('gunmode', weapon === 'gun'); }
   { const eb = $('ego-btn'); eb.style.display = (started && isTouchDevice && egoCharges > 0 && ego <= 0) ? 'flex' : 'none'; eb.innerHTML = 'EGO<br>BLAST' + (egoCharges > 1 ? ' \u00D7' + egoCharges : ''); }
   if (cloak > 0) lines.push('ANALOG STATIC ' + Math.ceil(cloak) + 's  \u2022  THEY CAN\u2019T SEE STRAIGHT');
   if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
@@ -1007,6 +1038,7 @@ window.addEventListener('keydown', (e) => {
   if (!started && !IGNORE_START.includes(e.code) && $('start').style.display !== 'none') $('start-btn').click(); // any key starts the game on PC
   if (e.code === 'KeyE' || e.code === 'Enter') tryEnterPortal();
   if (e.code === 'KeyF' && !e.repeat) fireEgo();
+  if (e.code === 'KeyR' && !e.repeat) swapWeapon();
   if (e.code === 'Space') e.preventDefault();
   startAudio();
 });
@@ -1016,7 +1048,7 @@ const stick = { x: 0, y: 0, raw: 0, id: null, ox: 0, oy: 0 }, look = { id: null,
 const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 62;
 function updateHint(flash) {
   const h = $('hint');
-  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD ANYWHERE FOR LOW C (TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C  |  F: EGO BLAST');
+  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD ANYWHERE FOR LOW C / FIRE (TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  R: SWAP GUN  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C / FIRE  |  R: SWAP GUN  |  F: EGO BLAST');
   if (flash) { h.style.opacity = 1; clearTimeout(updateHint.t); updateHint.t = setTimeout(() => { h.style.opacity = 0; }, isTouchDevice ? 6000 : 9000); }
 }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvasEl; if (!locked) mouseLowC = false; if (started) updateHint(true); });
@@ -1063,11 +1095,12 @@ function lcDown(id) { // hold = on while held; a quick tap latches it on, anothe
   if (lowCLatch) { lowCLatch = false; btnLowC = false; lcBtnId = null; return; }
   lcBtnId = id; lcBtnT = performance.now(); btnLowC = true; startAudio();
 }
-function lcUp(id) { if (id !== lcBtnId) return; lcBtnId = null; btnLowC = false; if (performance.now() - lcBtnT < 250 && lowC > 0 && !lowCLock) lowCLatch = true; }
+function lcUp(id) { if (id !== lcBtnId) return; lcBtnId = null; btnLowC = false; if (performance.now() - lcBtnT < 250 && (weapon === 'gun' ? ammo > 0 : (lowC > 0 && !lowCLock))) lowCLatch = true; }
 lcBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); try { lcBtn.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ } lcDown(e.pointerId); });
 lcBtn.addEventListener('pointerup', (e) => lcUp(e.pointerId));
 lcBtn.addEventListener('pointercancel', (e) => { if (e.pointerId === lcBtnId) { lcBtnId = null; btnLowC = false; } });
 $('ego-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); startAudio(); fireEgo(); });
+$('swap-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); startAudio(); swapWeapon(); });
 updateHint(false);
 
 // ---- audio (synth, same spirit as the 2D game) ----
@@ -1123,7 +1156,7 @@ const burstRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.0, 64), new THRE
 burstRing.rotation.x = -Math.PI / 2; burstRing.visible = false; scene.add(burstRing); let burstT = 0; // the Low C's opening shockwave
 function updateLowC(dt) {
   if (burstT > 0) { burstT -= dt; const k = 1 - Math.max(0, burstT) / 0.5; burstRing.visible = burstT > 0; burstRing.position.set(player.position.x, 0.15, player.position.z); burstRing.scale.setScalar(1 + k * 17); burstRing.material.opacity = (1 - k) * 0.9; }
-  const want = started && (keys.Space || mouseLowC || btnLowC || lowCLatch), was = lowCActive;
+  const want = started && weapon === 'lowc' && (keys.Space || mouseLowC || btnLowC || lowCLatch), was = lowCActive;
   lowCActive = !!want && !lowCLock && lowC > 0;
   if (lowCActive) { lowC = Math.max(0, lowC - dt); if (lowC <= 0) { lowCLock = true; lowCActive = false; lowCLatch = false; showToast('TOO MUCH — WAKING HURTS', '#ff6ec7'); } }
   else { lowC = Math.min(lowCMax(), lowC); if (lowCLock && lowC > lowCMax() * 0.3) lowCLock = false; }
@@ -1143,7 +1176,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+let ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
@@ -1227,7 +1260,7 @@ const SPECS = {
 function makeEnemy(kind, x, z, zone) {
   const spec = SPECS[kind], b = new Billboard(spec.key, spec.h, { blobX: 0.6, blobZ: 0.6 });
   const cone = makeCone(spec.range, spec.fov, 0xffffff), mark = new THREE.Sprite(MARK_Q); mark.scale.set(0.7, 0.7, 1); mark.visible = false; scene.add(mark);
-  const e = { kind, spec, b, cone, mark, x, z, facing: Math.random() * 6.28, state: kind === 'thug' ? 'CHASE' : 'PATROL', aware: 0, path: [], wait: 0.5, lx: x, lz: z, search: 0, repath: 0, stuck: 0, side: 0, sideSign: 1, zone, cd: 0, seeing: 0, lost: 0, calm: 0, dead: false, spoke: false, sx: x, sz: z };
+  const e = { kind, spec, b, cone, mark, x, z, facing: Math.random() * 6.28, state: kind === 'thug' ? 'CHASE' : 'PATROL', aware: 0, path: [], wait: 0.5, lx: x, lz: z, search: 0, repath: 0, stuck: 0, side: 0, sideSign: 1, zone, cd: 0, seeing: 0, lost: 0, calm: 0, dead: false, spoke: false, sx: x, sz: z, hp: kind === 'thug' ? 5 : 2, hitT: 0 };
   enemies.push(e); return e;
 }
 function stepEnemy(e, tx, tz, speed, dt) { // walk toward a point, sliding around walls; returns the distance that was left
@@ -1301,13 +1334,22 @@ function updateVan(dt) {
 }
 
 // ---- the Suits start on patrol ----
-makeEnemy('suit', 0, -48, [-20, -90]);
-function makePair(z, zone) { const a = makeEnemy('suit', -1.4, z, zone), b = makeEnemy('suit', 1.4, z - 3, zone); a.buddy = b; b.buddy = a; b.follower = true; }
-makePair(-102, [-70, -150]); // pairs walk together and raise each other's alarm
-makeEnemy('suit', 0, -168, [-125, -205]);
-makePair(-218, [-175, -255]);
-makeEnemy('suit', 0, -270, [-235, -295]);
-makeEnemy('suit', 0, -135, [-40, -270]); // a roamer with a long beat
+const SUIT_DEFS = []; // where each Suit starts; a Suit you shoot comes back at its post after a while
+function makeSuitFromDef(def) {
+  const e = makeEnemy('suit', def.x, def.z, def.zone); e.def = def; def.e = e; def.respawnT = 0;
+  if (def.mate && def.mate.e && !def.mate.e.dead) { e.buddy = def.mate.e; def.mate.e.buddy = e; e.follower = !!def.follower; }
+  return e;
+}
+{
+  const d = (x, z, zone, mate, follower) => { const def = { x, z, zone, mate, follower, e: null, respawnT: 0 }; SUIT_DEFS.push(def); return def; };
+  const solo = [d(0, -48, [-20, -90]), d(0, -168, [-125, -205]), d(0, -270, [-235, -295]), d(0, -135, [-40, -270])];
+  const p1a = d(-1.4, -102, [-70, -150]), p1b = d(1.4, -105, [-70, -150], p1a, true); p1a.mate = p1b;
+  const p2a = d(-1.4, -218, [-175, -255]), p2b = d(1.4, -221, [-175, -255], p2a, true); p2a.mate = p2b;
+  for (const def of SUIT_DEFS) makeSuitFromDef(def);
+}
+function updateSuitRespawn(dt) {
+  for (const def of SUIT_DEFS) if (!def.e && def.respawnT > 0) { def.respawnT -= dt; if (def.respawnT <= 0) { if (Math.hypot(def.x - player.position.x, def.z - player.position.z) > 40) makeSuitFromDef(def); else def.respawnT = 4; } }
+}
 
 function updateEnemy(e, dt) {
   const p = player.position, wire = loot.wire, lvl = heatLevel();
@@ -1394,8 +1436,9 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; yaw = 0; frameLocked = false; swinging = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
+  for (const def of SUIT_DEFS) if (!def.e || def.e.dead) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
   van.z = -30; van.dir = -1; van.stop = 1;
   player.position.set(0, 0, 6); vel.set(0, 0, 0); updateLootHud();
@@ -1460,8 +1503,65 @@ function updateDeliveries(dt) {
     say(who, color, n + ' ' + noun + (n === 1 ? '' : 's') + '. That\u2019s ' + n + '/' + perCount + ' of a full charge.', 3); showToast('LOW C +' + Math.round(100 * n / perCount) + '%', '#7ff6ff'); sting(440, 660); return n;
   };
   if (kidCool <= 0) { const r = give(NPCS[2], cardsHeld, CARDS_TO_FILL, 'THE KID', '#9ff0b0', 'card'); if (r > 0) { cardsHeld -= r; kidCool = 1.5; respawnPickups('card', r); updateLootHud(); } else if (r < 0) kidCool = 8; }
-  if (panCool <= 0) { const r = give(NPCS[0], wiresHeld, WIRES_TO_FILL, 'PANCHO', '#ffe08a', 'copper wire'); if (r > 0) { wiresHeld -= r; panCool = 1.5; respawnPickups('wire', r); updateLootHud(); } else if (r < 0) panCool = 8; }
+  if (panCool <= 0 && wiresHeld > 0 && near(NPCS[0])) { // Pancho turns copper into ammo
+    const need = Math.ceil((AMMO_MAX - ammo) / AMMO_PER_WIRE); speechTimer = 0;
+    if (need <= 0) { say('PANCHO', '#ffe08a', 'You\u2019re loaded. Hang on to the copper.', 2.6); panCool = 8; }
+    else { const n = Math.min(wiresHeld, need); wiresHeld -= n; ammo = Math.min(AMMO_MAX, ammo + n * AMMO_PER_WIRE); panCool = 1.5;
+      say('PANCHO', '#ffe08a', n + ' wire' + (n === 1 ? '' : 's') + ' = ' + n * AMMO_PER_WIRE + ' rounds. Two for a Suit, five for a thug.', 3.2); showToast('AMMO +' + n * AMMO_PER_WIRE, '#ffd27a'); sting(300, 420); respawnPickups('wire', n); updateLootHud(); }
+  }
 }
+// ---- the gun: Pancho's ammo. It auto-aims at the nearest Suit or thug in sight (never the van); two hits drop a Suit, five a thug ----
+const AMMO_MAX = 24, AMMO_PER_WIRE = 8, FIRE_GAP = 0.28, GUN_RANGE = 18;
+const tracers = [], puffs = [];
+function addTracer(x0, y0, z0, x1, y1, z1) {
+  const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x1, y1, z1)]), new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, fog: false }));
+  ln.frustumCulled = false; scene.add(ln); tracers.push({ ln, t: 0.09 });
+}
+function poof(x, z, col) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col || 0xff6a4a, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); sp.position.set(x, 1.0, z); scene.add(sp); puffs.push({ sp, t: 0.4 }); }
+function updateFx(dt) {
+  for (let i = tracers.length - 1; i >= 0; i--) { const q = tracers[i]; q.t -= dt; q.ln.material.opacity = Math.max(0, q.t / 0.09); if (q.t <= 0) { scene.remove(q.ln); q.ln.geometry.dispose(); q.ln.material.dispose(); tracers.splice(i, 1); } }
+  for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.t -= dt; const k = 1 - q.t / 0.4; q.sp.scale.setScalar(1 + k * 3.5); q.sp.material.opacity = Math.max(0, 1 - k); if (q.t <= 0) { scene.remove(q.sp); q.sp.material.dispose(); puffs.splice(i, 1); } }
+}
+function gunTarget() {
+  const p = player.position; let best = null, bd = GUN_RANGE;
+  for (const e of enemies) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd && firstHit(p.x, p.z, e.x, e.z, true) >= 0.999) { bd = d; best = e; } } // low cover doesn't stop a bullet
+  return best;
+}
+function swapWeapon() {
+  if (!started || captured) return;
+  if (weapon === 'lowc') { if (ammo <= 0) { showToast('NO AMMO  \u2022  TAKE COPPER TO PANCHO', '#ffb347'); return; } weapon = 'gun'; showToast('GUN  \u2022  AUTO-AIMS AT SUITS AND THUGS', '#ffc46b'); }
+  else { weapon = 'lowc'; showToast('LOW C', '#7ff6ff'); }
+  lowCLatch = false; updateLootHud();
+}
+function killEnemy(e) {
+  e.dead = true; if (e.def) { e.def.e = null; e.def.respawnT = 45; }
+  const pts = e.kind === 'thug' ? 800 : 500; loot.points += pts; poof(e.x, e.z, e.kind === 'thug' ? 0xff3b3b : 0xffb347);
+  showToast((e.kind === 'thug' ? 'THUG' : 'SUIT') + ' DOWN  +' + pts, '#ffd27a');
+}
+function updateGun(dt) {
+  fireCool = Math.max(0, fireCool - dt);
+  if (!(started && !captured && !inTruck && weapon === 'gun' && (keys.Space || mouseLowC || btnLowC || lowCLatch)) || fireCool > 0) return;
+  const e = gunTarget(); if (!e) return; // nothing in sight: no shot, no ammo spent
+  const p = player.position; fireCool = FIRE_GAP; ammo--; e.hp--; heatF = Math.min(3, heatF + 0.05);
+  addTracer(p.x, 1.2, p.z, e.x, 1.1, e.z);
+  if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('square', 640, t, 0.05, 0.07, 3500); tone('sawtooth', 180, t, 0.08, 0.06, 900); }
+  for (const o of enemies) if (o.kind === 'suit' && !o.dead && (o === e || Math.hypot(o.x - p.x, o.z - p.z) < 22) && (o.state === 'PATROL' || o.state === 'SEARCH')) { o.state = heatLevel() >= 2 ? 'CHASE' : 'INVESTIGATE'; o.lx = p.x; o.lz = p.z; o.path.length = 0; } // the shot is heard
+  if (e.hp <= 0) killEnemy(e);
+  if (ammo <= 0) { weapon = 'lowc'; lowCLatch = false; showToast('OUT OF AMMO  \u2022  BACK TO LOW C', '#ff9a6a'); }
+  updateLootHud();
+}
+// ---- the sky and the countdown while the Tear is open ----
+const skyFog = new THREE.Color(0xd6e8f2), skyFogOpen = new THREE.Color(0xe0607a);
+function updateSky(dt) {
+  skyK += ((tearOpen ? 1 : 0) - skyK) * (1 - Math.exp(-1.2 * dt));
+  if (Math.abs(skyK - skyShown) > 0.015 || (skyK < 0.003 && skyShown !== 0) || (skyK > 0.997 && skyShown !== 1)) { skyShown = skyK < 0.003 ? 0 : skyK > 0.997 ? 1 : skyK; paintSky(skyShown); scene.fog.color.copy(skyFog).lerp(skyFogOpen, skyShown); hemiLight.color.copy(HEMI_A).lerp(HEMI_B, skyShown); sun.color.copy(SUN_A).lerp(SUN_B, skyShown); }
+  const vb = $('void');
+  if (tearOpen) {
+    const left = Math.max(0, tearT), sec = Math.ceil(left); vb.style.display = 'block'; vb.firstElementChild.style.width = (100 * left / Math.max(1, tearTotal)).toFixed(1) + '%';
+    vb.lastElementChild.textContent = 'VOID IS CLOSING!  ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); vb.classList.toggle('hot', left < 10); document.body.classList.add('void-on');
+  } else if (vb.style.display !== 'none') { vb.style.display = 'none'; document.body.classList.remove('void-on'); }
+}
+
 // ---- Luz: the hum (you can see the Agency and which baskets are bugged). Pancho's dad: stand by him to power up, but your heat climbs ----
 const HUM_MAT = new THREE.SpriteMaterial({ map: markTex('\u25C6', '#7ff6ff'), fog: false, depthTest: false });
 const luzBar = makeBar('#ffd9a8');
@@ -1527,7 +1627,7 @@ function repelBurst() {
 function updateTear(dt) {
   tearCool = Math.max(0, tearCool - dt);
   if (!tearOpen && !captured && tearCool <= 0 && lowC >= lowCMax() * 0.995) {
-    const d = Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z); tearT = Math.max(25, d / SPEED * 1.25 + 10);
+    const d = Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z); tearT = Math.max(25, d / SPEED * 1.25 + 10); tearTotal = tearT;
     tearOpen = true; portal.visible = true; showToast('THE TEAR OPENED!  GET TO IT', '#7ff6ff'); sting(520, 780); updateLootHud();
   }
   if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
@@ -1536,20 +1636,21 @@ function updateTear(dt) {
 // ---- first-contact tips: one short line the first time you meet each thing (remembered in the browser; add ?tips to the address to see them all again) ----
 const TIPS = {
   card: 'BASEBALL CARD|Take cards to the Kid. Seven fill your Low C.',
-  wire: 'COPPER WIRE|Take three to Pancho for a full charge. Each one you carry makes the Suits faster.',
+  wire: 'COPPER WIRE|Take it to Pancho for ammo. Each one you carry makes the Suits faster.',
+  ammo: 'AMMO|A new circle swaps between the gun and Low C. The gun auto-aims at Suits and thugs, not the van.',
   scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
   vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
   tape: 'ANALOG TAPE|30 seconds of static: enemies can’t see straight.',
   basket: 'GIFT BASKET|A real gift (+Low C), or a bug that sends the Suits after you. Luz can tell which.',
   kid: 'THE KID|He turns baseball cards into Low C. Follow the red arrow.',
-  pancho: 'PANCHO|He turns copper into Low C. He walks to the crew and back: follow the gold arrow.',
+  pancho: 'PANCHO|He turns copper into ammo. He walks to the crew and back: follow the gold arrow.',
   dad: 'PANCHO’S FATHER|Hold still next to him to power up. It heats you up, so pick your moment. Blue arrow.',
   luz: 'LUZ|Her hum shows every enemy and which baskets are bugged.',
   juancarlos: 'JUAN CARLOS|Invisible to the Agency for 20 seconds. The crew recharge: watch the bar over their heads.',
   christopher: 'CHRISTOPHER|Doubles your Low C.',
   eduardo: 'EDUARDO|Wipes your heat to zero. Find him when it gets hot.',
-  e_suit: 'AGENCY SUIT|Stay out of its narrow cone. Being seen = heat. Low C shoves it back.',
-  e_thug: 'THUG|Hits hard and drains your Low C. Freeze it or run.',
+  e_suit: 'AGENCY SUIT|Stay out of its narrow cone. Being seen = heat. Two shots drop it.',
+  e_thug: 'THUG|Hits hard and drains your Low C. It takes five shots, or freeze it and run.',
   e_van: 'AGENCY VAN|Its beam sees you too. At maximum heat it unloads thugs.',
   truck: 'BREAD TRUCK|Stand still on its street side to hide inside. It drives off now and then.',
   heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
@@ -1582,6 +1683,7 @@ function scanTips(dt) {
   if (near(TRUCK.x, TRUCK.z, 9)) tip('truck');
   if (heatF > 0.4) tip('heat');
   if (lowC > 0.1) tip('lowc');
+  if (ammo > 0) tip('ammo');
   if (tearOpen) tip('tear'); else if (tAccum > 14 && lowC < lowCMax() * 0.9) tip('closed');
 }
 
@@ -1592,7 +1694,7 @@ function updateHunt(dt) {
   { const cg = invis > 0; cloakGlow.visible = cg; if (cg) cloakGlow.material.opacity = 0.34 + 0.12 * Math.sin(tAccum * 4); }
   aura = Math.max(0, aura - dt * 3);
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
   // heat goes up while anything sees you and cools off when you break line of sight (faster when hidden)
@@ -1738,7 +1840,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>
