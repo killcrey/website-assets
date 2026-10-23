@@ -589,6 +589,7 @@ const tearEdge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ co
 const tearEdge2 = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0x00fff9, fog: false })); tearEdge2.scale.set(0.72, 0.72, 1); tearEdge2.position.z = 0.03; portal.add(tearEdge2);
 const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); tearGlow.scale.set(16, 22, 1); tearGlow.position.z = -0.05; portal.add(tearGlow);
 portal.scale.setScalar(1.3); portal.visible = false; // it only opens when your Low C is full, and only for a while
+const SEAL_DMG = { bullet: 2, lowc: 1.2, ego: 6 }; // the seal slows you down, it doesn't stop you: 5 bullets, or about 8 s of Low C, or an ego blast and a couple of bullets
 const SEAL = { z: -281, hp: 10, max: 10, active: false, wall: null, mesh: null, bar: null, lastHit: 0 }; // an Agency seal that has to be shot open before you can reach the Tear
 {
   const c = document.createElement('canvas'); c.width = 256; c.height = 160; const g = c.getContext('2d');
@@ -1263,7 +1264,7 @@ function updateLowC(dt) {
   if (lowCActive) { lowC = Math.max(0, lowC - dt * LOWC_DRAIN); if (lowC <= 0) { lowCLock = true; lowCActive = false; lowCLatch = false; showToast('TOO MUCH — WAKING HURTS', '#ff6ec7'); } }
   else { lowC = Math.min(lowCMax(), lowC); if (lowCLock && lowC > lowCMax() * 0.3) lowCLock = false; }
   if (lowCActive !== was) setLowCAudio(lowCActive);
-  if (lowCActive && SEAL.active && player.position.z - SEAL.z < 9) sealHit(0.45 * dt, Math.max(-6, Math.min(6, player.position.x))); // Low C wears the seal down (about 0.45 a second)
+  if (lowCActive && SEAL.active && player.position.z - SEAL.z < 9) sealHit(SEAL_DMG.lowc * dt, Math.max(-6, Math.min(6, player.position.x))); // Low C wears the seal down
   if (lowCActive && !was) repelBurst();
   $('lowc').style.display = started ? 'block' : 'none'; $('lowc').classList.toggle('locked', lowCLock); $('lowc-btn').classList.toggle('on', lowCActive);
   $('lowc-fill').style.width = (100 * lowC / lowCMax()).toFixed(1) + '%';
@@ -1664,7 +1665,7 @@ function updateGun(dt) {
   addTracer(p.x, 1.2, p.z, e.x, e.seal ? 3.0 : 1.1, e.z); poof(p.x + (e.x - p.x) * 0.06, p.z + (e.z - p.z) * 0.06, 0xffe08a, 1.5, 1.2, 0.18); shake = Math.max(shake, 0.14);
   if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 95, t, 0.22, 0.24, 600); tone('square', 520, t, 0.06, 0.15, 4500); tone('square', 250, t + 0.02, 0.1, 0.13, 2500); tone('sawtooth', 55, t + 0.01, 0.3, 0.2, 400); }
   for (const o of enemies) if (o.kind === 'suit' && !o.dead && (o === e || Math.hypot(o.x - p.x, o.z - p.z) < 22) && (o.state === 'PATROL' || o.state === 'SEARCH')) { o.state = heatLevel() >= 2 ? 'CHASE' : 'INVESTIGATE'; o.lx = p.x; o.lz = p.z; o.path.length = 0; } // the shot is heard
-  if (e.seal) sealHit(1, e.x); // a bullet: 1
+  if (e.seal) sealHit(SEAL_DMG.bullet, e.x);
   else {
     e.hp--; e.hitT = 0.14; poof(e.x, e.z, 0xff7a3a, 0.9, 1.1, 0.28);
     { const kx = e.x - p.x, kz = e.z - p.z, kd = Math.hypot(kx, kz) || 1; e.x += kx / kd * 0.45; e.z += kz / kd * 0.45; resolveCircle(e, 0.45); } // a hit knocks them back a step
@@ -1738,7 +1739,7 @@ function updateGoals(dt) { // standing reminders, kept small: one line each, no 
 function fireEgo() {
   if (!started || captured || egoCharges <= 0 || ego > 0) return;
   egoCharges--; ego = EGO_SECONDS; showToast(SEAL.active && Math.hypot(player.position.x, SEAL.z - player.position.z) < 45 ? 'EGO BLAST!  THE SEAL TAKES A BEATING' : 'EGO BLAST!  EVERYONE FREEZES', '#ff5a5a');
-  if (SEAL.active && Math.hypot(player.position.x, SEAL.z - player.position.z) < 45) { sealHit(4, Math.max(-6, Math.min(6, player.position.x)), true); shake = Math.max(shake, 0.4); } sting(80, 50); updateLootHud();
+  if (SEAL.active && Math.hypot(player.position.x, SEAL.z - player.position.z) < 45) { sealHit(SEAL_DMG.ego, Math.max(-6, Math.min(6, player.position.x)), true); shake = Math.max(shake, 0.4); } sting(80, 50); updateLootHud();
 }
 function updateEgo(dt) {
   if (ego <= 0) return;
@@ -1755,13 +1756,22 @@ function repelBurst() {
 // ---- the Tear opens when your Low C is full, and only for a while ----
 function sealUp() {
   SEAL.hp = SEAL.max; SEAL.active = true; SEAL.wall = addWall(-8, 8, SEAL.z - 0.5, SEAL.z + 0.5, false); SEAL.mesh.visible = true;
-  if (!SEAL.bar) { SEAL.bar = makeBar('#ff5a7a', 'SEAL'); SEAL.bar.sp.scale.set(5.5, 1.6, 1); SEAL.bar.sp.position.set(0, 6.6, SEAL.z + 1); } SEAL.bar.sp.visible = true; SEAL.bar.last = -1;
+  if (!SEAL.bar) { // the health bar sits on the wall itself, just under the words AGENCY SEAL
+    const c = document.createElement('canvas'); c.width = 256; c.height = 32; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false, depthTest: false, transparent: true })); sp.scale.set(8, 1.0, 1); sp.renderOrder = 10; sp.position.set(0, 2.7, SEAL.z + 0.7); scene.add(sp);
+    SEAL.bar = { sp, last: -1, set(pct) {
+      const q = Math.round(Math.max(0, Math.min(1, pct)) * 200); if (q === SEAL.bar.last) return; SEAL.bar.last = q;
+      const g = c.getContext('2d'); g.clearRect(0, 0, 256, 32); g.fillStyle = 'rgba(20,0,0,.8)'; g.fillRect(0, 0, 256, 32); g.strokeStyle = '#fff'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 253, 29);
+      const gr = g.createLinearGradient(0, 0, 256, 0); gr.addColorStop(0, '#ff6a2a'); gr.addColorStop(1, '#ffb347'); g.fillStyle = gr; g.fillRect(5, 5, 246 * q / 200, 22);
+      g.font = 'bold 22px VT323, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = '#000'; const tx = Math.ceil(pct * SEAL.max - 1e-6) + '/' + SEAL.max; g.strokeText(tx, 128, 17); g.fillStyle = '#fff'; g.fillText(tx, 128, 17); t.needsUpdate = true;
+    } };
+  } SEAL.bar.sp.visible = true; SEAL.bar.last = -1;
   tip('seal');
 }
 function sealDown(broke) {
   if (!SEAL.active) return; SEAL.active = false; const i = walls.indexOf(SEAL.wall); if (i >= 0) walls.splice(i, 1); SEAL.mesh.visible = false; if (SEAL.bar) SEAL.bar.sp.visible = false;
 }
-function sealHit(n, x, big) { // every weapon wears the seal down: a bullet 1, a second of Low C about half, an ego blast 4
+function sealHit(n, x, big) { // every weapon wears the seal down (see SEAL_DMG)
   if (!SEAL.active) return; SEAL.hp = Math.max(0, SEAL.hp - n); SEAL.lastHit = tAccum;
   if (big || n >= 1 || tAccum - (SEAL.lastFx || 0) > 0.22) { SEAL.lastFx = tAccum; poof(x, SEAL.z + 0.6, big ? 0xffd0a0 : 0xff4a6a, big ? 3.2 : 1.5, 2.0 + Math.random() * 2.6, big ? 0.55 : 0.3); }
   if (SEAL.hp <= 0) breakSeal();
@@ -1807,7 +1817,7 @@ const TIPS = {
   heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
   lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It burns fast, so use bursts. It clears bad vibes and never adds heat.',
   tear: 'THE TEAR|It’s open. Run for it before it closes.',
-  seal: 'THE SEAL|The Agency sealed the Tear. Wear it down: a bullet does 1, Low C chips away at it, an ego blast does 4. Ten in all.',
+  seal: 'THE SEAL|The Agency sealed the Tear. It only slows you: a bullet does 2, Low C wears it down, an ego blast does 6. Ten in all.',
   closed: 'THE TEAR|Fill your Low C to 100% and it opens, for a short time.'
 };
 let tipsSeen = new Set(); try { if (!params.has('tips')) tipsSeen = new Set(JSON.parse(localStorage.getItem('layers3d_tips_v1') || '[]')); } catch (err) { /* private mode: they just show again next visit */ }
