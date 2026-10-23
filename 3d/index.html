@@ -1552,14 +1552,16 @@ function update(dt) {
   } else { ix = iy = 0; }
   const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
   if (inTruck) { if (m > 0.25) leaveTruck(); else ix = iy = 0; }
-  // the camera follows the way you're heading: push back toward it and the view swings around behind you. The stick keeps its old meaning until you let go or flip it, so nothing lurches mid-turn.
+  // the camera stays behind the way you're heading: any turn of more than ~15 degrees from the view, or a push back toward it, and the view follows round.
+  // The stick keeps its old meaning until you let go, flip it, or push 'forward' again once the view has caught up, so nothing lurches or spirals.
+  const lockLen = Math.hypot(lockX, lockY), lockDot = ix * lockX + iy * lockY;
   if (!frameLocked) inYaw = yaw;
-  else if (m < 0.1 || (ix * lockX + iy * lockY) < 0.25 * m * Math.hypot(lockX, lockY) || (!swinging && iy > 0.5 * m && lockY < 0.5 * Math.hypot(lockX, lockY))) { frameLocked = false; inYaw = yaw; } // let go, flip, or head 'forward' again once the view has caught up
-  if (!frameLocked && started && !captured && !inTruck && m > 0.3 && iy < 0.57 * m && look.id === null && lookIdle > 0.25) { // heading sideways or back: swing the view round to match
+  else if (m < 0.1 || lockDot < 0.25 * m * lockLen || (!swinging && iy > 0.5 * m && lockDot < 0.9 * m * lockLen)) { frameLocked = false; inYaw = yaw; }
+  if (!frameLocked && started && !captured && !inTruck && m > 0.3 && iy < 0.966 * m && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25) { // follow where you're trying to go (not the velocity, so a wall in a tight spot doesn't fool it)
     const wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix;
-    swingYaw = Math.atan2(-wx, -wz); swinging = true; frameLocked = true; lockX = ix; lockY = iy;
-  }
-  if (swinging) { const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-8 * dt)); if (Math.abs(d) < 0.04) swinging = false; }
+    swingYaw = Math.atan2(-wx, -wz); const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-7 * dt)); swinging = Math.abs(d) > 0.12;
+  } else swinging = false;
   const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && sm > 0.97)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
@@ -1599,8 +1601,8 @@ function update(dt) {
   if (Math.abs(p.x) > 7.6 && Math.abs(p.x) < 18.4 && GAPS.some((g) => Math.abs(p.z - g) < GAP_W / 2 + 0.3)) {
     if (Math.hypot(vel.x, vel.z) > 1) tgtYaw = Math.abs(vel.x) > Math.abs(vel.z) ? (vel.x > 0 ? -Math.PI / 2 : Math.PI / 2) : (vel.z > 0 ? Math.PI : 0); else recenter = false;
   }
-  if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = Math.cos(yaw) < 0 ? Math.PI : 0; // on the main street settle onto whichever way the street runs that you're already facing
-  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !swinging) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
+  if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = faceAngle + Math.PI; // otherwise settle in behind whichever way the character is facing
+  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !frameLocked) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
   const baseD = camera.aspect < 1 ? 6.6 : 6.0, turned = Math.min(1, Math.abs(Math.sin(yaw)) * 1.4);
   const wantD = baseD - (baseD - 3.6) * turned, cp = Math.cos(pitch);
   camDist += (wantD - camDist) * (1 - Math.exp(-(wantD < camDist ? 16 : 3.5) * dt));
