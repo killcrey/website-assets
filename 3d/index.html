@@ -729,11 +729,21 @@ ART_JOBS.forEach((j) => {
 // the crew waits by the Tear (their sheets live in 3d/art/_originals; add new characters the same way)
 // the crew is hidden in the alleys; a tall glow over each one shows from the street. Walk up to one to get their boon (see applyBoon).
 const CREW = [];
+function makeBar(color) { // a little power bar that floats over a character
+  const c = document.createElement('canvas'); c.width = 96; c.height = 16; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false, depthTest: false, transparent: true })); sp.scale.set(1.2, 0.2, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp);
+  const bar = { sp, last: -1, set(pct) {
+    const q = Math.round(Math.max(0, Math.min(1, pct)) * 24); if (q === bar.last) return; bar.last = q;
+    const g = c.getContext('2d'); g.clearRect(0, 0, 96, 16); g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(0, 0, 96, 16); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(1, 1, 94, 14);
+    g.fillStyle = q >= 24 ? '#7dff9a' : color; g.fillRect(4, 4, 88 * q / 24, 8); t.needsUpdate = true;
+  } };
+  return bar;
+}
 function addCrew(key, name, h, x, z, glow, css, line, boon, opts) {
   const b = addNpc(key, name, h, x, z, Object.assign({ lines: [] }, opts));
   const beam = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: glow, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.55 }));
   beam.scale.set(2.8, 46, 1); beam.position.set(x, 23, z); scene.add(beam);
-  CREW.push({ key, name, b, x, z, css, line, boon, beam, found: false, cool: 0 });
+  CREW.push({ key, name, b, x, z, css, line, boon, beam, found: false, cool: 0, h, bar: makeBar(css) });
 }
 addCrew('juancarlos', 'JUAN CARLOS', 1.72, 19, -133, 0xffa860, '#ffb27a', 'You\u2019re one of us now.', 'invisible');
 addCrew('christopher', 'CHRISTOPHER', 1.82, -19.5, -186, 0x7fb8ff, '#9fd0ff', 'It\u2019s not mine. It\u2019s ours.', 'lowc2', { sideFacesRight: true });
@@ -1085,7 +1095,10 @@ function setLowCAudio(on) {
     const o = lcOsc, g = lcGain; lcOsc = lcGain = null; g.gain.cancelScheduledValues(ac.currentTime); g.gain.linearRampToValueAtTime(0, ac.currentTime + 0.2); o.stop(ac.currentTime + 0.25);
   }
 }
+const burstRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.0, 64), new THREE.MeshBasicMaterial({ color: 0x00fff9, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, opacity: 0 }));
+burstRing.rotation.x = -Math.PI / 2; burstRing.visible = false; scene.add(burstRing); let burstT = 0; // the Low C's opening shockwave
 function updateLowC(dt) {
+  if (burstT > 0) { burstT -= dt; const k = 1 - Math.max(0, burstT) / 0.5; burstRing.visible = burstT > 0; burstRing.position.set(player.position.x, 0.15, player.position.z); burstRing.scale.setScalar(1 + k * 17); burstRing.material.opacity = (1 - k) * 0.9; }
   const want = started && (keys.Space || mouseLowC || btnLowC || lowCLatch), was = lowCActive;
   lowCActive = !!want && !lowCLock && lowC > 0;
   if (lowCActive) { lowC = Math.max(0, lowC - dt); if (lowC <= 0) { lowCLock = true; lowCActive = false; lowCLatch = false; showToast('TOO MUCH — WAKING HURTS', '#ff6ec7'); } }
@@ -1120,6 +1133,7 @@ function updateCrew(dt) { // every meeting pays out again once their cooldown is
   for (const c of CREW) {
     const gp = c.b.group.position; c.x = gp.x; c.z = gp.z; c.beam.position.set(c.x, 23, c.z);
     c.cool = Math.max(0, c.cool - dt); c.beam.visible = c.cool <= 0;
+    { const nb = Math.hypot(player.position.x - c.x, player.position.z - c.z) < 45; c.bar.sp.visible = nb; if (nb) { c.bar.sp.position.set(c.x, c.h + 0.6, c.z); c.bar.set(1 - c.cool / CREW_COOLDOWN); } } // powered up again = full and green
     if (c.cool > 0) continue;
     c.beam.material.opacity = 0.42 + Math.sin(tAccum * 2 + c.x) * 0.14;
     if (!inTruck && Math.hypot(player.position.x - c.x, player.position.z - c.z) < 2.8) {
@@ -1275,7 +1289,7 @@ function updateEnemy(e, dt) {
   const egoF = ego > 0; // the ego blast freezes everyone and turns off their eyes
   if (!egoF && e.flee > 0) { // the Low C's opening pulse sends them the other way
     e.flee -= dt; const fx = e.x - p.x, fz = e.z - p.z, fd = Math.hypot(fx, fz) || 1;
-    e.seeing = 0; e.b.tint = false; e.b.jitter = 0; stepEnemy(e, e.x + fx / fd * 6, e.z + fz / fd * 6, 9, dt);
+    e.seeing = 0; e.b.tint = false; e.b.jitter = 0; stepEnemy(e, e.x + fx / fd * 8, e.z + fz / fd * 8, 11, dt);
     e.b.group.position.set(e.x, 0, e.z); e.b.facing = e.facing; e.mark.visible = false; e.cone.visible = false; return;
   }
   const frozen = egoF || (lowCActive && !captured && Math.hypot(p.x - e.x, p.z - e.z) < 8.5); // while the Low C is on, anything near you stops in its tracks
@@ -1425,7 +1439,13 @@ function updateDeliveries(dt) {
 }
 // ---- Luz: the hum (you can see the Agency and which baskets are bugged). Pancho's dad: stand by him to power up, but your heat climbs ----
 const HUM_MAT = new THREE.SpriteMaterial({ map: markTex('\u25C6', '#7ff6ff'), fog: false, depthTest: false });
+const luzBar = makeBar('#ffd9a8');
+// always-on markers: red over the Kid (cards), gold over Pancho (copper), blue over his dad (power up)
+const MARKERS = [[2, '#ff4d4d', 1.3], [0, '#ffd54a', 1.75], [1, '#6fb3ff', 1.7]].map(([i, col, h]) => {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex('▼', col), fog: false, depthTest: false })); sp.renderOrder = 11; scene.add(sp); return { n: NPCS[i], h, sp };
+});
 function updateHelpers(dt) {
+  for (const m of MARKERS) { const g = m.n.b.group.position, d = Math.hypot(camera.position.x - g.x, camera.position.z - g.z), sc = Math.max(0.7, d * 0.03); m.sp.scale.set(sc, sc, 1); m.sp.position.set(g.x, m.h + 0.6 + sc * 0.35 + Math.sin(tAccum * 3) * 0.08, g.z); }
   luzCool = Math.max(0, luzCool - dt);
   if (humT > 0) { const c0 = Math.ceil(humT); humT = Math.max(0, humT - dt); if (humT === 0) showToast('THE HUM FADES', '#ffb347'); if (Math.ceil(humT) !== c0) updateLootHud(); }
   const show = humT > 0;
@@ -1435,6 +1455,7 @@ function updateHelpers(dt) {
   }
   if (!van.hum) { van.hum = new THREE.Sprite(HUM_MAT); van.hum.scale.set(0.9, 0.9, 1); scene.add(van.hum); }
   van.hum.visible = show; if (show) van.hum.position.set(van.x, 3.3, van.z);
+  { const lg0 = NPCS[3].b.group.position, nb = Math.hypot(player.position.x - lg0.x, player.position.z - lg0.z) < 45; luzBar.sp.visible = nb; if (nb) { luzBar.sp.position.set(lg0.x, 2.3, lg0.z); luzBar.set(1 - luzCool / CREW_COOLDOWN); } }
   if (captured || inTruck) { if (dadOn) { dadOn = false; updateLootHud(); } return; }
   const p = player.position, lg = NPCS[3].b.group.position, dg = NPCS[1].b.group.position;
   if (luzCool <= 0 && Math.hypot(p.x - lg.x, p.z - lg.z) < 2.8) {
@@ -1475,8 +1496,8 @@ function updateEgo(dt) {
 }
 // the Low C's opening pulse knocks everything nearby back for a moment
 function repelBurst() {
-  if (repelCool > 0 || captured) return; repelCool = 2.5;
-  for (const e of enemies) if (!e.dead && Math.hypot(e.x - player.position.x, e.z - player.position.z) < 12) { e.flee = 1.0; e.path.length = 0; e.aware = 0; if (e.kind === 'suit' && (e.state === 'CHASE' || e.state === 'PATROL' || e.state === 'INVESTIGATE')) { e.state = 'SEARCH'; e.search = 3; } }
+  if (repelCool > 0 || captured) return; repelCool = 2.5; burstT = 0.5;
+  for (const e of enemies) if (!e.dead && Math.hypot(e.x - player.position.x, e.z - player.position.z) < 16) { e.flee = 1.6; e.path.length = 0; e.aware = 0; if (e.kind === 'suit' && (e.state === 'CHASE' || e.state === 'PATROL' || e.state === 'INVESTIGATE')) { e.state = 'SEARCH'; e.search = 3; } }
 }
 // ---- the Tear opens when your Low C is full, and only for a while ----
 function updateTear(dt) {
@@ -1533,12 +1554,12 @@ function update(dt) {
   if (inTruck) { if (m > 0.25) leaveTruck(); else ix = iy = 0; }
   // the camera follows the way you're heading: push back toward it and the view swings around behind you. The stick keeps its old meaning until you let go or flip it, so nothing lurches mid-turn.
   if (!frameLocked) inYaw = yaw;
-  else if (m < 0.1 || (ix * lockX + iy * lockY) < 0.25 * m * Math.hypot(lockX, lockY)) { frameLocked = false; inYaw = yaw; }
-  if (!frameLocked && started && !captured && !inTruck && iy < -0.45 && m > 0.3 && look.id === null && lookIdle > 0.25) {
+  else if (m < 0.1 || (ix * lockX + iy * lockY) < 0.25 * m * Math.hypot(lockX, lockY) || (!swinging && iy > 0.5 * m && lockY < 0.5 * Math.hypot(lockX, lockY))) { frameLocked = false; inYaw = yaw; } // let go, flip, or head 'forward' again once the view has caught up
+  if (!frameLocked && started && !captured && !inTruck && m > 0.3 && iy < 0.57 * m && look.id === null && lookIdle > 0.25) { // heading sideways or back: swing the view round to match
     const wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix;
     swingYaw = Math.atan2(-wx, -wz); swinging = true; frameLocked = true; lockX = ix; lockY = iy;
   }
-  if (swinging) { const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-3.2 * dt)); if (Math.abs(d) < 0.04) swinging = false; }
+  if (swinging) { const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-8 * dt)); if (Math.abs(d) < 0.04) swinging = false; }
   const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && sm > 0.97)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
@@ -1579,7 +1600,7 @@ function update(dt) {
     if (Math.hypot(vel.x, vel.z) > 1) tgtYaw = Math.abs(vel.x) > Math.abs(vel.z) ? (vel.x > 0 ? -Math.PI / 2 : Math.PI / 2) : (vel.z > 0 ? Math.PI : 0); else recenter = false;
   }
   if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = Math.cos(yaw) < 0 ? Math.PI : 0; // on the main street settle onto whichever way the street runs that you're already facing
-  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.5 : 1.3) && recenter && !swinging) { const r = 1 - Math.exp(-2.4 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
+  if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !swinging) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
   const baseD = camera.aspect < 1 ? 6.6 : 6.0, turned = Math.min(1, Math.abs(Math.sin(yaw)) * 1.4);
   const wantD = baseD - (baseD - 3.6) * turned, cp = Math.cos(pitch);
   camDist += (wantD - camDist) * (1 - Math.exp(-(wantD < camDist ? 16 : 3.5) * dt));
