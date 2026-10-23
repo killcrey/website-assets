@@ -540,6 +540,7 @@ function getSprite(name) {
 function onSprite(name, fn) { const e = getSprite(name); if (e.ok || e.failed) fn(e); else e.cbs.push(fn); }
 const billboards = [], STATIC_BLOBS = [], STATIC_GROUPS = [], CULL_DIST = 100; // far-off props are hidden (the fog has swallowed them anyway)
 const blobGeo = new THREE.CircleGeometry(1, 20), blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false });
+const TILT_B = -1, TILT_F = 1; // signs worked out from the geometry: the flat sprite turns toward the way it is heading
 class Billboard {
   constructor(key, heightM, opts = {}) {
     this.heightM = heightM; this.sideFacesRight = opts.sideFacesRight !== false; this.facing = opts.facing || 0;
@@ -572,7 +573,9 @@ class Billboard {
     const e = this.views[view], s = this.heightM / f.h, flip = view === 'side' && ((sdot > 0) !== this.sideFacesRight);
     this.mesh.material = this.mats[view]; this.mesh.visible = true;
     this.mesh.scale.set(e.w * s * (flip ? -1 : 1), e.h * s * (1 + this.breath), 1);
-    this.mesh.rotation.y = Math.atan2(dx, dz); this.mesh.position.y = this.bob;
+    let tilt = 0; // front/back art only: turn the flat sprite up to ~30 degrees toward where it's heading
+    if (!this.static && view !== 'side') { const base = view === 'back' ? Math.atan2(-dx, -dz) : Math.atan2(dx, dz), dv = Math.atan2(Math.sin(this.facing - base), Math.cos(this.facing - base)); tilt = Math.max(-0.5, Math.min(0.5, dv * 0.5)) * (view === 'back' ? TILT_B : TILT_F); }
+    this.mesh.rotation.y = Math.atan2(dx, dz) + tilt; this.mesh.position.y = this.bob;
     this.mesh.position.x = this.jitter ? (Math.random() - 0.5) * this.jitter : 0; // a frozen enemy glitches in place
     if (this.tint !== this._tinted || (this.tint && this._hex !== this.tintHex)) { this._tinted = this.tint; this._hex = this.tintHex; for (const m of Object.values(this.mats)) m.color.setHex(this.tint ? this.tintHex : 0xffffff); }
   }
@@ -1611,9 +1614,15 @@ function tryEnterPortal() { if (started && tearOpen && Math.hypot(player.positio
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
 // ---- game loop ----
-const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', leanYaw = 0, backT = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
+const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', leanYaw = 0, alignT = 0, mvSpd = 0, mvDir = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
 const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(); let camDist = 6.4;
 const SPEED = 7.2;
+function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main street and in the alleys, 'x' in a cross street
+  const ax = Math.abs(p.x);
+  if (ax > 18.4) return 'z';
+  if (ax > 7.6) return GAPS.some((g) => Math.abs(p.z - g) < GAP_W / 2 + 0.3) ? 'x' : null;
+  return 'z';
+}
 function update(dt) {
   tAccum += dt;
   let ix = stick.x, iy = stick.y;
@@ -1625,18 +1634,21 @@ function update(dt) {
   } else { ix = iy = 0; }
   const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
   if (inTruck) { if (m > 0.25) leaveTruck(); else ix = iy = 0; }
-  // Precise controls: the stick is always relative to the camera, and the camera never swings on its own while you walk, with one deliberate exception:
-  // hold the stick back toward the camera for a moment and the view spins round behind you (the stick keeps meaning the way you were going until you let go or push forward).
-  // Pushing left or right only leans the camera a little that way so you can see round corners; it never changes which way the stick points.
+  // Precise controls: the stick is always relative to the camera. The camera only turns on its own at one moment: when you head along the street, an alley or a cross
+  // street and the view isn't already looking that way (entering a corridor, or turning round to go back). It turns once, fast; the stick keeps meaning the way you were
+  // going until you let go, flip it, or push forward, so nothing lurches. Left and right only lean the view a little.
   const lockLen = Math.hypot(lockX, lockY), lockDot = ix * lockX + iy * lockY;
   if (isTouchDevice) { const gs = started && !captured && stick.id === null ? 'block' : 'none'; if (gs !== ghostShown) { ghostShown = gs; $('stick-ghost').style.display = gs; } }
-  backT = (started && !captured && !inTruck && m > 0.3 && iy < -0.5 * m) ? backT + dt : 0;
   if (!frameLocked) inYaw = yaw;
   else if (m < 0.1 || lockDot < 0.25 * m * lockLen || (!swinging && iy > 0.5 * m)) { frameLocked = false; inYaw = yaw; }
-  if (!frameLocked && backT > 0.2 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
-  if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25) {
-    const wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix;
-    swingYaw = Math.atan2(-wx, -wz); const d = Math.atan2(Math.sin(swingYaw - yaw), Math.cos(swingYaw - yaw)); yaw += d * (1 - Math.exp(-6 * dt)); swinging = Math.abs(d) > 0.12;
+  let wantYaw = null;
+  { const zax = zoneAxis(player.position), wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix, h = Math.hypot(wx, wz);
+    if (zax && h > 0.3) { if (zax === 'z' && Math.abs(wz) > 0.6 * h) wantYaw = wz > 0 ? Math.PI : 0; else if (zax === 'x' && Math.abs(wx) > 0.6 * h) wantYaw = wx > 0 ? -Math.PI / 2 : Math.PI / 2; } }
+  const yawGap = wantYaw === null ? 0 : Math.abs(Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)));
+  alignT = (started && !captured && !inTruck && yawGap > 0.3) ? alignT + dt : 0;
+  if (!frameLocked && alignT > 0.15 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25 && wantYaw !== null) {
+    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-8 * dt)); swinging = Math.abs(d) > 0.12;
   } else swinging = false;
   { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
   const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.35)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
@@ -1662,9 +1674,10 @@ function update(dt) {
       if (l || r) { const sg = l ? 1 : -1; p.x += qx * sg * 3.6 * dt; p.z += qz * sg * 3.6 * dt; }
     }
   }
+  { const mvd = Math.hypot(p.x - px0, p.z - pz0); mvSpd = mvd / (dt || 1); if (mvd > 1e-4) mvDir = Math.atan2(p.x - px0, p.z - pz0); }
   updatePickups(dt); updateLowC(dt); updateHunt(dt);
   const spd = Math.hypot(vel.x, vel.z);
-  if (spd > 0.5) { const target = Math.atan2(vel.x, vel.z); let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
+  if (mvSpd > 1.0) { const iv = Math.hypot(vel.x, vel.z) > 0.5 ? Math.atan2(vel.x, vel.z) : mvDir, dvv = Math.atan2(Math.sin(mvDir - iv), Math.cos(mvDir - iv)), target = Math.abs(dvv) < 1.4 ? mvDir : iv; let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
   player.rotation.y = faceAngle;
   body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(tAccum * 12)) * 0.07 * Math.min(1, spd / SPEED);
   body.rotation.x = outline.rotation.x = Math.min(0.25, spd / SPEED * 0.25);
@@ -1674,11 +1687,8 @@ function update(dt) {
   lookIdle += dt;
   yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
   // when you let go of the look control the camera eases back: down the street on the main street, or along your heading inside a cross street
-  let tgtYaw = 0, recenter = true;
-  if (Math.abs(p.x) > 7.6 && Math.abs(p.x) < 18.4 && GAPS.some((g) => Math.abs(p.z - g) < GAP_W / 2 + 0.3)) {
-    if (Math.hypot(vel.x, vel.z) > 1) tgtYaw = Math.abs(vel.x) > Math.abs(vel.z) ? (vel.x > 0 ? -Math.PI / 2 : Math.PI / 2) : (vel.z > 0 ? Math.PI : 0); else recenter = false;
-  }
-  if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = faceAngle + Math.PI; // otherwise settle in behind whichever way the character is facing
+  const za = zoneAxis(p); let tgtYaw = yaw, recenter = true; // standing still, the view settles square to the corridor you're in (never off a wall-slide or a side-step)
+  if (za === 'z') tgtYaw = Math.cos(yaw) < 0 ? Math.PI : 0; else if (za === 'x') tgtYaw = Math.sin(yaw) > 0 ? Math.PI / 2 : -Math.PI / 2; else recenter = false;
   if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !frameLocked && Math.hypot(vel.x, vel.z) < 0.6) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
   const baseD = camera.aspect < 1 ? 6.6 : 6.0, wantD = baseD, cp = Math.cos(pitch); // steady distance: turning no longer zooms, only a wall in the way pulls it in
   camDist += (wantD - camDist) * (1 - Math.exp(-6 * dt));
