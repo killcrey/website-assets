@@ -38,21 +38,28 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - **Camera:** it orbits behind the player, **zooms in when you turn toward the walls**, never leaves the street corridor (it slides along the wall and never sits inside the character), eases back behind you about 1.3 seconds after you let go of the look control, and the mouse tilts it up and down. Tested across 135 angle/position combinations: it never passed x = 7.5.
 - **Low C** is the trigger: a 30-second meter (each copper wire adds 10), cyan ripples and a screen pulse while held, a 65 Hz tone (phones can't play 32.7 Hz), and it can overstrain ("waking hurts": locked out until the meter recovers to 30%, slower movement). It doesn't stall anything yet because the Agency doesn't chase you yet; the hook is `lowCActive` in `3d/index.html`.
 
-## DRAFT v2: hunt rules (from the 2026-10-22 planning chat; NOT built yet, pending confirmation)
-**Low C is both your weapon and your health.** Enemies drain it; it also damages them; you refill it with the Kid.
-| Thing | What it does |
-|---|---|
-| **Suits** | "Bad vibes" aura: a steady drain on Low C while they're close. Walk their routes; they get faster the more **copper wire** you carry. Always on patrol. |
-| **Thugs** | Appear only at higher heat. Each hit takes a big chunk of Low C. |
-| **Vans** | Patrol with headlight cones; at high heat they unload thugs. |
-| **Low C blast** | Does visible damage: enemies glitch (static, jitter, cyan sparks), slow, then are stunned when their "stability" runs out. Full-blast limit of 32.7 (lore) "seconds" of charge; firing burns it quickly, and it does not come back by itself fast. |
-| **Baseball cards -> the Kid** | Hand cards to the Kid to refill Low C. (Tension: the full-set bonus vs. spending cards.) |
-| **Scratchers** | Pay off enemies: nearby ones leave you alone for a while and heat drops. |
-| **Records (rarer)** | Red blast: all enemies in slow motion for 15-20 s. |
-| **Copper wire (now glows)** | Bigger Low C bar, but the Suits move faster. |
-| **Cover** | Cars, dumpsters, carts, hedges, walls block enemy sight; stand still behind cover to hide. |
+## Hunt rules v2 (decided with the user 2026-10-22; tuning numbers are first guesses to playtest; NOT built yet)
+**Low C is your weapon and your health.** Capacity **32.7** units ("seconds" at the lore's slow rate). Blasting burns it ~3x faster, so a full bar is about 11 seconds of blast. It does not come back by itself (only a trickle); the Kid refills it.
+- **Zero charge:** if an enemy touches you at 0 -> caught (STATUS: NULL). At 0 with no enemy touching you, you are only weak and slow ("waking hurts"). A Suit's aura alone never ends the run.
+- **Blast:** a **directional cone** (~60-70 deg, ~9 m) drawn as the cyan **ripple arcs** you liked, moving outward where you aim (mouse on PC; character facing + auto-aim on phone). It damages enemies' **stability**: they glitch (static, jitter, cyan sparks), slow down, then are stunned when stability hits 0. Cover blocks the cone.
 
-**Level rethink:** a small neighborhood of city blocks with cross streets and alleys (not one straight corridor), cover props, several storefronts, the bodega as the safe house, the Kid at a few spots, and the Tear on the far side. Needs a real collision map (building boxes), camera collision against it, line-of-sight checks, and enemy patrol paths on the streets.
+| Enemy | Behavior | Damage to you | Blast |
+|---|---|---|---|
+| **Suit** | Always on patrol. Speed rises with copper wire carried (+12% per wire). | **Bad vibes:** aura drain ~1.5/s within ~5 m | stability ~2 -> stunned after ~5 s of blast |
+| **Thug** | Only appears at high heat (unloaded by vans). Faster than a Suit. | **Big chunks:** ~8 per hit, 1.2 s apart, with knockback | resists: slowed in the cone, stunned only after ~8 s of blast |
+| **Van** | Drives a patrol loop with a headlight cone; at CONTAIN it unloads 2 thugs (max 3 at once). | none directly | stalled while in the blast |
+
+**Heat:** CLEAR -> WATCH (Suits alerted) -> CULTIVATE (Suits chase) -> CONTAIN (vans unload thugs). Goes up when seen, running in sight, blasting in sight, grabbing loot in sight. Goes down out of sight, faster when hidden behind cover, and by 1 level when you pay off enemies with a scratcher. Heat also creeps up if you stay in one place too long.
+**Cover/hiding:** cars, dumpsters, carts, hedges, walls block sight and the cone. Stand still behind cover ~1 s to be "hidden". Running is noisy (bigger detection radius); a gentle thumb push is a quiet sneak.
+
+**Items**
+- **Baseball cards:** more of them, spread out; some sit where a patrol guards them and can only be grabbed once it moves on. Give them to **the Kid**. He holds a **stash**; you refill Low C by standing near him (it draws from his stash). **Enemies can steal his cards** (1 card per ~2 s while a Suit is on him); stun the thief and the card drops. You defend him. Keeping cards for the full-set bonus vs. giving them to him is the tension.
+- **Scratchers:** no points. Use one to **pay off** nearby enemies (they ignore you ~30 s) and drop heat one level. Unused ones convert to +150 each at the Tear.
+- **Records (rare):** hold at most 1; press a button for the **red blast**: all enemies in slow motion (x0.3) for ~15-20 s, with a red wash and red rings. **Regeneration:** only one record exists on the map at a time; ~75 s (+-15) after one is picked up, a new one appears at a random one of ~8 record spots (stoops, windows, alley mouths, the record store), never the same spot twice in a row, with a faint red glow and a "scratch" sound when it appears. Cap 4 per run.
+- **Copper wire:** now **glows** (a brighter beacon). Each wire: Low C capacity +15%, but Suits move +12% faster.
+
+## Level layout (recommendation: "spine + ribs")
+One long main street (~2x today's length) with 4 cross streets / alleys (the ribs) every ~50-60 m, parked cars and props along the curbs, and alley loops that let you circle enemies. Cheaper than a full 3x3 grid, but gives real hiding spots and flanking. It needs the same new tech either way: a collision map (building boxes), camera collision against it, line-of-sight checks, and patrol paths. It can grow into a full grid later.
 
 **More Gemini art needed:** parked cars (3 views each), street props (dumpster, trash cans, mailbox, hydrant, bench, bus shelter), vendor cart / crates / hedge planter / barriers, 4 more storefronts (record store, taqueria, barber, laundromat), a mural-wall landmark (original art, not a copy of real murals) and a baseball-stadium corner with a generic baseball statue (no real player's likeness).
 
