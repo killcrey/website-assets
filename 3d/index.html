@@ -812,6 +812,7 @@ const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000,
 let curArea = 'GASLAMP QUARTER', hidden = false, stillFor = 0, heat = 0, heatTimer = 0, speedBoost = 0, cloak = 0, toastTimer = 0, lowCBoost = 0, inTruck = false, cardsHeld = 0, ego = 0;
 const HEAT_NAMES = ['CLEAR', 'WATCH', 'CULTIVATE', 'CONTAIN'];
 const pickups = [];
+const BUG_CHANCE = 0.4; // share of baskets that are bugged (decided per basket, invisible until Luz's hum)
 const prng = mulberry32(77);
 const mkMat = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
 function mkCard() {
@@ -866,7 +867,7 @@ function addPickup(kind, x, z) {
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: GLOWCOL[kind], blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: kind === 'wire' ? 0.7 : 0.32 }));
   glow.scale.set(kind === 'wire' ? 3.4 : 1.35, kind === 'wire' ? 3.4 : 1.35, 1); holder.add(glow);
   scene.add(holder);
-  const pk = { kind, holder, model, glow, sprite: null, phase: prng() * 6.28, taken: false }; pickups.push(pk);
+  const pk = { kind, holder, model, glow, sprite: null, phase: prng() * 6.28, taken: false, bugged: kind === 'basket' && Math.random() < BUG_CHANCE }; pickups.push(pk);
   onSprite('item_' + (kind === 'basketboost' ? 'basket' : kind), (e) => {
     if (e.failed) return;
     const k = ITEM_H[kind] / e.h, w = e.w * k, h = e.h * k, m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: kind === 'basket' ? cleanBasket(e) : e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
@@ -902,6 +903,8 @@ function updateLootHud() {
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (inTruck) lines.push('IN THE BREAD TRUCK  <span style="opacity:.7">(MOVE TO GET OUT)</span>'); else if (hidden) lines.push('HIDDEN');
   if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
+  if (humT > 0) lines.push('<b style="color:#ffd9a8">THE HUM  ' + Math.ceil(humT) + 's  \u2022  RED BASKETS ARE BUGGED</b>');
+  if (dadOn) lines.push('<b style="color:#bcd4ff">POWERING UP  ' + Math.round(100 * lowC / lowCMax()) + '%  \u2022  HEAT RISING</b>');
   if (lureT > 0) lines.push('<b style="color:#ff6b5e">TRACKED  ' + Math.ceil(lureT) + 's</b>');
   { const eb = $('ego-btn'); eb.style.display = (started && isTouchDevice && egoCharges > 0 && ego <= 0) ? 'flex' : 'none'; eb.innerHTML = 'EGO<br>BLAST' + (egoCharges > 1 ? ' \u00D7' + egoCharges : ''); }
   if (cloak > 0) lines.push('ANALOG STATIC ' + Math.ceil(cloak) + 's  \u2022  THEY CAN\u2019T SEE STRAIGHT');
@@ -933,7 +936,7 @@ function collect(p) {
     loot.vinyl++; loot.points += VINYL_VALUE; egoCharges = Math.min(2, egoCharges + 1); showToast('EGO BLAST EQUIPPED  \u2022  ' + (isTouchDevice ? 'TAP THE BUTTON' : 'PRESS F'), '#ff5a5a');
   } else if (p.kind === 'tape') {
     loot.tape++; loot.points += TAPE_VALUE; cloak = Math.min(60, cloak + CLOAK_SECONDS); showToast('+' + TAPE_VALUE + '  TAPE  \u2022  ANALOG STATIC 30s: THEIR VISION IS SCRAMBLED', '#7ff6ff');
-  } else if (Math.random() < BUG_CHANCE) { // a basket: nobody can tell which ones are bugged
+  } else if (p.bugged) { // a basket: nobody can tell which ones are bugged (until Luz's hum)
     bumpHeat(1); lureT = BUG_LURE; for (const e of enemies) if (e.kind === 'suit') { e.lureT = BUG_LURE; if (e.state !== 'CHASE') e.state = 'INVESTIGATE'; e.lx = player.position.x; e.lz = player.position.z; e.path.length = 0; }
     showToast('IT WAS BUGGED!  THEY\u2019RE COMING FOR YOU', '#ff6b5e'); sting(150, 100);
   } else {
@@ -949,6 +952,7 @@ function updatePickups(dt) {
     if (far !== !k.holder.visible) k.holder.visible = !far;
     if (far) continue;
     k.phase += dt * 2.4; k.holder.position.y = 1.0 + Math.sin(k.phase) * 0.12; k.model.rotation.y += dt * 1.6;
+    if (k.kind === 'basket') { const h = humT > 0; k.glow.material.color.setHex(h ? (k.bugged ? 0xff3b3b : 0x9dff9a) : 0xffe9b8); k.glow.material.opacity = h ? 0.75 : 0.32; k.glow.scale.setScalar(h ? 2.1 : 1.35); }
     if (k.kind === 'wire') { k.glow.material.opacity = 0.6 + Math.sin(k.phase * 1.7) * 0.2; k.glow.scale.setScalar(3.2 + Math.sin(k.phase * 1.7) * 0.5); }
     if (k.sprite) { k.sprite.rotation.y = Math.atan2(camera.position.x - k.holder.position.x, camera.position.z - k.holder.position.z); k.sprite.rotation.z = Math.sin(k.phase * 0.5) * 0.12; }
     if (k.kind === 'vinyl') k.model.rotation.x = 0.35;
@@ -1101,8 +1105,8 @@ function updateLowC(dt) {
 let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct = -1, captured = false, aura = 0;
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
-const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BUG_CHANCE = 0.4, BASKET_FILL = 0.6;
-let kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
+let luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
@@ -1350,8 +1354,8 @@ function capture(why) {
 }
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; $('null-screen').style.display = 'none';
-  for (const k of pickups) { k.taken = false; k.holder.visible = true; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
   van.z = -30; van.dir = -1; van.stop = 1;
@@ -1419,12 +1423,40 @@ function updateDeliveries(dt) {
   if (kidCool <= 0) { const r = give(NPCS[2], cardsHeld, CARDS_TO_FILL, 'THE KID', '#9ff0b0', 'card'); if (r > 0) { cardsHeld -= r; kidCool = 1.5; respawnPickups('card', r); updateLootHud(); } else if (r < 0) kidCool = 8; }
   if (panCool <= 0) { const r = give(NPCS[0], wiresHeld, WIRES_TO_FILL, 'PANCHO', '#ffe08a', 'copper wire'); if (r > 0) { wiresHeld -= r; panCool = 1.5; respawnPickups('wire', r); updateLootHud(); } else if (r < 0) panCool = 8; }
 }
+// ---- Luz: the hum (you can see the Agency and which baskets are bugged). Pancho's dad: stand by him to power up, but your heat climbs ----
+const HUM_MAT = new THREE.SpriteMaterial({ map: markTex('\u25C6', '#7ff6ff'), fog: false, depthTest: false });
+function updateHelpers(dt) {
+  luzCool = Math.max(0, luzCool - dt);
+  if (humT > 0) { const c0 = Math.ceil(humT); humT = Math.max(0, humT - dt); if (humT === 0) showToast('THE HUM FADES', '#ffb347'); if (Math.ceil(humT) !== c0) updateLootHud(); }
+  const show = humT > 0;
+  for (const e of enemies) {
+    if (show && !e.dead) { if (!e.hum) { e.hum = new THREE.Sprite(HUM_MAT); e.hum.scale.set(0.8, 0.8, 1); scene.add(e.hum); } e.hum.visible = true; e.hum.position.set(e.x, e.spec.h + 1.1, e.z); }
+    else if (e.hum) e.hum.visible = false;
+  }
+  if (!van.hum) { van.hum = new THREE.Sprite(HUM_MAT); van.hum.scale.set(0.9, 0.9, 1); scene.add(van.hum); }
+  van.hum.visible = show; if (show) van.hum.position.set(van.x, 3.3, van.z);
+  if (captured || inTruck) { if (dadOn) { dadOn = false; updateLootHud(); } return; }
+  const p = player.position, lg = NPCS[3].b.group.position, dg = NPCS[1].b.group.position;
+  if (luzCool <= 0 && Math.hypot(p.x - lg.x, p.z - lg.z) < 2.8) {
+    luzCool = CREW_COOLDOWN; humT = HUM_SECONDS; speechTimer = 0; say('LUZ', '#ffd9a8', 'Listen. Can you hear it? Now you can hear where they are.', 3.4);
+    showToast('THE HUM  \u2022  YOU CAN SEE THEM, AND THE BUGS (' + HUM_SECONDS + 's)', '#ffd9a8'); sting(330, 495); updateLootHud();
+  }
+  // the dad: hold still next to him and he charges you; every second of it is heat
+  const was = dadOn; dadOn = Math.hypot(p.x - dg.x, p.z - dg.z) < 2.8 && Math.hypot(vel.x, vel.z) < 0.7 && lowC < lowCMax() - 0.01;
+  if (dadOn) {
+    if (!was) { speechTimer = 0; say('PANCHO\u2019S FATHER', '#bcd4ff', 'Hold still, son. This is going to hum. They\u2019ll feel it.', 3); }
+    lowC = Math.min(lowCMax(), lowC + lowCMax() / DAD_FILL_SECONDS * dt); lowCLock = false; heatF = Math.min(3, heatF + DAD_HEAT_PER_SEC * dt); unseenT = 0;
+    const pc = Math.round(100 * lowC / lowCMax() / 10); if (pc !== dadPct) { dadPct = pc; updateLootHud(); }
+  } else if (was) { dadPct = -1; updateLootHud(); }
+}
 let goalsT = 0, goalsHtml = '';
 function updateGoals(dt) { // the standing reminders: what to do with what you pick up
   goalsT -= dt; if (goalsT > 0) return; goalsT = 0.15;
   const row = (color, text, where) => '<div style="border-color:' + color + ';color:' + color + '">' + text + '<br>' + where + '</div>', dim = '#9a9a9a';
   let h = row(cardsHeld ? '#ffd966' : dim, 'CARDS \u25B8 THE KID &nbsp;<b>' + cardsHeld + '</b>', bearing(NPCS[2].b.group.position));
   h += row(wiresHeld ? '#ffa860' : dim, 'COPPER \u25B8 PANCHO &nbsp;<b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position));
+  if (luzCool <= 0) h += row('#ffd9a8', 'THE HUM \u25B8 LUZ', bearing(NPCS[3].b.group.position));
+  if (lowC < lowCMax() * 0.6) h += row('#bcd4ff', 'POWER UP \u25B8 PANCHO\u2019S DAD<br>(HEAT RISES)', bearing(NPCS[1].b.group.position));
   if (heatLevel() >= 2) h += row('#ff5a5a', 'HEAT HIGH! FIND EDUARDO', bearing(CREW[2].b.group.position));
   if (tearOpen) h += row('#7ff6ff', 'THE TEAR CLOSES IN ' + Math.ceil(tearT) + 's', bearing(PORTAL));
   if (h !== goalsHtml) { goalsHtml = h; $('goals').innerHTML = h; }
@@ -1463,9 +1495,9 @@ function updateHunt(dt) {
   { const cg = invis > 0; cloakGlow.visible = cg; if (cg) cloakGlow.material.opacity = 0.34 + 0.12 * Math.sin(tAccum * 4); }
   aura = Math.max(0, aura - dt * 3);
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateEgo(dt); updateTear(dt); updateGoals(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGoals(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
-  for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
+  for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
   // heat goes up while anything sees you and cools off when you break line of sight (faster when hidden)
   let rise = 0; for (const e of enemies) if (e.seeing > 0) rise += (0.15 + 0.45 * e.seeing) * (e.kind === 'thug' ? 0.4 : 1);
   if (van.seeing > 0) rise += (0.15 + 0.4 * van.seeing) * 0.8;
@@ -1588,7 +1620,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>

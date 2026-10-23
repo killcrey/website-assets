@@ -86,6 +86,8 @@ The **far end of the street is Barrio Logan** and **the record store is there** 
 - **Baskets** all look the same (the bug LED is painted out); 40% are bugged: +1 heat and every Suit homes in on you for 15 s ("TRACKED"). The rest give +60% Low C. The speed reward is gone.
 - **Analog tape** = ANALOG STATIC for 30 s: enemies glitch, can't hold a stare, and see only about 1.6 m. No more see-through player (Juan Carlos's invisibility stays).
 - **Ego blast** (records, up to 2 stored): a button / F key; for 12 s every enemy and the van **freezes and sees nothing** (red tint, red screen edge). **Low C opening pulse** knocks enemies within 12 m back for a second (2.5 s cooldown), then the freeze-while-held works as before.
+- **Luz = the hum**: meet her (40 s cooldown, same as the crew) for 20 s of seeing every Suit, thug and the van through walls (cyan diamonds), and every basket glows **red if bugged, green if real** (each basket's bug is now decided once per run instead of at pickup).
+- **Pancho's dad = power up**: stand still within about 3 m and he charges your Low C from empty to full in 4 s, but your heat rises 0.4 a second the whole time (about +1.6 for a full charge) and it can't cool while you do it, so time it for when nobody's near. Moving off stops it. A "POWER UP" reminder shows in the goals panel when you're under 60%.
 - **The van** is a solid shape like the parked cars, so it no longer swivels as you pass it. The bread truck only hides you from the street side.
 
 ## The hunt: built (2026-10-22), step 2 of the plan
