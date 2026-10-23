@@ -36,7 +36,7 @@
   #void i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #a30018, #ff2a3a); }
   #void span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; }
   #void.hot span { animation: voidblink .5s steps(2) infinite; } @keyframes voidblink { 50% { opacity: .35; } }
-  body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-loot, body.void-on #hud-status, body.void-on #goals, body.void-on #mute, body.void-on #back { transform: translateY(24px); }
+  body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-loot, body.void-on #hud-status, body.void-on #goals, body.void-on #audio-controls, body.void-on #back { transform: translateY(24px); }
   #ego-btn { position: fixed; right: 126px; bottom: calc(max(15vh, 96px) + 92px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .9rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
   #stick-ghost { position: fixed; left: 24%; bottom: calc(max(19vh, 128px) + env(safe-area-inset-bottom)); width: 110px; height: 110px; margin-left: -55px; border: 2px dashed rgba(0,255,249,.3); border-radius: 50%; display: none; pointer-events: none; }
   #stick-ghost::after { content: ''; position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: rgba(0,255,249,.16); }
@@ -72,7 +72,9 @@
   #hud-debug { position: fixed; bottom: 6px; left: 8px; font-size: .9rem; color: #a0aec0; pointer-events: none; white-space: pre; display: none; }
   .btn { background: rgba(5,5,5,.6); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 10px rgba(0,255,249,.2); text-decoration: none; display: inline-block; }
   .btn.pink { border-color: #ff6ec7; color: #ff6ec7; background: rgba(5,5,5,.6); box-shadow: 0 0 14px rgba(255,110,199,.35); }
-  #mute { position: fixed; top: calc(12px + env(safe-area-inset-top)); right: 14px; padding: 4px 10px; }
+  #audio-controls { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; display: flex; gap: 6px; z-index: 6; }
+  .ico { width: 34px; height: 34px; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
+  .ico svg { width: 20px; height: 20px; }
   #back { position: fixed; top: calc(52px + env(safe-area-inset-top)); right: 14px; padding: 4px 10px; font-size: .85rem; }
   #enter-btn { position: fixed; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: none; font-size: 1.3rem; padding: 12px 26px; z-index: 5; }
   #stick { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border: 2px solid rgba(0,255,249,.45); border-radius: 50%; display: none; pointer-events: none; }
@@ -114,7 +116,10 @@
 <div id="void" class="vt"><i></i><span></span></div>
 <div id="speech" class="vt"><b id="speech-name"></b><span id="speech-line"></span></div>
 <div id="hud-debug" class="vt"></div>
-<button id="mute" class="btn vt" type="button">SND ON</button>
+<div id="audio-controls">
+  <button id="btn-skip" class="btn ico" type="button" aria-label="Next track"><svg viewBox="0 0 24 24" fill="none" stroke="#00fff9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg></button>
+  <button id="mute" class="btn ico" type="button" aria-label="Sound on or off"></button>
+</div>
 <a id="back" class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener">&#9664; Main Site</a>
 <button id="enter-btn" class="btn pink vt" type="button">ENTER THE TEAR</button>
 <div id="stick"><div id="knob"></div></div>
@@ -131,7 +136,7 @@
     <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>3 copper wires</b> to <b>Pancho</b> = <b>ammo</b> for the auto-aim gun. A new circle swaps gun and LOW C.</span></div>
     <div><span>At <b>100%</b> the <b>TEAR</b> opens, but only for a short time. Run for it. Too hot? Find <b>Eduardo</b>.</span></div>
   </div>
-  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C / FIRE, R = swap gun, Shift run, F = EGO BLAST.</div>
+  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C (hold) / FIRE (tap), scroll wheel or R = swap weapon, Shift run, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
 </div>
 
@@ -540,6 +545,16 @@ const tearEdge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ co
 const tearEdge2 = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0x00fff9, fog: false })); tearEdge2.scale.set(0.72, 0.72, 1); tearEdge2.position.z = 0.03; portal.add(tearEdge2);
 const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); tearGlow.scale.set(16, 22, 1); tearGlow.position.z = -0.05; portal.add(tearGlow);
 portal.scale.setScalar(1.3); portal.visible = false; // it only opens when your Low C is full, and only for a while
+const SEAL = { z: -281, hp: 10, max: 10, active: false, wall: null, mesh: null, bar: null }; // an Agency seal that has to be shot open before you can reach the Tear
+{
+  const c = document.createElement('canvas'); c.width = 256; c.height = 160; const g = c.getContext('2d');
+  g.fillStyle = 'rgba(255,40,70,.3)'; g.fillRect(0, 0, 256, 160); g.strokeStyle = 'rgba(255,170,190,.85)'; g.lineWidth = 3;
+  for (let i = -160; i < 256; i += 32) { g.beginPath(); g.moveTo(i, 160); g.lineTo(i + 160, 0); g.stroke(); }
+  g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 154); g.fillStyle = '#fff'; g.font = 'bold 40px VT323, monospace'; g.textAlign = 'center'; g.fillText('AGENCY SEAL', 128, 92);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  SEAL.mesh = new THREE.Mesh(new THREE.PlaneGeometry(15.6, 8), new THREE.MeshBasicMaterial({ map: t, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, opacity: 0.8 }));
+  SEAL.mesh.position.set(0, 4, SEAL.z); SEAL.mesh.visible = false; scene.add(SEAL.mesh);
+}
 const disc = tearGlow, ring = tearEdge, ring2 = tearEdge2; // names used by the update loop
 const beam = { visible: false };
 
@@ -715,7 +730,7 @@ function updateWanderers(dt) {
     const g = w.b.group.position, near = Math.hypot(player.position.x - g.x, player.position.z - g.z);
     w.b.bob = 0;
     if (w.wait > 0) { w.wait -= dt; w.b.lookAtPlayer = true; continue; }
-    if (near < 3 && w.n.lines.length) { w.b.lookAtPlayer = true; continue; }
+    if (near < 4.5) { w.b.lookAtPlayer = true; continue; } // stop and face you
     w.b.lookAtPlayer = false; w.t += dt;
     const t = w.route[w.i]; w.n.col.r = -5; // (so it doesn't shove itself)
     const d = stepEnemy(w.st, t[0], t[1], w.speed, dt);
@@ -781,13 +796,15 @@ ART_JOBS.forEach((j) => {
 // the crew waits by the Tear (their sheets live in 3d/art/_originals; add new characters the same way)
 // the crew is hidden in the alleys; a tall glow over each one shows from the street. Walk up to one to get their boon (see applyBoon).
 const CREW = [];
-function makeBar(color) { // a little power bar that floats over a character
-  const c = document.createElement('canvas'); c.width = 96; c.height = 16; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false, depthTest: false, transparent: true })); sp.scale.set(1.2, 0.2, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp);
+function makeBar(color, name) { // a little name and power bar that float over a character
+  const c = document.createElement('canvas'); c.width = 96; c.height = 28; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false, depthTest: false, transparent: true })); sp.scale.set(1.2, 0.35, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp);
   const bar = { sp, last: -1, set(pct) {
     const q = Math.round(Math.max(0, Math.min(1, pct)) * 24); if (q === bar.last) return; bar.last = q;
-    const g = c.getContext('2d'); g.clearRect(0, 0, 96, 16); g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(0, 0, 96, 16); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(1, 1, 94, 14);
-    g.fillStyle = q >= 24 ? '#7dff9a' : color; g.fillRect(4, 4, 88 * q / 24, 8); t.needsUpdate = true;
+    const g = c.getContext('2d'); g.clearRect(0, 0, 96, 28);
+    if (name) { g.font = 'bold 13px VT323, monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = '#000'; g.strokeText(name, 48, 7); g.fillStyle = '#fff'; g.fillText(name, 48, 7); }
+    g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(0, 14, 96, 14); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(1, 15, 94, 12);
+    g.fillStyle = q >= 24 ? '#7dff9a' : color; g.fillRect(4, 18, 88 * q / 24, 6); t.needsUpdate = true;
   } };
   return bar;
 }
@@ -795,7 +812,7 @@ function addCrew(key, name, h, x, z, glow, css, line, boon, opts) {
   const b = addNpc(key, name, h, x, z, Object.assign({ lines: [] }, opts));
   const beam = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: glow, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.55 }));
   beam.scale.set(2.8, 46, 1); beam.position.set(x, 23, z); scene.add(beam);
-  CREW.push({ key, name, b, x, z, css, line, boon, beam, found: false, cool: 0, h, bar: makeBar(css) });
+  CREW.push({ key, name, b, x, z, css, line, boon, beam, found: false, cool: 0, h, bar: makeBar(css, name) });
 }
 addCrew('juancarlos', 'JUAN CARLOS', 1.72, 19, -133, 0xffa860, '#ffb27a', 'You\u2019re one of us now.', 'invisible');
 addCrew('christopher', 'CHRISTOPHER', 1.82, -19.5, -186, 0x7fb8ff, '#9fd0ff', 'It\u2019s not mine. It\u2019s ours.', 'lowc2', { sideFacesRight: true });
@@ -812,7 +829,7 @@ function updateRoamers(dt) {
     const g = r.b.group.position, near = Math.hypot(player.position.x - g.x, player.position.z - g.z);
     r.b.bob = 0;
     if (r.wait > 0) { r.wait -= dt; r.b.lookAtPlayer = true; continue; }
-    if (near < 3 && r.n.lines.length) { r.b.lookAtPlayer = true; continue; } // Pancho and the Kid wait for you when you walk up
+    if (near < 4.5) { r.b.lookAtPlayer = true; continue; } // whoever you walk up to stops and faces you
     if (!r.dest) { r.dest = r.pick(r); r.t = 0; r.st.path.length = 0; }
     r.b.lookAtPlayer = false; r.t += dt; r.n.col.r = -5; // (so it doesn't shove itself)
     const d = goTo(r.st, r.dest[0], r.dest[1], r.speed, dt);
@@ -965,7 +982,7 @@ function updateLootHud() {
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (inTruck) lines.push('IN THE BREAD TRUCK  <span style="opacity:.7">(MOVE TO GET OUT)</span>'); else if (hidden) lines.push('HIDDEN');
   if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
-  if (ammo > 0) lines.push('<b style="color:#ffd27a">AMMO ' + ammo + '/' + AMMO_MAX + (weapon === 'gun' ? '  \u2022  GUN ON' : '') + (isTouchDevice ? '' : '  (R: swap)') + '</b>');
+  if (ammo > 0) lines.push('<b style="color:#ffd27a">AMMO ' + ammo + '/' + AMMO_MAX + (weapon === 'gun' ? '  \u2022  GUN ON' : '') + (isTouchDevice ? '' : '  (scroll / R: swap)') + '</b>');
   if (humT > 0) lines.push('<b style="color:#ffd9a8">THE HUM  ' + Math.ceil(humT) + 's  \u2022  RED BASKETS ARE BUGGED</b>');
   if (dadOn) lines.push('<b style="color:#bcd4ff">POWERING UP  ' + Math.round(100 * lowC / lowCMax()) + '%  \u2022  HEAT RISING</b>');
   if (lureT > 0) lines.push('<b style="color:#ff6b5e">TRACKED  ' + Math.ceil(lureT) + 's</b>');
@@ -1033,7 +1050,7 @@ const keys = {};
 const canvasEl = renderer.domElement, hasLock = !!canvasEl.requestPointerLock;
 const isTouchDevice = isMobile || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const PITCH0 = 0.17, PITCH_MIN = 0.08, PITCH_MAX = 0.32; // capped so you can never look down on the flat character art
-let yaw = 0, pitch = PITCH0, started = false, locked = false, lookIdle = 99, mouseLowC = false, btnLowC = false, lowCLatch = false;
+let yaw = 0, pitch = PITCH0, started = false, locked = false, lookIdle = 99, mouseLowC = false, btnLowC = false, lowCLatch = false, pressBuf = 0;
 const IGNORE_START = ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'Tab', 'F5', 'F11', 'F12', 'Escape'];
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
@@ -1041,6 +1058,8 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' || e.code === 'Enter') tryEnterPortal();
   if (e.code === 'KeyF' && !e.repeat) fireEgo();
   if (e.code === 'KeyR' && !e.repeat) swapWeapon();
+  if (e.code === 'Space' && !e.repeat) pressBuf = 0.15;
+  if (e.code === 'Digit1') pickWeapon('lowc'); if (e.code === 'Digit2') pickWeapon('gun');
   if (e.code === 'Space') e.preventDefault();
   startAudio();
 });
@@ -1050,7 +1069,7 @@ const stick = { x: 0, y: 0, raw: 0, id: null, ox: 0, oy: 0 }, look = { id: null,
 const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 62;
 function updateHint(flash) {
   const h = $('hint');
-  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD ANYWHERE FOR LOW C / FIRE (TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  R: SWAP GUN  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C / FIRE  |  R: SWAP GUN  |  F: EGO BLAST');
+  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD FOR LOW C, TAP TO FIRE THE GUN' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  SCROLL / R: SWAP WEAPON  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C (HOLD) / FIRE (TAP)  |  SCROLL: SWAP WEAPON  |  F: EGO BLAST');
   if (flash) { h.style.opacity = 1; clearTimeout(updateHint.t); updateHint.t = setTimeout(() => { h.style.opacity = 0; }, isTouchDevice ? 6000 : 9000); }
 }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvasEl; if (!locked) mouseLowC = false; if (started) updateHint(true); });
@@ -1063,7 +1082,7 @@ window.addEventListener('pointerdown', (e) => {
   startAudio();
   if (e.pointerType === 'mouse' && hasLock) {
     if (!locked) { try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* stays in drag-look mode */ } return; }
-    if (e.button === 0) mouseLowC = true;
+    if (e.button === 0) { mouseLowC = true; pressBuf = 0.15; }
     return;
   }
   if (e.pointerType !== 'mouse' && e.clientX >= window.innerWidth * 0.56 && e.clientY > window.innerHeight * 0.35 && lcBtnId === null) { lcDown(e.pointerId); return; } // the whole lower right is the LOW C thumb, no aiming at a circle
@@ -1093,11 +1112,10 @@ window.addEventListener('contextmenu', (e) => e.preventDefault());
 const lcBtn = $('lowc-btn');
 if (isTouchDevice) lcBtn.style.display = 'flex';
 let lcBtnId = null, lcBtnT = 0;
-function lcDown(id) { // hold = on while held; a quick tap latches it on, another tap turns it off
-  if (lowCLatch) { lowCLatch = false; btnLowC = false; lcBtnId = null; return; }
-  lcBtnId = id; lcBtnT = performance.now(); btnLowC = true; startAudio();
+function lcDown(id) { // Low C is on only while you hold it; the gun fires once per tap
+  pressBuf = 0.15; lcBtnId = id; lcBtnT = performance.now(); btnLowC = true; startAudio();
 }
-function lcUp(id) { if (id !== lcBtnId) return; lcBtnId = null; btnLowC = false; if (performance.now() - lcBtnT < 250 && (weapon === 'gun' ? ammo > 0 : (lowC > 0 && !lowCLock))) lowCLatch = true; }
+function lcUp(id) { if (id !== lcBtnId) return; lcBtnId = null; btnLowC = false; }
 lcBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); try { lcBtn.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ } lcDown(e.pointerId); });
 lcBtn.addEventListener('pointerup', (e) => lcUp(e.pointerId));
 lcBtn.addEventListener('pointercancel', (e) => { if (e.pointerId === lcBtnId) { lcBtnId = null; btnLowC = false; } });
@@ -1146,7 +1164,7 @@ let musicRetryT = 0, musicEl = null, musicGain = null, albumOn = false, albumOrd
 function nextTrack() {
   if (!musicEl) return;
   albumIdx = (albumIdx + 1) % albumOrder.length; const t = ALBUM[albumOrder[albumIdx]];
-  musicEl.src = 'music/' + t[1] + '.mp3'; const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => { /* waits for the next tap */ });
+  musicEl.src = 'music/' + t[1] + '.mp3'; if (!muted) { const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => { /* waits for the next tap */ }); }
   $('np').textContent = '♪ ' + t[0] + '  •  THE INVISIBLE PANCHOS'; $('np').style.opacity = 1; clearTimeout(npTimer); npTimer = setTimeout(() => { $('np').style.opacity = 0; }, 6000);
 }
 function startMusic() {
@@ -1165,8 +1183,12 @@ function updateMusic(dt) { // quiet the album while the Low C, the gun or the eg
   if (!musicGain || muted) return;
   const loud = lowCActive || ego > 0 || (weapon === 'gun' && fireCool > 0), target = loud ? MUSIC_DUCK : MUSIC_VOL; musicGain.gain.value += (target - musicGain.gain.value) * (1 - Math.exp(-6 * dt));
 }
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="#00fff9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
+$('mute').innerHTML = ICON_ON;
+$('btn-skip').addEventListener('click', () => { startAudio(); if (!musicEl) startMusic(); else nextTrack(); });
 $('mute').addEventListener('click', () => {
-  muted = !muted; $('mute').textContent = muted ? 'SND OFF' : 'SND ON'; if (master) master.gain.value = muted ? 0 : SFX_VOL;
+  muted = !muted; $('mute').innerHTML = muted ? ICON_OFF : ICON_ON; if (master) master.gain.value = muted ? 0 : SFX_VOL;
   if (musicGain) musicGain.gain.value = muted ? 0 : MUSIC_VOL; else if (musicEl) musicEl.volume = muted ? 0 : MUSIC_VOL;
   if (musicEl) { if (muted) musicEl.pause(); else { const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } }
   startAudio();
@@ -1174,7 +1196,7 @@ $('mute').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) { ac.suspend && ac.suspend(); if (musicEl) musicEl.pause(); } else { ac.resume && ac.resume(); if (musicEl && !muted && started) { const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } } });
 
 // ---- the Low C: hold to push out a 32.7 Hz pulse (will stall anything digital once hunters exist) ----
-const LOWC_BASE = 32.7;
+const LOWC_BASE = 32.7, LOWC_DRAIN = 1.8; // it burns fast: bursts, not a drone
 let lowCMult = 1, lowC = 0, lowCLock = false, lowCActive = false, lcOsc = null, lcGain = null;
 const lowCMax = () => LOWC_BASE * lowCMult * (1 + 0.15 * lowCBoost);
 const lcRings = [0, 1, 2].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 56), new THREE.MeshBasicMaterial({ color: 0x00fff9, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); return m; });
@@ -1191,9 +1213,10 @@ const burstRing = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.0, 64), new THRE
 burstRing.rotation.x = -Math.PI / 2; burstRing.visible = false; scene.add(burstRing); let burstT = 0; // the Low C's opening shockwave
 function updateLowC(dt) {
   if (burstT > 0) { burstT -= dt; const k = 1 - Math.max(0, burstT) / 0.5; burstRing.visible = burstT > 0; burstRing.position.set(player.position.x, 0.15, player.position.z); burstRing.scale.setScalar(1 + k * 17); burstRing.material.opacity = (1 - k) * 0.9; }
-  const want = started && weapon === 'lowc' && (keys.Space || mouseLowC || btnLowC || lowCLatch), was = lowCActive;
+  pressBuf = Math.max(0, pressBuf - dt);
+  const want = started && weapon === 'lowc' && (keys.Space || mouseLowC || btnLowC || pressBuf > 0), was = lowCActive;
   lowCActive = !!want && !lowCLock && lowC > 0;
-  if (lowCActive) { lowC = Math.max(0, lowC - dt); if (lowC <= 0) { lowCLock = true; lowCActive = false; lowCLatch = false; showToast('TOO MUCH — WAKING HURTS', '#ff6ec7'); } }
+  if (lowCActive) { lowC = Math.max(0, lowC - dt * LOWC_DRAIN); if (lowC <= 0) { lowCLock = true; lowCActive = false; lowCLatch = false; showToast('TOO MUCH — WAKING HURTS', '#ff6ec7'); } }
   else { lowC = Math.min(lowCMax(), lowC); if (lowCLock && lowC > lowCMax() * 0.3) lowCLock = false; }
   if (lowCActive !== was) setLowCAudio(lowCActive);
   if (lowCActive && !was) repelBurst();
@@ -1211,7 +1234,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+let vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
@@ -1225,7 +1248,7 @@ function updateCrew(dt) { // every meeting pays out again once their cooldown is
   for (const c of CREW) {
     const gp = c.b.group.position; c.x = gp.x; c.z = gp.z; c.beam.position.set(c.x, 23, c.z);
     c.cool = Math.max(0, c.cool - dt); c.beam.visible = c.cool <= 0;
-    { const nb = Math.hypot(player.position.x - c.x, player.position.z - c.z) < 45; c.bar.sp.visible = nb; if (nb) { c.bar.sp.position.set(c.x, c.h + 0.6, c.z); c.bar.set(1 - c.cool / CREW_COOLDOWN); } } // powered up again = full and green
+    { const nb = Math.hypot(player.position.x - c.x, player.position.z - c.z) < 45; c.bar.sp.visible = nb; if (nb) { c.bar.sp.position.set(c.x, c.h + 0.72, c.z); c.bar.set(1 - c.cool / CREW_COOLDOWN); } } // powered up again = full and green
     if (c.cool > 0) continue;
     c.beam.material.opacity = 0.42 + Math.sin(tAccum * 2 + c.x) * 0.14;
     if (!inTruck && Math.hypot(player.position.x - c.x, player.position.z - c.z) < 2.8) {
@@ -1325,7 +1348,7 @@ function pickPatrolNode(e) { const c = NAV.filter((n) => Math.abs(n.x) < 12.5 &&
 function visionRange(e) { // how far this enemy can notice you right now
   if (invis > 0 || inTruck) return 0;
   let r = e.spec.range * (heatLevel() >= 1 ? 1.12 : 1);
-  if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.25; if (lowCActive) r *= 1.3; if (cloak > 0) r = Math.min(r, 1.6);
+  if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.25; if (cloak > 0) r = Math.min(r, 1.6);
   return r;
 }
 function sightOf(e, range, fov) { // 0 = can't see you, up to 1 = right in front of its face
@@ -1364,7 +1387,8 @@ function updateVan(dt) {
   van.facing = van.dir < 0 ? Math.PI : 0; van.vb.group.rotation.y = van.facing; van.vb.group.position.set(van.x, 0, van.z); van.vb.sg.x = van.x; van.vb.sg.z = van.z; vanLook();
   van.cone.position.set(van.x, 0, van.z); van.cone.rotation.y = van.facing;
   const s = sightOf({ x: van.x, z: van.z, facing: van.facing }, visionRange({ spec: { range: 16 } }), 0.28);
-  van.seeing = s; van.cone.material.color.setHex(s > 0 ? 0xff5a3a : 0xfff2a8); van.cone.material.opacity = s > 0 ? 0.26 : 0.14;
+  van.seeing = s; if (s > 0) { vanWatchT += dt; if (vanWatchT > 1.5 && !vanWarned) { vanWarned = true; showToast('THE VAN HAS YOU  \u2022  GET OUT OF ITS BEAM', '#ff8a5a'); } if (vanWatchT > 4 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead).length < 3) { spawnThugs(3); van.unload = 16; vanWatchT = 0; vanWarned = false; } } else { vanWatchT = Math.max(0, vanWatchT - dt * 0.5); if (vanWatchT < 0.5) vanWarned = false; }
+  van.cone.material.color.setHex(s > 0 ? 0xff5a3a : 0xfff2a8); van.cone.material.opacity = s > 0 ? 0.26 : 0.14;
   van.cone.visible = van.vb.group.position.distanceTo(player.position) < 90;
 }
 
@@ -1432,13 +1456,16 @@ function updateEnemy(e, dt) {
     }
     // bad vibes: a steady drain on Low C when one is close and has noticed you
     const d = Math.hypot(p.x - e.x, p.z - e.z);
-    if (!captured && invis <= 0 && !inTruck && d < 5.2 && (e.state !== 'PATROL' || d < 2.8)) { const k = (1 - d / 5.2) * (1 + 0.25 * lvl); lowC = Math.max(0, lowC - 1.6 * k * dt); aura = Math.max(aura, k); }
+    if (!captured && invis <= 0 && !inTruck && !lowCActive && d < 5.2 && (e.state !== 'PATROL' || d < 2.8)) { const k = (1 - d / 5.2) * (1 + 0.25 * lvl); lowC = Math.max(0, lowC - 1.6 * k * dt); aura = Math.max(aura, k); }
     if (!captured && invis <= 0 && !inTruck && d < 1.2 && lowC <= 0.01) capture('A Suit got a hand on you and you had nothing left.');
   } else { // thug: always hunting while heat is high; hits take big chunks of Low C
     e.cd = Math.max(0, e.cd - dt);
-    if (s > 0) e.lost = 0; else e.lost += dt;
+    if (s > 0 || lureT > 0) { e.lx = p.x; e.lz = p.z; e.lost = 0; } else e.lost += dt; // they hunt what they saw, or you if you're bugged: never your real position otherwise
     const chaseSpeed = e.spec.chase * (1 + 0.04 * wire);
-    goTo(e, p.x, p.z, chaseSpeed, dt);
+    if (e.lost > 0 && Math.hypot(e.lx - e.x, e.lz - e.z) < 2) { // reached the last known spot and found nothing: sweep the street
+      e.sweep = (e.sweep || 0) - dt; if (e.sweep <= 0) { const cand = NAV.filter((nn) => Math.hypot(nn.x - e.x, nn.z - e.z) < 40 && Math.hypot(nn.x - e.x, nn.z - e.z) > 6); if (cand.length) { const nn = cand[Math.floor(Math.random() * cand.length)]; e.lx = nn.x; e.lz = nn.z; } e.sweep = 2 + Math.random() * 3; }
+    }
+    goTo(e, e.lx, e.lz, e.lost > 0 ? chaseSpeed * 0.8 : chaseSpeed, dt);
     const d = Math.hypot(p.x - e.x, p.z - e.z);
     if (!captured && invis <= 0 && !inTruck && d < 1.35 && e.cd <= 0) {
       e.cd = 1.2; const wasEmpty = lowC <= 0.01; lowC = Math.max(0, lowC - 8);
@@ -1457,10 +1484,15 @@ function updateEnemy(e, dt) {
   e.cone.visible = Math.hypot(p.x - e.x, p.z - e.z) < 70;
 }
 
-function spawnThugs() {
-  const alive = enemies.filter((e) => e.kind === 'thug' && !e.dead).length;
-  for (let i = alive; i < 3 && i < alive + 2; i++) makeEnemy('thug', van.x + (i % 2 ? 1.6 : -1.6), van.z + (i < 2 ? 0 : -1.5), [0, -300]);
-  van.stop = 3; sting(100, 70); showToast('CONTAIN: THEY UNLOADED THE VAN', '#ff4d4d');
+function spawnThugs(limit) {
+  const alive = enemies.filter((e) => e.kind === 'thug' && !e.dead).length, known = anySeeing() ? player.position : van; // they start from where something last saw you
+  for (let i = alive; i < limit && i < alive + 2; i++) { const t = makeEnemy('thug', van.x + (i % 2 ? 1.6 : -1.6), van.z + (i < 2 ? 0 : -1.5), [0, -300]); t.lx = known.x; t.lz = known.z; t.lost = 1; }
+  van.stop = 3; sting(100, 70); showToast('THEY UNLOADED THE VAN', '#ff4d4d');
+}
+function updateReinforce(dt, lvl) { // high heat brings more Suits, out of sight; they leave when it cools
+  const re = enemies.filter((e) => e.reinf && !e.dead);
+  if (lvl >= 2) { reinfCalm = 0; reinfT += dt; if (reinfT > 9 && re.length < 4) { reinfT = 0; const c = NAV.filter((n) => { const d = Math.hypot(n.x - player.position.x, n.z - player.position.z); return d > 40 && d < 90 && Math.abs(n.x) < 12.5 && firstHit(player.position.x, player.position.z, n.x, n.z, false) < 0.999; }); if (c.length) { const n = c[Math.floor(Math.random() * c.length)], e = makeEnemy('suit', n.x, n.z, [n.z + 45, n.z - 45]); e.reinf = true; } } }
+  else if (lvl < 1) { reinfCalm += dt; if (reinfCalm > 12) for (const e of re) if (Math.hypot(e.x - player.position.x, e.z - player.position.z) > 25) e.dead = true; }
 }
 
 // ---- heat, damage and capture ----
@@ -1471,11 +1503,11 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; yaw = 0; frameLocked = false; swinging = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; pressBuf = 0; vanWatchT = 0; vanWarned = false; reinfT = 0; sealDown(false); for (const e of enemies) if (e.reinf) e.dead = true; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   for (const def of SUIT_DEFS) if (!def.e || def.e.dead) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
-  van.z = -30; van.dir = -1; van.stop = 1;
+  van.z = -30; van.dir = -1; van.stop = 1; van.unload = 0;
   player.position.set(0, 0, 6); vel.set(0, 0, 0); updateLootHud();
 }
 const cloakGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
@@ -1562,8 +1594,12 @@ function updateFx(dt) {
 function gunTarget() {
   const p = player.position; let best = null, bd = GUN_RANGE;
   for (const e of enemies) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd && firstHit(p.x, p.z, e.x, e.z, true) >= 0.999) { bd = d; best = e; } } // low cover doesn't stop a bullet
+  if (!best && SEAL.active) { const tx = Math.max(-5, Math.min(5, p.x)), tz = SEAL.z + 0.62; if (Math.hypot(tx - p.x, tz - p.z) < GUN_RANGE && firstHit(p.x, p.z, tx, tz, true) >= 0.999) return { seal: true, x: tx, z: tz }; }
   return best;
 }
+function pickWeapon(w) { if (!started || captured || w === weapon) return; if (w === 'gun' && ammo <= 0) { showToast('NO AMMO  \u2022  TAKE COPPER TO PANCHO', '#ffb347'); return; } weapon = w; showToast(w === 'gun' ? 'GUN  \u2022  AIMS FOR YOU, YOU PICK THE SHOT' : 'LOW C', w === 'gun' ? '#ffc46b' : '#7ff6ff'); updateLootHud(); }
+let wheelT = 0;
+window.addEventListener('wheel', (e) => { if (!started) return; e.preventDefault(); const now = performance.now(); if (now - wheelT < 160) return; wheelT = now; swapWeapon(); }, { passive: false }); // the scroll wheel cycles the weapons you have
 function swapWeapon() {
   if (!started || captured) return;
   if (weapon === 'lowc') { if (ammo <= 0) { showToast('NO AMMO  \u2022  TAKE COPPER TO PANCHO', '#ffb347'); return; } weapon = 'gun'; showToast('GUN  \u2022  AUTO-AIMS AT SUITS AND THUGS', '#ffc46b'); }
@@ -1577,14 +1613,18 @@ function killEnemy(e) {
 }
 function updateGun(dt) {
   fireCool = Math.max(0, fireCool - dt);
-  if (!(started && !captured && !inTruck && weapon === 'gun' && (keys.Space || mouseLowC || btnLowC || lowCLatch)) || fireCool > 0) return;
+  if (!(started && !captured && !inTruck && weapon === 'gun') || pressBuf <= 0 || fireCool > 0) return;
   const e = gunTarget(); if (!e) return; // nothing in sight: no shot, no ammo spent
-  const p = player.position; fireCool = FIRE_GAP; ammo--; e.hp--; heatF = Math.min(3, heatF + 0.05);
-  addTracer(p.x, 1.2, p.z, e.x, 1.1, e.z); poof(p.x + (e.x - p.x) * 0.06, p.z + (e.z - p.z) * 0.06, 0xffe08a, 1.5, 1.2, 0.18); poof(e.x, e.z, 0xff7a3a, 0.9, 1.1, 0.28); shake = Math.max(shake, 0.14); e.hitT = 0.14;
-  { const kx = e.x - p.x, kz = e.z - p.z, kd = Math.hypot(kx, kz) || 1; e.x += kx / kd * 0.45; e.z += kz / kd * 0.45; resolveCircle(e, 0.45); } // a hit knocks them back a step
+  pressBuf = 0; const p = player.position; fireCool = FIRE_GAP; ammo--; heatF = Math.min(3, heatF + 0.05);
+  addTracer(p.x, 1.2, p.z, e.x, e.seal ? 3.0 : 1.1, e.z); poof(p.x + (e.x - p.x) * 0.06, p.z + (e.z - p.z) * 0.06, 0xffe08a, 1.5, 1.2, 0.18); shake = Math.max(shake, 0.14);
   if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 95, t, 0.22, 0.24, 600); tone('square', 520, t, 0.06, 0.15, 4500); tone('square', 250, t + 0.02, 0.1, 0.13, 2500); tone('sawtooth', 55, t + 0.01, 0.3, 0.2, 400); }
   for (const o of enemies) if (o.kind === 'suit' && !o.dead && (o === e || Math.hypot(o.x - p.x, o.z - p.z) < 22) && (o.state === 'PATROL' || o.state === 'SEARCH')) { o.state = heatLevel() >= 2 ? 'CHASE' : 'INVESTIGATE'; o.lx = p.x; o.lz = p.z; o.path.length = 0; } // the shot is heard
-  if (e.hp <= 0) killEnemy(e);
+  if (e.seal) { SEAL.hp--; poof(e.x, e.z, 0xff4a6a, 1.6, 3.0, 0.3); if (SEAL.hp <= 0) breakSeal(); }
+  else {
+    e.hp--; e.hitT = 0.14; poof(e.x, e.z, 0xff7a3a, 0.9, 1.1, 0.28);
+    { const kx = e.x - p.x, kz = e.z - p.z, kd = Math.hypot(kx, kz) || 1; e.x += kx / kd * 0.45; e.z += kz / kd * 0.45; resolveCircle(e, 0.45); } // a hit knocks them back a step
+    if (e.hp <= 0) killEnemy(e);
+  }
   if (ammo <= 0) { weapon = 'lowc'; lowCLatch = false; showToast('OUT OF AMMO  \u2022  BACK TO LOW C', '#ff9a6a'); }
   updateLootHud();
 }
@@ -1602,7 +1642,7 @@ function updateSky(dt) {
 
 // ---- Luz: the hum (you can see the Agency and which baskets are bugged). Pancho's dad: stand by him to power up, but your heat climbs ----
 const HUM_MAT = new THREE.SpriteMaterial({ map: markTex('\u25C6', '#7ff6ff'), fog: false, depthTest: false });
-const luzBar = makeBar('#ffd9a8');
+const luzBar = makeBar('#ffd9a8', 'LUZ');
 // always-on markers: red over the Kid (cards), gold over Pancho (copper), blue over his dad (power up)
 const MARKERS = [[2, '#ff4d4d', 1.3], [0, '#ffd54a', 1.75], [1, '#6fb3ff', 1.7]].map(([i, col, h]) => {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex('▼', col), fog: false, depthTest: false })); sp.renderOrder = 11; scene.add(sp); return { n: NPCS[i], h, sp };
@@ -1618,7 +1658,7 @@ function updateHelpers(dt) {
   }
   if (!van.hum) { van.hum = new THREE.Sprite(HUM_MAT); van.hum.scale.set(0.9, 0.9, 1); scene.add(van.hum); }
   van.hum.visible = show; if (show) van.hum.position.set(van.x, 3.3, van.z);
-  { const lg0 = NPCS[3].b.group.position, nb = Math.hypot(player.position.x - lg0.x, player.position.z - lg0.z) < 45; luzBar.sp.visible = nb; if (nb) { luzBar.sp.position.set(lg0.x, 2.3, lg0.z); luzBar.set(1 - luzCool / CREW_COOLDOWN); } }
+  { const lg0 = NPCS[3].b.group.position, nb = Math.hypot(player.position.x - lg0.x, player.position.z - lg0.z) < 45; luzBar.sp.visible = nb; if (nb) { luzBar.sp.position.set(lg0.x, 2.4, lg0.z); luzBar.set(1 - luzCool / CREW_COOLDOWN); } }
   if (captured || inTruck) { if (dadOn) { dadOn = false; updateLootHud(); } return; }
   const p = player.position, lg = NPCS[3].b.group.position, dg = NPCS[1].b.group.position;
   if (luzCool <= 0 && Math.hypot(p.x - lg.x, p.z - lg.z) < 2.8) {
@@ -1641,7 +1681,7 @@ function updateGoals(dt) { // standing reminders, kept small: one line each, no 
   h += row(wiresHeld ? '#ffa860' : '#e6e6e6', 'WIRE▸PANCHO <b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position), !wiresHeld);
   if (lowC < lowCMax() * 0.4) h += row('#9fc8ff', 'POWER▸DAD', bearing(NPCS[1].b.group.position), false);
   if (heatLevel() >= 2) h += row('#ff7a7a', 'HEAT▸EDUARDO', bearing(CREW[2].b.group.position), false);
-  if (tearOpen) h += row('#7ff6ff', 'TEAR ' + Math.ceil(tearT) + 's', bearing(PORTAL), false);
+  if (tearOpen) h += row('#7ff6ff', (SEAL.active ? 'SEAL ' + SEAL.hp + '/' + SEAL.max + ' \u25B8 ' : 'TEAR ') + Math.ceil(tearT) + 's', bearing(PORTAL), false);
   if (h !== goalsHtml) { goalsHtml = h; $('goals').innerHTML = h; }
 }
 // ---- ego blast: freezes everything and turns off its eyes ----
@@ -1662,20 +1702,33 @@ function repelBurst() {
   for (const e of enemies) if (!e.dead && Math.hypot(e.x - player.position.x, e.z - player.position.z) < 16) { e.flee = 1.6; e.path.length = 0; e.aware = 0; if (e.kind === 'suit' && (e.state === 'CHASE' || e.state === 'PATROL' || e.state === 'INVESTIGATE')) { e.state = 'SEARCH'; e.search = 3; } }
 }
 // ---- the Tear opens when your Low C is full, and only for a while ----
+function sealUp() {
+  SEAL.hp = SEAL.max; SEAL.active = true; SEAL.wall = addWall(-8, 8, SEAL.z - 0.5, SEAL.z + 0.5, false); SEAL.mesh.visible = true;
+  if (!SEAL.bar) { SEAL.bar = makeBar('#ff5a7a', 'SEAL'); SEAL.bar.sp.scale.set(5.5, 1.6, 1); SEAL.bar.sp.position.set(0, 9, SEAL.z + 1); } SEAL.bar.sp.visible = true; SEAL.bar.last = -1;
+  tip('seal');
+}
+function sealDown(broke) {
+  if (!SEAL.active) return; SEAL.active = false; const i = walls.indexOf(SEAL.wall); if (i >= 0) walls.splice(i, 1); SEAL.mesh.visible = false; if (SEAL.bar) SEAL.bar.sp.visible = false;
+}
+function breakSeal() {
+  sealDown(true); for (let i = -3; i <= 3; i++) poof(i * 2, SEAL.z + 0.6, i % 2 ? 0xff4a6a : 0xffd0a0, 3.2, 2.5 + Math.abs(i) * 0.3, 0.6);
+  shake = Math.max(shake, 0.6); showToast('SEAL BROKEN  \u2022  GET IN!', '#7ff6ff'); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 60, t, 0.6, 0.3, 300); tone('square', 880, t + 0.05, 0.3, 0.12, 4000); tone('square', 1320, t + 0.15, 0.4, 0.1, 4000); }
+}
 function updateTear(dt) {
+  if (SEAL.active) { SEAL.bar.set(SEAL.hp / SEAL.max); SEAL.mesh.material.opacity = 0.45 + 0.4 * (SEAL.hp / SEAL.max) + 0.12 * Math.sin(tAccum * 7); }
   tearCool = Math.max(0, tearCool - dt);
   if (!tearOpen && !captured && tearCool <= 0 && lowC >= lowCMax() * 0.995) {
     const d = Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z); tearT = Math.max(25, d / SPEED * 1.25 + 10); tearTotal = tearT;
-    tearOpen = true; portal.visible = true; showToast('THE TEAR OPENED!  GET TO IT', '#7ff6ff'); sting(520, 780); updateLootHud();
+    tearOpen = true; portal.visible = true; if (player.position.z > SEAL.z + 1) sealUp(); showToast(SEAL.active ? (ammo >= SEAL.max ? 'THE TEAR OPENED!  SHOOT THE SEAL' : 'THE TEAR OPENED!  SEAL: NEEDS 10 ROUNDS') : 'THE TEAR OPENED!  GET TO IT', '#7ff6ff'); sting(520, 780); updateLootHud();
   }
-  if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
+  if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; sealDown(false); tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
 }
 
 // ---- first-contact tips: one short line the first time you meet each thing (remembered in the browser; add ?tips to the address to see them all again) ----
 const TIPS = {
   card: 'BASEBALL CARD|Take cards to the Kid. Seven fill your Low C.',
   wire: 'COPPER WIRE|Take it to Pancho for ammo. Each one you carry makes the Suits faster.',
-  ammo: 'AMMO|A new circle swaps between the gun and Low C. The gun auto-aims at Suits and thugs, not the van.',
+  ammo: 'AMMO|A new circle swaps between the gun and Low C (scroll wheel on PC). It aims for you, but you pick every shot: one tap, one round.',
   scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
   vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
   tape: 'ANALOG TAPE|30 seconds of static: enemies can’t see straight.',
@@ -1692,8 +1745,9 @@ const TIPS = {
   e_van: 'AGENCY VAN|Its beam sees you too. At maximum heat it unloads thugs.',
   truck: 'BREAD TRUCK|Stand still on its street side to hide inside. It drives off now and then.',
   heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
-  lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It drains while on. A quick tap latches it.',
+  lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It burns fast, so use bursts. It clears bad vibes and never adds heat.',
   tear: 'THE TEAR|It’s open. Run for it before it closes.',
+  seal: 'THE SEAL|The Agency sealed the Tear. Shoot it open: 10 hits, so keep at least 10 rounds.',
   closed: 'THE TEAR|Fill your Low C to 100% and it opens, for a short time.'
 };
 let tipsSeen = new Set(); try { if (!params.has('tips')) tipsSeen = new Set(JSON.parse(localStorage.getItem('layers3d_tips_v1') || '[]')); } catch (err) { /* private mode: they just show again next visit */ }
@@ -1740,19 +1794,20 @@ function updateHunt(dt) {
   // heat goes up while anything sees you and cools off when you break line of sight (faster when hidden)
   let rise = 0; for (const e of enemies) if (e.seeing > 0) rise += (0.15 + 0.45 * e.seeing) * (e.kind === 'thug' ? 0.4 : 1);
   if (van.seeing > 0) rise += (0.15 + 0.4 * van.seeing) * 0.8;
-  if (rise > 0 && !captured) { heatF = Math.min(3, heatF + rise * dt * (lowCActive ? 1.5 : 1)); unseenT = 0; }
+  if (rise > 0 && !captured) { heatF = Math.min(3, heatF + rise * dt); unseenT = 0; }
   else { unseenT += dt; if (unseenT > 2) heatF = Math.max(0, heatF - dt * (hidden ? 0.3 : 0.1)); }
   const lvl = heatLevel();
-  if (lvl !== lastLevel) { if (lvl > lastLevel) { showToast('HEAT: ' + HEAT_NAMES[lvl] + (lvl >= 2 ? '  \u2022  FIND EDUARDO!' : ''), lvl >= 3 ? '#ff4d4d' : '#ffb347'); sting(200 + lvl * 40, 260 + lvl * 40); if (lvl === 3 && van.unload <= 0) { spawnThugs(); van.unload = 16; } } lastLevel = lvl; updateLootHud(); }
+  if (lvl !== lastLevel) { if (lvl > lastLevel) { showToast('HEAT: ' + HEAT_NAMES[lvl] + (lvl >= 2 ? '  \u2022  FIND EDUARDO!' : ''), lvl >= 3 ? '#ff4d4d' : '#ffb347'); sting(200 + lvl * 40, 260 + lvl * 40); if (lvl >= 2 && van.unload <= 0) { spawnThugs(lvl >= 3 ? 3 : 1); van.unload = 16; } } lastLevel = lvl; updateLootHud(); }
   if (van.unload > 0) van.unload -= dt;
-  if (lvl === 3 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug').length < 3) { spawnThugs(); van.unload = 16; }
+  if (lvl >= 2 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead).length < (lvl >= 3 ? 3 : 1)) { spawnThugs(lvl >= 3 ? 3 : 1); van.unload = 16; }
+  updateReinforce(dt, lvl);
   const pct = Math.round(heatF / 3 * 20); if (pct !== lastHeatPct) { lastHeatPct = pct; updateLootHud(); }
   $('vibes').style.opacity = Math.min(0.85, aura * 0.9).toFixed(2);
 }
 
 // ---- start / portal ----
 $('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); updateHint(true); });
-function tryEnterPortal() { if (started && tearOpen && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 5) location.href = '../'; }
+function tryEnterPortal() { if (started && tearOpen && !SEAL.active && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 5) location.href = '../'; }
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
 // ---- game loop ----
@@ -1861,8 +1916,8 @@ function update(dt) {
   $('compass-dist').textContent = Math.round(dist) + 'm';
   const area = p.z < -185 ? 'BARRIO LOGAN' : 'GASLAMP QUARTER'; // far end of the street is Barrio Logan
   if (area !== curArea) { curArea = area; $('hud-loc').textContent = 'SAN DIEGO // ' + area; showToast(area, '#ffffff'); }
-  $('hud-obj').textContent = tearOpen ? (dist < 5 ? 'TEAR OPEN  •  ENTER!' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'; $('compass').style.display = tearOpen ? 'block' : 'none';
-  $('enter-btn').style.display = (started && tearOpen && dist < 5) ? 'block' : 'none';
+  $('hud-obj').textContent = tearOpen && SEAL.active ? 'BREAK THE SEAL  ' + SEAL.hp + '/' + SEAL.max + '  \u25B8  ' + Math.ceil(tearT) + 's' : tearOpen ? (dist < 5 ? 'TEAR OPEN  •  ENTER!' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'; $('compass').style.display = tearOpen ? 'block' : 'none';
+  $('enter-btn').style.display = (started && tearOpen && !SEAL.active && dist < 5) ? 'block' : 'none';
 }
 function render() { if (tier === 0) renderer.render(scene, camera); else composer.render(); }
 
@@ -1881,7 +1936,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>
