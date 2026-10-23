@@ -35,6 +35,11 @@
   #void i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #a30018, #ff2a3a); }
   #void span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; }
   #void.hot span { animation: voidblink .5s steps(2) infinite; } @keyframes voidblink { 50% { opacity: .35; } }
+  #sealbar { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 22px); height: 22px; display: none; z-index: 6; pointer-events: none; background: rgba(60,20,0,.78); border-bottom: 1px solid #ff9a5a; }
+  #sealbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #ff6a2a, #ffb347); transition: width .12s linear; }
+  #sealbar.hit i { filter: brightness(1.7) saturate(1.2); }
+  #sealbar span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+  body.void-on.seal-on #hud-loc, body.void-on.seal-on #hud-obj, body.void-on.seal-on #hud-status, body.void-on.seal-on #goals, body.void-on.seal-on #audio-controls, body.void-on.seal-on #back { transform: translateY(48px); }
   body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-status, body.void-on #goals, body.void-on #audio-controls, body.void-on #back { transform: translateY(24px); }
   #ego-btn { position: fixed; right: 126px; bottom: calc(max(15vh, 96px) + 92px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .9rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
   #stick-ghost { position: fixed; left: 24%; bottom: calc(max(19vh, 128px) + env(safe-area-inset-bottom)); width: 110px; height: 110px; margin-left: -55px; border: 2px dashed rgba(0,255,249,.3); border-radius: 50%; display: none; pointer-events: none; }
@@ -112,6 +117,7 @@
 <button id="ego-btn" class="btn vt" type="button">EGO<br>BLAST</button>
 <button id="swap-btn" class="btn vt" type="button">GUN</button>
 <div id="void" class="vt"><i></i><span></span></div>
+<div id="sealbar" class="vt"><i></i><span></span></div>
 <div id="speech" class="vt"><b id="speech-name"></b><span id="speech-line"></span></div>
 <div id="hud-debug" class="vt"></div>
 <div id="audio-controls">
@@ -583,7 +589,7 @@ const tearEdge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ co
 const tearEdge2 = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0x00fff9, fog: false })); tearEdge2.scale.set(0.72, 0.72, 1); tearEdge2.position.z = 0.03; portal.add(tearEdge2);
 const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); tearGlow.scale.set(16, 22, 1); tearGlow.position.z = -0.05; portal.add(tearGlow);
 portal.scale.setScalar(1.3); portal.visible = false; // it only opens when your Low C is full, and only for a while
-const SEAL = { z: -281, hp: 10, max: 10, active: false, wall: null, mesh: null, bar: null }; // an Agency seal that has to be shot open before you can reach the Tear
+const SEAL = { z: -281, hp: 10, max: 10, active: false, wall: null, mesh: null, bar: null, lastHit: 0 }; // an Agency seal that has to be shot open before you can reach the Tear
 {
   const c = document.createElement('canvas'); c.width = 256; c.height = 160; const g = c.getContext('2d');
   g.fillStyle = 'rgba(255,40,70,.3)'; g.fillRect(0, 0, 256, 160); g.strokeStyle = 'rgba(255,170,190,.85)'; g.lineWidth = 3;
@@ -1273,7 +1279,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+let sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
@@ -1749,14 +1755,14 @@ function repelBurst() {
 // ---- the Tear opens when your Low C is full, and only for a while ----
 function sealUp() {
   SEAL.hp = SEAL.max; SEAL.active = true; SEAL.wall = addWall(-8, 8, SEAL.z - 0.5, SEAL.z + 0.5, false); SEAL.mesh.visible = true;
-  if (!SEAL.bar) { SEAL.bar = makeBar('#ff5a7a', 'SEAL'); SEAL.bar.sp.scale.set(5.5, 1.6, 1); SEAL.bar.sp.position.set(0, 9, SEAL.z + 1); } SEAL.bar.sp.visible = true; SEAL.bar.last = -1;
+  if (!SEAL.bar) { SEAL.bar = makeBar('#ff5a7a', 'SEAL'); SEAL.bar.sp.scale.set(5.5, 1.6, 1); SEAL.bar.sp.position.set(0, 6.6, SEAL.z + 1); } SEAL.bar.sp.visible = true; SEAL.bar.last = -1;
   tip('seal');
 }
 function sealDown(broke) {
   if (!SEAL.active) return; SEAL.active = false; const i = walls.indexOf(SEAL.wall); if (i >= 0) walls.splice(i, 1); SEAL.mesh.visible = false; if (SEAL.bar) SEAL.bar.sp.visible = false;
 }
 function sealHit(n, x, big) { // every weapon wears the seal down: a bullet 1, a second of Low C about half, an ego blast 4
-  if (!SEAL.active) return; SEAL.hp = Math.max(0, SEAL.hp - n);
+  if (!SEAL.active) return; SEAL.hp = Math.max(0, SEAL.hp - n); SEAL.lastHit = tAccum;
   if (big || n >= 1 || tAccum - (SEAL.lastFx || 0) > 0.22) { SEAL.lastFx = tAccum; poof(x, SEAL.z + 0.6, big ? 0xffd0a0 : 0xff4a6a, big ? 3.2 : 1.5, 2.0 + Math.random() * 2.6, big ? 0.55 : 0.3); }
   if (SEAL.hp <= 0) breakSeal();
 }
@@ -1765,6 +1771,10 @@ function breakSeal() {
   shake = Math.max(shake, 0.6); showToast('SEAL BROKEN  \u2022  GET IN!', '#7ff6ff'); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 60, t, 0.6, 0.3, 300); tone('square', 880, t + 0.05, 0.3, 0.12, 4000); tone('square', 1320, t + 0.15, 0.4, 0.1, 4000); }
 }
 function updateTear(dt) {
+  { const sb = $('sealbar'), on = SEAL.active && tearOpen;
+    if (on) { if (sb.style.display !== 'block') sb.style.display = 'block'; sb.firstElementChild.style.width = (100 * SEAL.hp / SEAL.max).toFixed(1) + '%'; sb.lastElementChild.textContent = 'AGENCY SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  •  GUN, LOW C, EGO BLAST'; if (SEAL.hp < sealShown - 0.001) sb.classList.add('hit'); else if (tAccum - SEAL.lastHit > 0.12) sb.classList.remove('hit'); }
+    else if (sb.style.display !== 'none') sb.style.display = 'none';
+    document.body.classList.toggle('seal-on', on); sealShown = SEAL.hp; }
   if (SEAL.active) { SEAL.bar.set(SEAL.hp / SEAL.max); SEAL.mesh.material.opacity = 0.45 + 0.4 * (SEAL.hp / SEAL.max) + 0.12 * Math.sin(tAccum * 7); }
   tearCool = Math.max(0, tearCool - dt);
   if (!tearOpen && !captured && tearCool <= 0 && lowC >= lowCMax() * 0.995) {
