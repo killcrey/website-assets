@@ -213,5 +213,75 @@
   "w": 1024,
   "h": 805,
   "kb": 69.0
+ },
+ "alley_wall_front": {
+  "w": 225,
+  "h": 340,
+  "kb": 14.8
+ },
+ "alley_gate_front": {
+  "w": 226,
+  "h": 340,
+  "kb": 24.8
+ },
+ "alley_fence_front": {
+  "w": 370,
+  "h": 340,
+  "kb": 24.5
+ },
+ "alley_ladder_front": {
+  "w": 115,
+  "h": 340,
+  "kb": 7.7
+ },
+ "alley_appliances_front": {
+  "w": 325,
+  "h": 340,
+  "kb": 17.0
+ },
+ "sign_stop_front": {
+  "w": 143,
+  "h": 340,
+  "kb": 5.2
+ },
+ "sign_oneway_front": {
+  "w": 184,
+  "h": 340,
+  "kb": 4.4
+ },
+ "sign_noparking_front": {
+  "w": 100,
+  "h": 340,
+  "kb": 4.9
+ },
+ "sign_fifth_front": {
+  "w": 170,
+  "h": 340,
+  "kb": 3.9
+ },
+ "sign_ped_front": {
+  "w": 152,
+  "h": 340,
+  "kb": 6.2
+ },
+ "facade_coffee": {
+  "w": 900,
+  "h": 616,
+  "kb": 33.8
+ },
+ "facade_panaderia": {
+  "w": 900,
+  "h": 672,
+  "kb": 35.2
+ },
+ "recordstore": {
+  "w": 1024,
+  "h": 745,
+  "kb": 65.9
+ },
+ "taqueria": {
+  "w": 1200,
+  "h": 481,
+  "kb": 65.3
  }
 }

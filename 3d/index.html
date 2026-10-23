@@ -190,6 +190,11 @@ const STUCCO = [TERRA, ADOBE, CREAM, SAGE, BRICK, SAND, CREAM, ADOBE, DUSTY];
 const INK = new THREE.LineBasicMaterial({ color: 0x3b2a1e });
 const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
 const flat = (c) => new THREE.MeshBasicMaterial({ color: c });
+function inst(geo, mat, list) {
+  const im = new THREE.InstancedMesh(geo, mat, list.length), m = new THREE.Matrix4(), q = new THREE.Quaternion();
+  list.forEach((t, i) => { m.compose(new THREE.Vector3(t[0], t[1], t[2]), q, new THREE.Vector3(t[3], t[4], t[5])); im.setMatrixAt(i, m); });
+  im.instanceMatrix.needsUpdate = true; im.frustumCulled = false; scene.add(im); return im;
+}
 
 // daylight: warm sun + sky/ground bounce (no shadows, cheap)
 scene.add(new THREE.HemisphereLight(0xcfe4ff, 0xa88a60, 2.4));
@@ -236,12 +241,12 @@ scene.add(dashes);
 {
   const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff2c4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
   sunSpr.scale.set(70, 70, 1); sunSpr.position.set(-70, 85, STREET_END - 110); scene.add(sunSpr);
-  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+  const puffs = [];
   for (let i = 0; i < 14; i++) {
-    const g = new THREE.Group(), n = 3 + Math.floor(rnd() * 3);
-    for (let j = 0; j < n; j++) { const b = new THREE.Mesh(new THREE.SphereGeometry(5 + rnd() * 4, 8, 6), cloudMat); b.position.set(j * 7 - n * 3, rnd() * 2, rnd() * 3); b.scale.y = 0.55; g.add(b); }
-    g.position.set(-170 + i * 30 + rnd() * 10, 55 + rnd() * 30, STREET_END - 90 - rnd() * 60 + (i % 3) * 120); scene.add(g);
+    const n = 3 + Math.floor(rnd() * 3), gx = -170 + i * 30 + rnd() * 10, gy = 55 + rnd() * 30, gz = STREET_END - 90 - rnd() * 60 + (i % 3) * 120;
+    for (let j = 0; j < n; j++) { const r = 5 + rnd() * 4; puffs.push([gx + j * 7 - n * 3, gy + rnd() * 2, gz + rnd() * 3, r, r * 0.55, r]); }
   }
+  inst(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }), puffs);
 }
 
 // painted signs (atlas): colored boards with cream lettering
@@ -276,9 +281,13 @@ function box(cx, cy, cz, sx, sy, sz, color, ink, rotZ) {
   if (ink) for (const [a, b] of EDGE_PAIRS) for (const i of [a, b]) edgeVerts.push(cx + UNIT[i][0] * sx / 2, cy + UNIT[i][1] * sy / 2, cz + UNIT[i][2] * sz / 2);
 }
 // solid cover you can hide behind: a visible box (or a few) plus a collision/sight box
-function cover(cx, cz, sx, sz, sy, color, parts) {
-  box(cx, sy / 2, cz, sx, sy, sz, color, true);
-  (parts || []).forEach((p) => box(cx + p[0], p[1], cz + p[2], p[3], p[4], p[5], p[6], true));
+const ART_JOBS = []; // cover pieces drawn with Gemini art (built once the sprite loader exists)
+function cover(cx, cz, sx, sz, sy, color, parts, art) {
+  if (art) ART_JOBS.push({ cx, cz, sx, sz, sy, color, parts: parts || [], art });
+  else {
+    box(cx, sy / 2, cz, sx, sy, sz, color, true);
+    (parts || []).forEach((p) => box(cx + p[0], p[1], cz + p[2], p[3], p[4], p[5], p[6], true));
+  }
   return addWall(cx - sx / 2, cx + sx / 2, cz - sz / 2, cz + sz / 2, true);
 }
 
@@ -290,6 +299,9 @@ let wCount = 0; const wm = new THREE.Matrix4(), wq = new THREE.Quaternion(), wc 
 const WIN_COLS = [0x35546b, 0x35546b, 0x4a6a82, 0x4a6a82, 0x2c4358, 0xf0d9a0];
 const AWNINGS = [0xb85c3e, 0x2f5d8a, 0x3f6b45, 0xd9a766];
 const BODEGA = { set: false, z: -60, w: 10 };
+// storefronts drawn from the Gemini art, placed on whichever building covers these spots (Barrio Logan's record store is past z = -185)
+const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria' }, { side: 1, z: -232, key: 'recordstore' }];
+const FACADES = [];
 const SEGS = []; { let top = STREET_START; for (const g of GAPS) { SEGS.push([top, g + GAP_W / 2]); top = g - GAP_W / 2; } SEGS.push([top, STREET_END]); }
 for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
   const len = top - bottom, n = Math.max(1, Math.round(len / 10)), bw = len / n;
@@ -298,9 +310,11 @@ for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
     const zc = top - bw * (k + 0.5); let h = 6 + rnd() * 6 + Math.min(8, Math.abs(zc) * 0.05);
     const isBodega = side > 0 && !BODEGA.set && Math.abs(zc + 60) <= bw / 2 + 0.01;
     if (isBodega) { BODEGA.set = true; BODEGA.z = zc; BODEGA.w = bw; h = Math.max(h, 9); }
-    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : STUCCO[Math.floor(rnd() * STUCCO.length)], true); // building
+    const slot = STORE_SLOTS.find((sl) => !sl.used && sl.side === side && Math.abs(zc - sl.z) <= bw / 2 + 0.01);
+    if (slot) { slot.used = true; FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'taqueria' ? 5.2 : Math.max(h, 10); }
+    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[Math.floor(rnd() * STUCCO.length)], true); // building
     box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
-    if (rnd() > 0.35) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), AWNINGS[Math.floor(rnd() * AWNINGS.length)], false, side * 0.18); // storefront awning
+    if (rnd() > 0.35 && !slot && !isBodega) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), AWNINGS[Math.floor(rnd() * AWNINGS.length)], false, side * 0.18); // storefront awning
     // glass windows on the street-facing side
     wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
     const cols = Math.floor((bw - 1.2) / 2.2), rows = Math.floor((h - 2) / 3);
@@ -309,7 +323,7 @@ for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
       wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, zc + bw / 2 - 1.4 - c * 2.2 - (bw - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
       windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(WIN_COLS[Math.floor(rnd() * WIN_COLS.length)])); wCount++;
     }
-    if (rnd() > 0.55 && !isBodega && zc < STREET_START - 14) addSign(Math.floor(rnd() * 8), side * 7.9, 3.8 + rnd() * 1.4, zc, side);
+    if (rnd() > 0.55 && !isBodega && !slot && zc < STREET_START - 14) addSign(Math.floor(rnd() * 8), side * 7.9, 3.8 + rnd() * 1.4, zc, side);
   }
 }
 windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.instanceColor) windows.instanceColor.needsUpdate = true; scene.add(windows);
@@ -324,24 +338,29 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
 // the street ends in walls
 addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X, WORLD_X, STREET_START, STREET_START + 8, false);
 
-// ---- placeholder cover (cars, dumpsters, carts, hedges, crates, barriers) until the Gemini art arrives ----
+// ---- cover: cars, dumpsters, carts, hedges, crates, barriers, tires, appliances and bus shelters (Gemini art; the boxes are only the fallback) ----
 const crnd = mulberry32(2024);
 const CAR_COLS = [0x3a8f8c, 0xb4452f, 0xd9a82e, 0x4a6a82];
-let nextCar = -20;
+const CAR_ART = [{ key: 'car_a', h: 1.4, len: 4.9 }, { key: 'car_b', h: 1.8, len: 4.7 }, { key: 'car_c', h: 1.9, len: 3.9 }];
 for (let z = -22; z > STREET_END + 14; z -= 18 + crnd() * 10) {
   const side = crnd() > 0.5 ? 1 : -1, x = side * 3.9, near = (zz) => Math.abs(z - zz) < 7;
   if (GAPS.some((g) => Math.abs(z - g) < 7) || (side > 0 && near(BODEGA.z + 5))) continue; // keep cross streets and the bread truck's spot clear
-  const col = CAR_COLS[Math.floor(crnd() * CAR_COLS.length)];
-  cover(x, z, 1.9, 4.6, 1.2, col, [[0, 1.55, -0.2, 1.7, 0.7, 2.4, 0xcfe0e8]]);
+  const car = CAR_ART[Math.floor(crnd() * CAR_ART.length)], col = CAR_COLS[Math.floor(crnd() * CAR_COLS.length)];
+  cover(x, z, 1.9, car.len, 1.3, col, [[0, 1.55, -0.2, 1.7, 0.7, car.len - 2.2, 0xcfe0e8]], { key: car.key, h: car.h, facing: side > 0 ? Math.PI : 0, blob: true }); // parked facing the way traffic goes
 }
 for (const gz of GAPS) for (const sx of [-1, 1]) {
-  cover(sx * 21.0, gz + 8.5, 1.9, 2.0, 1.4, 0x2f5a3a, [[0, 1.5, 0, 2.0, 0.15, 2.2, 0x1f3a2e]]); // dumpster in the alley
-  cover(sx * 16.5, gz + 2.7, 3.2, 1.0, 1.4, 0x3f7a40); // hedge in the cross street
-  cover(sx * 19.2, gz - 11, 1.3, 1.3, 1.3, 0x9a7448); // crates
-  cover(sx * 20, gz - 18, 2.6, 0.7, 0.8, 0xbdb8ac); // concrete barrier across half the alley
-  cover(sx * 10.5, gz - 3.0, 1.9, 1.9, 1.3, 0x2f5a3a, [[0, 1.4, 0, 2.1, 0.15, 2.1, 0x1f3a2e]]); // dumpster at the cross-street mouth
+  const alongZ = sx > 0 ? -Math.PI / 2 : Math.PI / 2, front = { views: ['front'] };
+  cover(sx * 21.0, gz + 8.5, 1.4, 2.1, 1.4, 0x2f5a3a, [[0, 1.5, 0, 1.5, 0.15, 2.2, 0x1f3a2e]], { key: 'dumpster', h: 1.55, facing: alongZ, blob: true }); // dumpster in the alley
+  cover(sx * 16.5, gz + 2.7, 1.6, 0.9, 2.0, 0x3f7a40, [], Object.assign({ key: 'cov_hedge', h: 2.0 }, front)); // hedge in the cross street
+  cover(sx * 19.2, gz - 11, 2.0, 1.2, 1.5, 0x9a7448, [], Object.assign({ key: 'cov_crates', h: 1.5, blob: true }, front)); // crates
+  cover(sx * 20, gz - 18, 2.6, 0.7, 1.0, 0xbdb8ac, [], Object.assign({ key: 'cov_barrier', h: 1.1, blob: true }, front)); // concrete barrier across half the alley
+  cover(sx * 10.5, gz - 3.0, 2.0, 1.3, 1.4, 0x2f5a3a, [[0, 1.5, 0, 2.1, 0.15, 1.5, 0x1f3a2e]], { key: 'dumpster', h: 1.55, facing: 0, blob: true }); // dumpster at the cross-street mouth
+  cover(sx * 19.3, gz - 26, 1.6, 1.2, 1.0, 0x2a2a2a, [], Object.assign({ key: 'cov_tires', h: 1.0, blob: true }, front)); // a pile of tires
+  cover(sx * 19.8, gz - 33, 2.2, 1.0, 1.9, 0xe9d8b4, [], Object.assign({ key: 'alley_appliances', h: 1.9, blob: true }, front)); // old fridge and washer by a wall
+  cover(sx * 20.6, gz - 40, 1.5, 0.8, 1.9, 0x7a5a3a, [], Object.assign({ key: 'cov_fence', h: 1.9, blob: true }, front)); // rolled-up chain link
 }
-for (const [x, z] of [[-3.2, -100], [3.2, -190], [-3.4, -240], [3.2, -52]]) cover(x, z, 2.2, 1.1, 1.0, 0xd9a766, [[0, 2.2, 0, 2.6, 0.15, 2.6, 0xb85c3e]]); // vendor carts with a canopy
+for (const [x, z] of [[-3.2, -100], [3.2, -190], [-3.4, -240], [3.2, -52]]) cover(x, z, 1.6, 1.0, 1.0, 0xd9a766, [[0, 2.2, 0, 2.6, 0.15, 2.6, 0xb85c3e]], { key: 'cart', h: 2.9, facing: 0, blob: true }); // vendor carts
+for (const [side, z] of [[1, -110], [-1, -232]]) cover(side * 6.9, z, 1.3, 3.6, 2.8, 0x9a7448, [], { key: 'bus', h: 2.7, facing: side > 0 ? -Math.PI / 2 : Math.PI / 2 }); // bus shelters on the sidewalk, long side facing the street
 {
   // flush all boxes into one instanced mesh
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), boxes.length);
@@ -395,18 +414,15 @@ const fronds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).tr
   const E = STREET_END;
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(600, 200), flat(0x4f9cc9)); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.1, E - 110); scene.add(sea);
   const hillMat = flat(0xa4b9cb);
-  for (let i = 0; i < 9; i++) { const h = new THREE.Mesh(new THREE.ConeGeometry(34 + rnd() * 20, 22 + rnd() * 18, 5), hillMat); h.position.set(-200 + i * 50 + rnd() * 10, 8, E - 170 - rnd() * 20); scene.add(h); }
+  { const hills = []; for (let i = 0; i < 9; i++) { const r = 34 + rnd() * 20; hills.push([-200 + i * 50 + rnd() * 10, 8, E - 170 - rnd() * 20, r, 22 + rnd() * 18, r]); } inst(new THREE.ConeGeometry(1, 1, 5), hillMat, hills); }
   const skyMat = lam(0xc4cdd6);
-  for (let i = 0; i < 26; i++) {
-    const w = 5 + rnd() * 8, h = 16 + rnd() * 46, x = -96 + i * 7.4 + rnd() * 3;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), skyMat); b.position.set(x, h / 2, E - 40 - rnd() * 14); scene.add(b);
-  }
+  { const towers = []; for (let i = 0; i < 26; i++) { const w = 5 + rnd() * 8, h = 16 + rnd() * 46, x = -96 + i * 7.4 + rnd() * 3; towers.push([x, h / 2, E - 40 - rnd() * 14, w, h, w]); } inst(new THREE.BoxGeometry(1, 1, 1), skyMat, towers); }
   const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-130, 6, E - 80), new THREE.Vector3(-40, 62, E - 90), new THREE.Vector3(70, 6, E - 80));
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.6, 5, false), lam(0xe9e2d2)));
 }
 
 // end-of-street planters
-for (let x = -7; x <= 7; x += 2.3) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), lam(TERRA)); b.position.set(x, 0.35, STREET_END + 0.5); scene.add(b); }
+{ const planters = []; for (let x = -7; x <= 7; x += 2.3) planters.push([x, 0.35, STREET_END + 0.5, 0.9, 0.7, 0.9]); inst(new THREE.BoxGeometry(1, 1, 1), lam(TERRA), planters); }
 
 // the Tear (placeholder exit): a silent, geometric rip in the sky — the one surreal thing on Earth
 const PORTAL = { x: 0, z: -284 };
@@ -448,7 +464,7 @@ function getSprite(name) {
   return e;
 }
 function onSprite(name, fn) { const e = getSprite(name); if (e.ok || e.failed) fn(e); else e.cbs.push(fn); }
-const billboards = [];
+const billboards = [], STATIC_BLOBS = [], CULL_DIST = 100; // far-off props are hidden (the fog has swallowed them anyway)
 const blobGeo = new THREE.CircleGeometry(1, 20), blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false });
 class Billboard {
   constructor(key, heightM, opts = {}) {
@@ -457,9 +473,11 @@ class Billboard {
     this.group = new THREE.Group();
     const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, 0.5, 0);
     this.mesh = new THREE.Mesh(geo, null); this.mesh.visible = false; this.group.add(this.mesh);
-    const blob = new THREE.Mesh(blobGeo, blobMat); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.09; blob.scale.set(opts.blobX || 0.6, opts.blobZ || 0.6, 1); this.group.add(blob);
-    ['front', 'side', 'back'].forEach((v) => onSprite(key + '_' + v, (e) => {
-      if (e.failed) return;
+    this.static = !!opts.static;
+    if (!opts.noBlob && opts.static) STATIC_BLOBS.push({ b: this, rx: opts.blobX || 0.6, rz: opts.blobZ || 0.6 }); // merged into one draw call later
+    else if (!opts.noBlob) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.09; blob.scale.set(opts.blobX || 0.6, opts.blobZ || 0.6, 1); this.group.add(blob); }
+    (opts.views || ['front', 'side', 'back']).forEach((v) => onSprite(key + '_' + v, (e) => {
+      if (e.failed) { if (v === 'front' && opts.onFail) opts.onFail(); return; }
       this.views[v] = e; this.mats[v] = new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
       if (v === 'front' && opts.onReady) opts.onReady();
     }));
@@ -468,6 +486,7 @@ class Billboard {
   update(dt, cam, target) {
     const f = this.views.front; if (!f) return;
     const g = this.group.position, dx = cam.x - g.x, dz = cam.z - g.z, d = Math.hypot(dx, dz) || 1;
+    if (this.static && d > CULL_DIST) { this.mesh.visible = false; return; }
     if (this.lookAtPlayer) {
       const px = target.x - g.x, pz = target.z - g.z;
       if (Math.hypot(px, pz) < this.lookRange) { let diff = Math.atan2(px, pz) - this.facing; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); this.facing += diff * (1 - Math.exp(-5 * dt)); }
@@ -485,7 +504,7 @@ class Billboard {
 function updateBillboards(dt) {
   playerBill.group.position.set(player.position.x, 0, player.position.z); playerBill.facing = faceAngle;
   playerBill.bob = body.position.y - 0.95;
-  for (const b of billboards) { b.breath = Math.sin(tAccum * 1.7 + b.group.position.z) * 0.008; b.update(dt, camera.position, player.position); }
+  for (const b of billboards) { if (!b.static) b.breath = Math.sin(tAccum * 1.7 + b.group.position.z) * 0.008; b.update(dt, camera.position, player.position); }
 }
 
 // the player: the astronaut sheet (the old capsule stays as a fallback until the art loads)
@@ -515,6 +534,42 @@ addNpc('thug', '', 2.15, -5.4, -170, { lines: [], lookRange: 12 });
 addNpc('thug', '', 2.15, -2.2, -168, { lines: [], lookRange: 12 });
 addVehicle('truck', 2.9, 3.4, BZ + 5, -Math.PI / 2, [[1.2, BZ + 5, 0.9], [2.6, BZ + 5, 0.9], [4.0, BZ + 5, 0.9], [5.2, BZ + 5, 0.9]]);
 addVehicle('van', 2.3, -3.4, -175, 0, [[-3.4, -175.5, 1.0], [-3.4, -174.3, 1.0]]);
+
+// ---- art cover, street props, street signs and storefront facades ----
+ART_JOBS.forEach((j) => {
+  const a = j.art;
+  new Billboard(a.key, a.h, { facing: a.facing || 0, sideFacesRight: false, views: a.views, noBlob: !a.blob, blobX: j.sx * 0.55, blobZ: j.sz * 0.55, static: true, onFail: () => { // if the image can't load, show plain boxes instead
+    const mk = (cx, cy, cz, sx, sy, sz, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), lam(c)); m.position.set(cx, cy, cz); scene.add(m); };
+    mk(j.cx, j.sy / 2, j.cz, j.sx, j.sy, j.sz, j.color); j.parts.forEach((q) => mk(j.cx + q[0], q[1], j.cz + q[2], q[3], q[4], q[5], q[6]));
+  } }).group.position.set(j.cx, 0, j.cz);
+});
+{
+  // props along the sidewalks (the bench and the traffic cones are held back until their images are re-made: they came out smeared)
+  const PROP_ART = [{ key: 'prop_cans', h: 1.4 }, { key: 'prop_mailbox', h: 1.5 }, { key: 'prop_newsbox', h: 1.4 }, { key: 'prop_hydrant', h: 1.0 }];
+  const addProp = (key, h, x, z, r) => { new Billboard(key, h, { views: ['front'], noBlob: true, static: true }).group.position.set(x, 0, z); colliders.push({ x, z, r }); };
+  for (let z = -12, i = 0; z > STREET_END + 10; z -= 13 + crnd() * 9, i++) {
+    if (GAPS.some((g) => Math.abs(z - g) < 6)) continue;
+    const side = i % 2 ? 1 : -1, pr = PROP_ART[Math.floor(crnd() * PROP_ART.length)];
+    if (side > 0 && Math.abs(z - BODEGA.z) < 7) continue;
+    addProp(pr.key, pr.h, side * (pr.key === 'prop_hydrant' ? 5.75 : 7.35), z, 0.4);
+  }
+  for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
+  FACADES.forEach((f) => onSprite(f.key, (e) => {
+    if (e.failed) return;
+    const wM = f.bw - 0.3, hM = wM * e.h / e.w;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
+    m.position.set(f.side * 7.86, hM / 2, f.zc); m.rotation.y = f.side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
+  }));
+}
+
+{ // all the static shadows (cars, dumpsters, carts...) in one draw call
+  const n = STATIC_BLOBS.length;
+  if (n) {
+    const im = new THREE.InstancedMesh(blobGeo, blobMat, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+    STATIC_BLOBS.forEach((sb, i) => { m4.compose(new THREE.Vector3(sb.b.group.position.x, 0.09, sb.b.group.position.z), q, new THREE.Vector3(sb.rx, sb.rz, 1)); im.setMatrixAt(i, m4); });
+    im.instanceMatrix.needsUpdate = true; scene.add(im);
+  }
+}
 
 // the crew waits by the Tear (their sheets live in 3d/art/_originals; add new characters the same way)
 addNpc('christopher', 'CHRISTOPHER', 1.82, -4.4, -291, { sideFacesRight: true, lines: ['Just the dark. And then... gravity.', 'It showed me the garden.'] });
@@ -682,6 +737,9 @@ function updatePickups(dt) {
   const p = player.position;
   for (const k of pickups) {
     if (k.taken) continue;
+    const far = Math.hypot(p.x - k.holder.position.x, p.z - k.holder.position.z) > 70;
+    if (far !== !k.holder.visible) k.holder.visible = !far;
+    if (far) continue;
     k.phase += dt * 2.4; k.holder.position.y = 1.0 + Math.sin(k.phase) * 0.12; k.model.rotation.y += dt * 1.6;
     if (k.kind === 'wire') { k.glow.material.opacity = 0.6 + Math.sin(k.phase * 1.7) * 0.2; k.glow.scale.setScalar(3.2 + Math.sin(k.phase * 1.7) * 0.5); }
     if (k.sprite) { k.sprite.rotation.y = Math.atan2(camera.position.x - k.holder.position.x, camera.position.z - k.holder.position.z); k.sprite.rotation.z = Math.sin(k.phase * 0.5) * 0.12; }

@@ -46,6 +46,12 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - **Performance:** the whole scene is ~58 draw calls and ~7.5k triangles (all boxes are one instanced mesh; lamps and palms are instanced).
 - **Tested:** 37,800 random-walk samples across the map: 0 escapes from the walkable area; it reached the alleys and cross streets; never stuck on the way down the street.
 
+## Round-2 art in the level (2026-10-22)
+- **In:** 3 parked cars (lowrider, pickup, surf hatchback; front/side/back), dumpster, vendor cart, bus shelters, hedge, crates, concrete barrier, tires, rolled fence, old fridge + washer, sidewalk props (trash cans, mailbox, newspaper box, hydrant), 5 street signs, and storefront facades: **coffee** and **panaderia** (Gaslamp end), **taqueria** (middle), **BEAT BOX RECORDS** (Barrio Logan, right side near z = -232). All are billboards cut by `3d/art/make_sprites.py`; the placeholder boxes remain only as a fallback if an image fails to load.
+- **Held back / still needed:** the **park bench** and **traffic cones** came out of Gemini with a smeared white band through the middle, so they are cut but not placed; regenerate them (and the mural wall and the stadium corner, images 11 and 12, which have not arrived).
+- **Cutter notes:** `python 3d/art/make_sprites.py` re-cuts everything (~3 min); `python 3d/art/make_sprites.py alley sign` re-cuts only the named sheets. It removes thin ground lines under vehicles, can ignore a faint "ghost" row above a sheet (`crop_top`), and now splits items with a 1-2 px gap.
+- **Performance:** ~45-200 draw calls depending on where you stand (props beyond 100 m are hidden, static shadows are one instanced mesh, clouds/skyline/hills/planters are instanced).
+
 ## Barrio Logan (decided 2026-10-22)
 The **far end of the street is Barrio Logan** and **the record store is there** (the user will provide a reference picture; it becomes a storefront like the bodega, plus the vinyl spots, the mural wall / bridge pillars and the Tear nearby). The Gaslamp end stays the start. Real-life note: Barrio Logan sits under the Coronado Bridge, which is already the bridge span in the skyline.
 
