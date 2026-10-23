@@ -89,6 +89,51 @@
   "h": 479,
   "kb": 19.9
  },
+ "christopher_front": {
+  "w": 308,
+  "h": 480,
+  "kb": 21.3
+ },
+ "christopher_side": {
+  "w": 179,
+  "h": 483,
+  "kb": 13.6
+ },
+ "christopher_back": {
+  "w": 304,
+  "h": 481,
+  "kb": 19.1
+ },
+ "juancarlos_front": {
+  "w": 233,
+  "h": 480,
+  "kb": 16.7
+ },
+ "juancarlos_side": {
+  "w": 126,
+  "h": 480,
+  "kb": 10.8
+ },
+ "juancarlos_back": {
+  "w": 233,
+  "h": 479,
+  "kb": 14.7
+ },
+ "eduardo_front": {
+  "w": 297,
+  "h": 480,
+  "kb": 18.0
+ },
+ "eduardo_side": {
+  "w": 104,
+  "h": 479,
+  "kb": 10.4
+ },
+ "eduardo_back": {
+  "w": 297,
+  "h": 477,
+  "kb": 16.2
+ },
  "suit_front": {
   "w": 201,
   "h": 480,
@@ -163,5 +208,10 @@
   "w": 195,
   "h": 256,
   "kb": 10.2
+ },
+ "bodega": {
+  "w": 1024,
+  "h": 805,
+  "kb": 69.0
  }
 }

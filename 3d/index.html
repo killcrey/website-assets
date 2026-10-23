@@ -243,10 +243,10 @@ const BODEGA = { set: false, z: -60, w: 10 };
 for (const side of [-1, 1]) {
   let z = STREET_START;
   while (z > STREET_END - 10) {
-    const w = 8 + rnd() * 4, depth = 10, h = 6 + rnd() * 6 + Math.min(8, Math.abs(z) * 0.05);
+    const w = 8 + rnd() * 4, depth = 10; let h = 6 + rnd() * 6 + Math.min(8, Math.abs(z) * 0.05);
     const isBodega = side > 0 && !BODEGA.set && z < -52;
-    if (isBodega) { BODEGA.set = true; BODEGA.z = z - w / 2; BODEGA.w = w; }
-    const bld = new THREE.Mesh(new THREE.BoxGeometry(depth, h, w), lam(isBodega ? TERRA : STUCCO[Math.floor(rnd() * STUCCO.length)]));
+    if (isBodega) { BODEGA.set = true; BODEGA.z = z - w / 2; BODEGA.w = w; h = Math.max(h, 9); }
+    const bld = new THREE.Mesh(new THREE.BoxGeometry(depth, h, w), lam(isBodega ? BRICK : STUCCO[Math.floor(rnd() * STUCCO.length)]));
     bld.position.set(side * (8 + depth / 2), h / 2, z - w / 2); scene.add(bld);
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(bld.geometry), INK); edges.position.copy(bld.position); scene.add(edges);
     const parapet = new THREE.Mesh(new THREE.BoxGeometry(depth + 0.3, 0.7, w + 0.3), lam(0x8a6f4d)); parapet.position.set(bld.position.x, h + 0.2, bld.position.z); scene.add(parapet);
@@ -409,7 +409,7 @@ const playerBill = new Billboard('player', 1.8, { onReady: () => { for (const m 
 
 // story characters and Agency vehicles. Facing 0 = looking down the street toward the player.
 const NPCS = [];
-const SPEAKER = { suit: '#ff8a7a', pancho: '#ffe08a', father: '#bcd4ff', luz: '#ffd9a8', kid: '#9ff0b0' };
+const SPEAKER = { suit: '#ff8a7a', pancho: '#ffe08a', father: '#bcd4ff', luz: '#ffd9a8', kid: '#9ff0b0', christopher: '#9fd0ff', juancarlos: '#ffb27a', eduardo: '#d9c8ff' };
 function addNpc(key, name, heightM, x, z, opts) {
   const b = new Billboard(key, heightM, Object.assign({ lookAtPlayer: true }, opts));
   b.group.position.set(x, 0, z); colliders.push({ x, z, r: 0.38 });
@@ -423,33 +423,23 @@ function addVehicle(key, heightM, x, z, facing, hitX) {
 const BZ = BODEGA.z;
 addNpc('pancho', 'PANCHO', 1.75, 6.5, BZ + 1.6, { sideFacesRight: false, name: 'PANCHO', lines: ['Foil hats are half off for the neighborhood heroes.', 'Where do you think astronauts come from?', 'You boys look like you took a header off a flying saucer.'] });
 addNpc('father', 'PANCHO’S FATHER', 1.7, 6.1, BZ - 1.4, { lines: ['Frankie... the sky is a cage.', 'I’ve carried heavier.'] });
-addNpc('kid', 'THE KID', 1.4, 6.0, -24, { lines: ['You don’t even watch sports.'] });
+addNpc('kid', 'THE KID', 1.3, 6.0, -24, { lines: ['You don’t even watch sports.'] });
 addNpc('luz', 'LUZ', 1.68, -6.1, -76, { lines: ['We never needed proof. We needed medicine.', 'I was the first to identify the hum.'] });
 addNpc('suit', 'AGENCY', 1.85, -6.2, -43, { lines: ['We were just in the neighborhood. Wanted to check on our guys.', 'How’s the leg?', 'Don’t try to figure out what went wrong up there on your own.'] });
 addNpc('suit', 'AGENCY', 1.85, -5.3, -45.5, { lines: ['Take care.'] });
-addNpc('thug', '', 1.95, -5.4, -93, { lines: [], lookRange: 12 });
-addNpc('thug', '', 1.95, -2.2, -92, { lines: [], lookRange: 12 });
+addNpc('thug', '', 2.15, -5.4, -93, { lines: [], lookRange: 12 });
+addNpc('thug', '', 2.15, -2.2, -92, { lines: [], lookRange: 12 });
 addVehicle('truck', 2.9, 3.4, BZ + 5, -Math.PI / 2, [[1.2, BZ + 5, 0.9], [2.6, BZ + 5, 0.9], [4.0, BZ + 5, 0.9], [5.2, BZ + 5, 0.9]]);
 addVehicle('van', 2.3, -3.4, -98, 0, [[-3.4, -98.5, 1.0], [-3.4, -97.3, 1.0]]);
 
-// stand-ins for the three main characters whose art isn't ready yet (swap in a sheet + re-run make_sprites.py)
-function addPlaceholder(label, x, z, color) {
-  const g = new THREE.Group(); g.position.set(x, 0, z);
-  const body2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.9, 4, 10), lam(color)); body2.position.y = 0.95; g.add(body2);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), lam(0xd8a878)); head.position.y = 1.85; g.add(head);
-  const c = document.createElement('canvas'); c.width = 256; c.height = 96; const k = c.getContext('2d');
-  k.fillStyle = 'rgba(5,5,5,.7)'; k.fillRect(0, 0, 256, 96); k.fillStyle = '#fff'; k.textAlign = 'center'; k.font = 'bold 40px VT323, monospace'; k.fillText(label, 128, 44);
-  k.fillStyle = '#ffb347'; k.font = '28px VT323, monospace'; k.fillText('art pending', 128, 80);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, fog: false })); tag.scale.set(1.9, 0.71, 1); tag.position.y = 2.6; g.add(tag);
-  scene.add(g); colliders.push({ x, z, r: 0.45 });
-}
-addPlaceholder('CHRISTOPHER', -3.6, -128, 0x6b7f9a);
-addPlaceholder('JUAN CARLOS', 0, -130, 0x8a6f4d);
-addPlaceholder('EDUARDO', 3.6, -128, 0x7b8a6b);
+// the crew waits by the Tear (their sheets live in 3d/art/_originals; add new characters the same way)
+addNpc('christopher', 'CHRISTOPHER', 1.82, -4.4, -124, { sideFacesRight: true, lines: ['Just the dark. And then... gravity.', 'It showed me the garden.'] });
+addNpc('juancarlos', 'JUAN CARLOS', 1.72, 4.6, -125, { lines: ['Don’t tell them ANYTHING!', 'It’s real.'] });
+addNpc('eduardo', 'EDUARDO', 1.76, 0.0, -131, { lines: ['We are not batteries. We are human.', 'You had to go up clean.'] });
 
 // the bodega: Pancho's corner store, on the building tagged during street generation
-const bodegaNeon = (() => {
+let bodegaNeon = null;
+function buildBodegaFallback() {
   const mk = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
   const place = (mesh, x, y, z) => { mesh.position.set(x, y, z); mesh.rotation.y = -Math.PI / 2; scene.add(mesh); return mesh; };
   const signTex = mk(1024, 220, (g, w, h) => { g.fillStyle = '#8a3b2e'; g.fillRect(0, 0, w, h); g.strokeStyle = '#f0d58a'; g.lineWidth = 8; g.strokeRect(12, 12, w - 24, h - 24); g.fillStyle = '#f4ead2'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 130px VT323, monospace'; g.fillText('PANCHOS BODEGA', w / 2, h / 2 + 6); });
@@ -460,8 +450,14 @@ const bodegaNeon = (() => {
   const beerTex = mk(256, 160, (g, w, h) => { g.fillStyle = '#c0392b'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 96px VT323, monospace'; g.fillText('BEER', w / 2, h / 2 + 4); });
   place(new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.69), new THREE.MeshBasicMaterial({ map: beerTex })), 7.9, 2.55, BZ - 3.7);
   const openTex = mk(256, 128, (g, w, h) => { g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 60px VT323, monospace'; g.shadowBlur = 18; g.shadowColor = '#00fff9'; g.fillStyle = '#00fff9'; g.fillText('OPEN', w / 2, 36); g.shadowColor = '#ff6ec7'; g.fillStyle = '#ff6ec7'; g.fillText('CLOSED', w / 2, 92); });
-  return place(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: openTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), 7.9, 2.35, BZ + 3.7);
-})();
+  bodegaNeon = place(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), new THREE.MeshBasicMaterial({ map: openTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), 7.9, 2.35, BZ + 3.7);
+}
+onSprite('bodega', (e) => {
+  if (e.failed) { buildBodegaFallback(); return; }
+  const wM = BODEGA.w - 0.3, hM = wM * e.h / e.w;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
+  m.position.set(7.86, hM / 2, BZ); m.rotation.y = -Math.PI / 2; scene.add(m);
+});
 
 // what people say when you walk up to them (lines are from the script)
 let speechTimer = 0;
@@ -476,7 +472,7 @@ function updateSpeech(dt) {
       $('speech').style.opacity = 1; speechTimer = 3.8; n.cooldown = 16; n.idx++; break;
     }
   }
-  bodegaNeon.material.opacity = 0.8 + (Math.sin(tAccum * 31) > 0.93 ? -0.55 : 0) + Math.sin(tAccum * 2) * 0.1;
+  if (bodegaNeon) bodegaNeon.material.opacity = 0.8 + (Math.sin(tAccum * 31) > 0.93 ? -0.55 : 0) + Math.sin(tAccum * 2) * 0.1;
 }
 
 // ---- collectibles (carried loot; the plan is you lose it if you're caught) ----

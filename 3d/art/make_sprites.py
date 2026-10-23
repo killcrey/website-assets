@@ -26,11 +26,16 @@ SHEETS = {
     'luz': ('Luz.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
     'thug': ('The thugs.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
     'kid': ('the kid.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
+    'christopher': ('christopher.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
+    'juancarlos': ('Juan Carlos.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
+    'eduardo': ('eduardo.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 480),
     'suit': ('the suits.jfif', 6, {0: 'front', 2: 'side', 4: 'back'}, 480),
     'van': ('black van.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380),
     'truck': ('bread truck.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380),
 }
 ITEMS = ('The collectibles set.jfif', ['card', 'scratcher', 'wire', 'vinyl', 'tape', 'basket'], 256)
+# single flat pieces: name: (source file, output width px)
+FLATS = {'bodega': ('bodega.jfif', 1024)}
 WORK_W = 1376  # process at half size, it is plenty for 480px sprites
 
 
@@ -137,6 +142,15 @@ def main():
             s = target_h / max(img.width, img.height)
             save(img.resize((max(1, round(img.width * s)), max(1, round(img.height * s))), Image.LANCZOS), 'item_' + name, manifest)
         print('ok items', names)
+    for name, (fname, out_w) in FLATS.items():
+        path = os.path.join(SRC, fname)
+        if not os.path.exists(path):
+            continue
+        rgba, fg = cutout(load(path))
+        bbox = rgba.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
+        img = rgba.crop(bbox)
+        save(img.resize((out_w, max(1, round(img.height * out_w / img.width))), Image.LANCZOS), name, manifest)
+        print('ok', name, manifest[name])
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:
         json.dump(manifest, f, indent=1)
     print('total KB', round(sum(m['kb'] for m in manifest.values())))

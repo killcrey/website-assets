@@ -27,8 +27,9 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - Gemini turnaround sheets go in `3d/art/_originals/` (git-ignored, full size). `python 3d/art/make_sprites.py` cuts each sheet into transparent front/side/back WebP sprites in `3d/art/sprites/` (~0.5 MB total, committed) plus `manifest.json`.
 - The game draws them as **camera-facing billboards** (`Billboard` in `3d/index.html`): the right view is chosen from where the camera is, mirrored for the side view. Cheap on phones, matches the 2D art exactly, and can be swapped for rigged 3D models later without changing the level.
 - To add a character: drop the sheet in `_originals/`, add a line to `SHEETS` in `make_sprites.py`, run it, then `addNpc(...)` in `index.html`. If a sprite fails to load, that figure just doesn't appear.
-- **Done:** Player, Pancho, Pancho's father, the Kid, Luz, the Suits (x2), the thugs (x2), the black van, the bread truck, and all six collectibles use the new art. Pancho's bodega storefront is built in code (sign, awning, windows, beer sign, flickering OPEN/CLOSED neon).
-- **Placeholders (art pending):** Christopher, Juan Carlos, Eduardo — labeled capsules near the Tear. Also still missing: a bodega storefront image (it's built from shapes for now).
+- **Done:** every character, both vehicles, all six collectibles and the bodega facade now use the Gemini art: Player, Pancho, Pancho's father, the Kid, Luz, the Suits (x2), the thugs (x2), Christopher, Juan Carlos, Eduardo, the black van, the bread truck. The bodega is a flat facade piece (`bodega.webp`) on its building; the shape-built storefront in the code is only a fallback if that image fails to load.
+- **Sizes (meters, in `addNpc` / `Billboard`):** Kid 1.3 (smallest) < Luz 1.66 < Pancho's father 1.68 < Juan Carlos 1.72 < Pancho 1.75 < Eduardo 1.76 < Player 1.8 < Christopher 1.82 < Suits 1.85 < thugs 2.15 (tallest, and bulkier in the art).
+- Christopher, Juan Carlos and Eduardo stand near the Tear for now (no role in the hunt yet).
 - Approaching an NPC shows a line from the script. NPCs and Agency figures turn to face the player; none of them can catch you yet.
 
 ## Flow
