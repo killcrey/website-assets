@@ -53,12 +53,15 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 **Cover/hiding:** cars, dumpsters, carts, hedges, walls block sight and the cone. Stand still behind cover ~1 s to be "hidden". Running is noisy (bigger detection radius); a gentle thumb push is a quiet sneak.
 
 **Items**
-- **Baseball cards:** more of them, spread out; some sit where a patrol guards them and can only be grabbed once it moves on. Give them to **the Kid**. He holds a **stash**; you refill Low C by standing near him (it draws from his stash). **Enemies can steal his cards** (1 card per ~2 s while a Suit is on him); stun the thief and the card drops. You defend him. Keeping cards for the full-set bonus vs. giving them to him is the tension.
+- **Baseball cards:** more of them, spread out; some sit where a patrol guards them and can only be grabbed once it moves on (no booby-trapped cards). Give them to **the Kid**. He holds a **stash**; you refill Low C by standing near him (it draws from his stash). **Enemies can steal his cards** (1 card per ~2 s while a Suit is on him); stun the thief and the card drops. You defend him. Keeping cards for the full-set bonus vs. giving them to him is the tension.
 - **Scratchers:** no points. Use one to **pay off** nearby enemies (they ignore you ~30 s) and drop heat one level. Unused ones convert to +150 each at the Tear.
 - **Records (rare):** hold at most 1; press a button for the **red blast**: all enemies in slow motion (x0.3) for ~15-20 s, with a red wash and red rings. **Regeneration:** only one record exists on the map at a time; ~75 s (+-15) after one is picked up, a new one appears at a random one of ~8 record spots (stoops, windows, alley mouths, the record store), never the same spot twice in a row, with a faint red glow and a "scratch" sound when it appears. Cap 4 per run.
 - **Copper wire:** now **glows** (a brighter beacon). Each wire: Low C capacity +15%, but Suits move +12% faster.
 
-## Level layout (recommendation: "spine + ribs")
+## Level layout (DECIDED: long street)
+The user chose the long street over a full grid. The Kid is not fixed: he **moves occasionally** between the bodega, the record store and random spots down the street (only when no enemy is near; the walk takes ~20 s and is when he's most exposed; his stash goes with him; show an arrow to him when Low C is low). Wire trade-off (+15% capacity, Suits +12% faster) confirmed fair.
+
+Original recommendation, kept for reference ("spine + ribs"):
 One long main street (~2x today's length) with 4 cross streets / alleys (the ribs) every ~50-60 m, parked cars and props along the curbs, and alley loops that let you circle enemies. Cheaper than a full 3x3 grid, but gives real hiding spots and flanking. It needs the same new tech either way: a collision map (building boxes), camera collision against it, line-of-sight checks, and patrol paths. It can grow into a full grid later.
 
 **More Gemini art needed:** parked cars (3 views each), street props (dumpster, trash cans, mailbox, hydrant, bench, bus shelter), vendor cart / crates / hedge planter / barriers, 4 more storefronts (record store, taqueria, barber, laundromat), a mural-wall landmark (original art, not a copy of real murals) and a baseball-stadium corner with a generic baseball statue (no real player's likeness).
