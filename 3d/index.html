@@ -951,7 +951,7 @@ const CARD_XS = [-4, 2.4, -2.2, 4, -4.4, 1.2, -1.4, 3.4, -3, 3.8, -0.6];
 CARD_XS.forEach((x, i) => placePickup('card', x, -14 - i * 22)); // along the main street
 [[-19.5, -117], [19.5, -174], [-19.5, -231]].forEach(([x, z]) => placePickup('card', x, z)); // in the alleys
 [[-1, -48], [3.2, -150], [-2, -228]].forEach(([x, z]) => placePickup('scratcher', x, z)); // rare
-[[-6.9, -60], [6.9, -125], [-6.9, -190], [6.9, -250]].forEach(([x, z]) => placePickup('wire', x, z));
+[[-6.9, -60], [6.9, -125], [-6.9, -190], [6.9, -250], [3.5, -35], [-3.2, -85], [2.4, -150], [-2.8, -175], [3.6, -215], [-3.4, -270], [6.9, -72], [-6.9, -230], [19.5, -95], [-19.5, -140], [19.5, -205], [-19.5, -265]].forEach(([x, z]) => placePickup('wire', x, z)); // 16 of them
 [[20, -117], [-20, -230]].forEach(([x, z]) => placePickup('vinyl', x, z)); // rare, tucked away in alleys
 [[1.2, -45], [-1.0, -160], [1.4, -215]].forEach(([x, z]) => placePickup('tape', x, z));
 [[0, -20], [0.4, -76], [-0.6, -168], [0.2, -245], [-1, -205]].forEach(([x, z]) => placePickup('basket', x, z)); // all look the same; some are bugged and you can't tell which
@@ -1176,7 +1176,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+let suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
@@ -1352,7 +1352,7 @@ function updateSuitRespawn(dt) {
 }
 
 function updateEnemy(e, dt) {
-  const p = player.position, wire = loot.wire, lvl = heatLevel();
+  const p = player.position, wire = Math.min(wiresHeld, 6), lvl = heatLevel();
   const egoF = ego > 0; // the ego blast freezes everyone and turns off their eyes
   if (!egoF && e.flee > 0) { // the Low C's opening pulse sends them the other way
     e.flee -= dt; const fx = e.x - p.x, fz = e.z - p.z, fd = Math.hypot(fx, fz) || 1;
@@ -1436,7 +1436,7 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; yaw = 0; frameLocked = false; swinging = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   for (const def of SUIT_DEFS) if (!def.e || def.e.dead) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
@@ -1466,17 +1466,18 @@ function pickTruckDest() {
 TRUCK.free = truckRectFree; TRUCK.pick = pickTruckDest;
 function enterTruck() { inTruck = true; vel.set(0, 0, 0); playerBill.group.visible = false; showToast('HIDDEN IN THE BREAD TRUCK', '#ffd27a'); updateLootHud(); }
 function leaveTruck() { inTruck = false; playerBill.group.visible = true; updateLootHud(); }
+function anySeeing() { for (const e of enemies) if (!e.dead && e.seeing > 0.001) return true; return van.seeing > 0.001; }
 function updateTruck(dt) {
-  const T = TRUCK; if (!T.g) return;
+  const T = TRUCK; if (!T.g) return; T.warnT = Math.max(0, (T.warnT || 0) - dt);
   if (T.tz !== null) { // drives (or backs) to a new spot, never when you're inside
     const step = Math.min(Math.abs(T.tz - T.z), 4.5 * dt); T.z += Math.sign(T.tz - T.z) * step;
     if (Math.abs(T.tz - T.z) < 0.01) { T.tz = null; T.wait = 30 + Math.random() * 40; }
     T.g.position.z = T.z; if (T.sg) T.sg.z = T.z; for (const t of T.cols) t.c.z = T.z + t.dz;
   } else if (!inTruck) { T.wait -= dt; if (T.wait <= 0) { const d = pickTruckDest(); if (d === null) T.wait = 8; else T.tz = d; } }
-  const p = player.position, near = p.x < T.x - 1.0 && T.cols.some((t) => Math.hypot(p.x - t.c.x, p.z - t.c.z) < 2.3); // street side only, so standing on the sidewalk to talk to someone never hides you
+  const seenNow = anySeeing() || lureT > 0, p = player.position, near = p.x < T.x - 1.0 && T.cols.some((t) => Math.hypot(p.x - t.c.x, p.z - t.c.z) < 2.3); // street side only, so standing on the sidewalk to talk to someone never hides you
   if (near && T.tz === null && !inTruck && !captured) {
     if (!T.hinted) { T.hinted = true; showToast('STAND STILL BY THE TRUCK TO HIDE IN IT', '#ffd27a'); }
-    if (stillFor > 0.8) enterTruck();
+    if (stillFor > 0.8) { if (!seenNow) enterTruck(); else if (T.warnT <= 0) { T.warnT = 2.5; showToast(lureT > 0 ? 'YOU’RE BUGGED  •  YOU CAN’T HIDE' : 'THEY CAN SEE YOU  •  YOU CAN’T HIDE', '#ff8a7a'); } }
   }
   if (inTruck && captured) leaveTruck();
 }
@@ -1513,14 +1514,15 @@ function updateDeliveries(dt) {
 // ---- the gun: Pancho's ammo. It auto-aims at the nearest Suit or thug in sight (never the van); two hits drop a Suit, five a thug ----
 const AMMO_MAX = 24, AMMO_PER_WIRE = 8, FIRE_GAP = 0.28, GUN_RANGE = 18;
 const tracers = [], puffs = [];
-function addTracer(x0, y0, z0, x1, y1, z1) {
-  const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x1, y1, z1)]), new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, fog: false }));
-  ln.frustumCulled = false; scene.add(ln); tracers.push({ ln, t: 0.09 });
+const boltGeo = new THREE.BoxGeometry(1, 1, 1);
+function addTracer(x0, y0, z0, x1, y1, z1) { // a fat hot bolt, not a hairline
+  const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0), m = new THREE.Mesh(boltGeo, new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, fog: false }));
+  m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.lookAt(x1, y1, z1); m.scale.set(0.22, 0.22, len); m.renderOrder = 9; scene.add(m); tracers.push({ ln: m, t: 0.13 });
 }
-function poof(x, z, col) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col || 0xff6a4a, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); sp.position.set(x, 1.0, z); scene.add(sp); puffs.push({ sp, t: 0.4 }); }
+function poof(x, z, col, size, y, life) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col || 0xff6a4a, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); sp.position.set(x, y || 1.0, z); scene.add(sp); puffs.push({ sp, t: life || 0.4, life: life || 0.4, size: size || 1 }); }
 function updateFx(dt) {
-  for (let i = tracers.length - 1; i >= 0; i--) { const q = tracers[i]; q.t -= dt; q.ln.material.opacity = Math.max(0, q.t / 0.09); if (q.t <= 0) { scene.remove(q.ln); q.ln.geometry.dispose(); q.ln.material.dispose(); tracers.splice(i, 1); } }
-  for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.t -= dt; const k = 1 - q.t / 0.4; q.sp.scale.setScalar(1 + k * 3.5); q.sp.material.opacity = Math.max(0, 1 - k); if (q.t <= 0) { scene.remove(q.sp); q.sp.material.dispose(); puffs.splice(i, 1); } }
+  for (let i = tracers.length - 1; i >= 0; i--) { const q = tracers[i], k = Math.max(0, q.t / 0.13); q.t -= dt; q.ln.material.opacity = k; q.ln.scale.x = q.ln.scale.y = 0.08 + 0.18 * k; if (q.t <= 0) { scene.remove(q.ln); q.ln.material.dispose(); tracers.splice(i, 1); } }
+  for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.t -= dt; const k = 1 - q.t / q.life; q.sp.scale.setScalar(q.size * (1 + k * 3.5)); q.sp.material.opacity = Math.max(0, 1 - k); if (q.t <= 0) { scene.remove(q.sp); q.sp.material.dispose(); puffs.splice(i, 1); } }
 }
 function gunTarget() {
   const p = player.position; let best = null, bd = GUN_RANGE;
@@ -1535,7 +1537,7 @@ function swapWeapon() {
 }
 function killEnemy(e) {
   e.dead = true; if (e.def) { e.def.e = null; e.def.respawnT = 45; }
-  const pts = e.kind === 'thug' ? 800 : 500; loot.points += pts; poof(e.x, e.z, e.kind === 'thug' ? 0xff3b3b : 0xffb347);
+  const pts = e.kind === 'thug' ? 800 : 500; loot.points += pts; suitKills++; killT = 0; bumpHeat(Math.min(1, 0.15 + 0.1 * suitKills)); poof(e.x, e.z, e.kind === 'thug' ? 0xff3b3b : 0xffb347, 2.6, 1.0, 0.55); poof(e.x + 0.3, e.z - 0.2, 0xfff0b0, 1.6, 1.4, 0.4); poof(e.x - 0.3, e.z + 0.2, 0xff5a3a, 1.6, 0.6, 0.45); shake = Math.max(shake, 0.35); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 70, t, 0.45, 0.24, 300); tone('square', 110, t + 0.03, 0.25, 0.14, 700); }
   showToast((e.kind === 'thug' ? 'THUG' : 'SUIT') + ' DOWN  +' + pts, '#ffd27a');
 }
 function updateGun(dt) {
@@ -1543,8 +1545,9 @@ function updateGun(dt) {
   if (!(started && !captured && !inTruck && weapon === 'gun' && (keys.Space || mouseLowC || btnLowC || lowCLatch)) || fireCool > 0) return;
   const e = gunTarget(); if (!e) return; // nothing in sight: no shot, no ammo spent
   const p = player.position; fireCool = FIRE_GAP; ammo--; e.hp--; heatF = Math.min(3, heatF + 0.05);
-  addTracer(p.x, 1.2, p.z, e.x, 1.1, e.z);
-  if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('square', 640, t, 0.05, 0.07, 3500); tone('sawtooth', 180, t, 0.08, 0.06, 900); }
+  addTracer(p.x, 1.2, p.z, e.x, 1.1, e.z); poof(p.x + (e.x - p.x) * 0.06, p.z + (e.z - p.z) * 0.06, 0xffe08a, 1.5, 1.2, 0.18); poof(e.x, e.z, 0xff7a3a, 0.9, 1.1, 0.28); shake = Math.max(shake, 0.14); e.hitT = 0.14;
+  { const kx = e.x - p.x, kz = e.z - p.z, kd = Math.hypot(kx, kz) || 1; e.x += kx / kd * 0.45; e.z += kz / kd * 0.45; resolveCircle(e, 0.45); } // a hit knocks them back a step
+  if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 95, t, 0.22, 0.24, 600); tone('square', 520, t, 0.06, 0.15, 4500); tone('square', 250, t + 0.02, 0.1, 0.13, 2500); tone('sawtooth', 55, t + 0.01, 0.3, 0.2, 400); }
   for (const o of enemies) if (o.kind === 'suit' && !o.dead && (o === e || Math.hypot(o.x - p.x, o.z - p.z) < 22) && (o.state === 'PATROL' || o.state === 'SEARCH')) { o.state = heatLevel() >= 2 ? 'CHASE' : 'INVESTIGATE'; o.lx = p.x; o.lz = p.z; o.path.length = 0; } // the shot is heard
   if (e.hp <= 0) killEnemy(e);
   if (ammo <= 0) { weapon = 'lowc'; lowCLatch = false; showToast('OUT OF AMMO  \u2022  BACK TO LOW C', '#ff9a6a'); }
@@ -1693,9 +1696,11 @@ function updateHunt(dt) {
   updateCrew(dt);
   { const cg = invis > 0; cloakGlow.visible = cg; if (cg) cloakGlow.material.opacity = 0.34 + 0.12 * Math.sin(tAccum * 4); }
   aura = Math.max(0, aura - dt * 3);
+  killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
   updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
+  for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
   // heat goes up while anything sees you and cools off when you break line of sight (faster when hidden)
   let rise = 0; for (const e of enemies) if (e.seeing > 0) rise += (0.15 + 0.45 * e.seeing) * (e.kind === 'thug' ? 0.4 : 1);
@@ -1802,11 +1807,12 @@ function update(dt) {
   camTarget.set(p.x + ox, 1.7 + Math.sin(pitch) * camDist, p.z + oz);
   camera.position.lerp(camTarget, 1 - Math.exp(-12 * dt));
   if (lowCActive) { camera.position.x += (Math.random() - 0.5) * 0.06; camera.position.y += (Math.random() - 0.5) * 0.06; }
+  if (shake > 0) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake * 0.7; shake = Math.max(0, shake - dt * 1.4); }
   lookTarget.set(p.x, 1.6, p.z); camera.lookAt(lookTarget);
   // hiding: stand still next to cover for a second
   stillFor = Math.hypot(vel.x, vel.z) < 0.7 ? stillFor + dt : 0;
   let nearCover = false;
-  if (stillFor > 1) for (const w of walls) { if (!w.cover) continue; const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)); if (Math.hypot(p.x - cx, p.z - cz) < 1.5) { nearCover = true; break; } }
+  if (stillFor > 1 && lureT <= 0 && !anySeeing()) for (const w of walls) { if (!w.cover) continue; const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)); if (Math.hypot(p.x - cx, p.z - cz) < 1.5) { nearCover = true; break; } }
   if (nearCover !== hidden) { hidden = nearCover; updateLootHud(); }
   for (const m of Object.values(playerBill.mats)) { m.opacity = invis > 0 ? 0.36 : hidden ? 0.6 : 1; m.color.setHex(invis > 0 ? 0xbff8ff : 0xffffff); }
   { // compass arrow toward the Tear, relative to where the camera is looking
@@ -1840,7 +1846,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>
