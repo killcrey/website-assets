@@ -23,6 +23,14 @@ Earth, not space. The 2D game is dark neon void; the 3D section is **daytime San
 
 Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 
+## Art pipeline (built 2026-10-22)
+- Gemini turnaround sheets go in `3d/art/_originals/` (git-ignored, full size). `python 3d/art/make_sprites.py` cuts each sheet into transparent front/side/back WebP sprites in `3d/art/sprites/` (~0.5 MB total, committed) plus `manifest.json`.
+- The game draws them as **camera-facing billboards** (`Billboard` in `3d/index.html`): the right view is chosen from where the camera is, mirrored for the side view. Cheap on phones, matches the 2D art exactly, and can be swapped for rigged 3D models later without changing the level.
+- To add a character: drop the sheet in `_originals/`, add a line to `SHEETS` in `make_sprites.py`, run it, then `addNpc(...)` in `index.html`. If a sprite fails to load, that figure just doesn't appear.
+- **Done:** Player, Pancho, Pancho's father, the Kid, Luz, the Suits (x2), the thugs (x2), the black van, the bread truck, and all six collectibles use the new art. Pancho's bodega storefront is built in code (sign, awning, windows, beer sign, flickering OPEN/CLOSED neon).
+- **Placeholders (art pending):** Christopher, Juan Carlos, Eduardo — labeled capsules near the Tear. Also still missing: a bodega storefront image (it's built from shapes for now).
+- Approaching an NPC shows a line from the script. NPCs and Agency figures turn to face the player; none of them can catch you yet.
+
 ## Flow
 1. **2D game:** the rare Tear-portal drifts through the blue-sky section. Fly in.
 2. **3D, "Earth":** land on a San Diego street (home: 32.72° N, "DAYGO"). Goal: find and reach the **exit Tear** while the Agency hunts you.
