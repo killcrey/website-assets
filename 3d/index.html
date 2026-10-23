@@ -593,7 +593,7 @@ const tearEdge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ co
 const tearEdge2 = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0x00fff9, fog: false })); tearEdge2.scale.set(0.72, 0.72, 1); tearEdge2.position.z = 0.03; portal.add(tearEdge2);
 const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); tearGlow.scale.set(16, 22, 1); tearGlow.position.z = -0.05; portal.add(tearGlow);
 portal.scale.setScalar(1.3); portal.visible = false; // it only opens when your Low C is full, and only for a while
-const SEAL_DMG = { bullet: 2, lowc: 3.2, ego: 6 }; const SEAL_LOWC_BURN = 3; // Low C breaks it in about 3 s, but burns 3x the tank while it does // the seal slows you down, it doesn't stop you: 5 bullets, or about 8 s of Low C, or an ego blast and a couple of bullets
+const SEAL_DMG = { bullet: 2, lowc: 2.0, ego: 6 }; const SEAL_LOWC_BURN = 3; // Low C breaks it in about 5 s, and burns 3x the tank while it does // the seal slows you down, it doesn't stop you: 5 bullets, or about 8 s of Low C, or an ego blast and a couple of bullets
 const SEAL = { z: -281, hp: 10, max: 10, active: false, wall: null, mesh: null, bar: null, lastHit: 0 }; // an Agency seal that has to be shot open before you can reach the Tear
 {
   const c = document.createElement('canvas'); c.width = 256; c.height = 160; const g = c.getContext('2d');
@@ -1833,7 +1833,7 @@ const TIPS = {
   heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
   lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It burns fast, so use bursts. It clears bad vibes and never adds heat.',
   tear: 'THE TEAR|It’s open. Run for it, then stand in it for 5 seconds to elevate.',
-  seal: 'THE SEAL|The Agency sealed the Tear. A bullet does 2, an ego blast 6, Low C hits hardest (about 3 seconds) but burns your tank 3x as fast. Then stand in the Tear for 5 seconds.',
+  seal: 'THE SEAL|The Agency sealed the Tear. A bullet does 2, an ego blast 6, Low C breaks it in about 5 seconds but burns your tank 3x as fast. Then stand in the Tear for 5 seconds.',
   closed: 'THE TEAR|Fill your Low C to 100% and it opens, for a short time.'
 };
 let tipsSeen = new Set(); try { if (!params.has('tips')) tipsSeen = new Set(JSON.parse(localStorage.getItem('layers3d_tips_v1') || '[]')); } catch (err) { /* private mode: they just show again next visit */ }
