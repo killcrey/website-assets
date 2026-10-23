@@ -38,6 +38,24 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - **Camera:** it orbits behind the player, **zooms in when you turn toward the walls**, never leaves the street corridor (it slides along the wall and never sits inside the character), eases back behind you about 1.3 seconds after you let go of the look control, and the mouse tilts it up and down. Tested across 135 angle/position combinations: it never passed x = 7.5.
 - **Low C** is the trigger: a 30-second meter (each copper wire adds 10), cyan ripples and a screen pulse while held, a 65 Hz tone (phones can't play 32.7 Hz), and it can overstrain ("waking hurts": locked out until the meter recovers to 30%, slower movement). It doesn't stall anything yet because the Agency doesn't chase you yet; the hook is `lowCActive` in `3d/index.html`.
 
+## DRAFT v2: hunt rules (from the 2026-10-22 planning chat; NOT built yet, pending confirmation)
+**Low C is both your weapon and your health.** Enemies drain it; it also damages them; you refill it with the Kid.
+| Thing | What it does |
+|---|---|
+| **Suits** | "Bad vibes" aura: a steady drain on Low C while they're close. Walk their routes; they get faster the more **copper wire** you carry. Always on patrol. |
+| **Thugs** | Appear only at higher heat. Each hit takes a big chunk of Low C. |
+| **Vans** | Patrol with headlight cones; at high heat they unload thugs. |
+| **Low C blast** | Does visible damage: enemies glitch (static, jitter, cyan sparks), slow, then are stunned when their "stability" runs out. Full-blast limit of 32.7 (lore) "seconds" of charge; firing burns it quickly, and it does not come back by itself fast. |
+| **Baseball cards -> the Kid** | Hand cards to the Kid to refill Low C. (Tension: the full-set bonus vs. spending cards.) |
+| **Scratchers** | Pay off enemies: nearby ones leave you alone for a while and heat drops. |
+| **Records (rarer)** | Red blast: all enemies in slow motion for 15-20 s. |
+| **Copper wire (now glows)** | Bigger Low C bar, but the Suits move faster. |
+| **Cover** | Cars, dumpsters, carts, hedges, walls block enemy sight; stand still behind cover to hide. |
+
+**Level rethink:** a small neighborhood of city blocks with cross streets and alleys (not one straight corridor), cover props, several storefronts, the bodega as the safe house, the Kid at a few spots, and the Tear on the far side. Needs a real collision map (building boxes), camera collision against it, line-of-sight checks, and enemy patrol paths on the streets.
+
+**More Gemini art needed:** parked cars (3 views each), street props (dumpster, trash cans, mailbox, hydrant, bench, bus shelter), vendor cart / crates / hedge planter / barriers, 4 more storefronts (record store, taqueria, barber, laundromat), a mural-wall landmark (original art, not a copy of real murals) and a baseball-stadium corner with a generic baseball statue (no real player's likeness).
+
 ## Flow
 1. **2D game:** the rare Tear-portal drifts through the blue-sky section. Fly in.
 2. **3D, "Earth":** land on a San Diego street (home: 32.72° N, "DAYGO"). Goal: find and reach the **exit Tear** while the Agency hunts you.
