@@ -409,6 +409,41 @@ const fronds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).tr
   for (const x of [-7.2, 7.2]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.34, 10, 0.34), lam(0x1f3a2e)); p.position.set(x, 5, -30); scene.add(p); }
 }
 
+// BARRIO LOGAN arch over the main street (orange band, gold letters, white towers, a stepped crest) marking the far end of the street
+{
+  const ARCH_Z = -186, X0 = 7.3, SEG = 28, HALF_H = 0.85;
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d4552a'; g.fillRect(0, 0, 2048, 256);
+  g.fillStyle = '#b8431f'; g.fillRect(0, 0, 2048, 12); g.fillRect(0, 244, 2048, 12);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 168px Rockwell, "Roboto Slab", Georgia, "Times New Roman", serif';
+  g.fillStyle = '#7a2a10'; g.fillText('BARRIO', 566, 142); g.fillText('LOGAN', 1486, 142); // drop shadow
+  g.fillStyle = '#ffd21f'; g.fillText('BARRIO', 560, 134); g.fillText('LOGAN', 1480, 134);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const ribbon = (flip) => { // the band follows a parabola; the back copy has mirrored UVs so the letters read from both sides
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= SEG; i++) {
+      const t = i / SEG, x = -X0 + 2 * X0 * t, cy = 8.3 + 2.1 * (1 - Math.pow(2 * t - 1, 2)), u = flip ? 1 - t : t;
+      pos.push(x, cy - HALF_H, 0, x, cy + HALF_H, 0); uv.push(u, 0, u, 1);
+      if (i < SEG) { const a = i * 2; if (flip) idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); else idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }));
+  };
+  const front = ribbon(false); front.position.set(0, 0, ARCH_Z + 0.12); scene.add(front);
+  const back = ribbon(true); back.position.set(0, 0, ARCH_Z - 0.12); scene.add(back);
+  const white = lam(0xf2ece0), teal = lam(0x5ab6a6), peach = lam(0xf0c9a0), cream = lam(0xf6e3c0), gold = lam(0xf2c230), green = lam(0x2f9a6b), blue = lam(0x3a79c8);
+  const part = (m, w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); scene.add(b); return b; };
+  for (const sx of [-1, 1]) { // the two white towers with their teal panels and capstones
+    const x = sx * (X0 + 0.15);
+    part(white, 1.3, 8.6, 1.3, x, 4.3, ARCH_Z); part(teal, 0.5, 5.6, 1.34, x, 4.6, ARCH_Z); part(white, 1.0, 1.4, 1.0, x, 9.3, ARCH_Z); part(white, 0.6, 0.9, 0.6, x, 10.5, ARCH_Z); part(gold, 0.35, 0.35, 0.35, x, 11.1, ARCH_Z);
+    addWall(x - 0.65, x + 0.65, ARCH_Z - 0.65, ARCH_Z + 0.65, false);
+  }
+  const topY = 8.3 + 2.1 + HALF_H; // the crest sits on the middle of the band
+  part(peach, 5.0, 0.5, 0.6, 0, topY + 0.25, ARCH_Z); part(cream, 3.8, 0.5, 0.6, 0, topY + 0.75, ARCH_Z); part(peach, 2.6, 0.5, 0.6, 0, topY + 1.25, ARCH_Z);
+  part(green, 1.5, 0.6, 0.64, 0, topY + 0.85, ARCH_Z); part(blue, 0.5, 0.4, 0.68, -1.5, topY + 1.0, ARCH_Z); part(blue, 0.5, 0.4, 0.68, 1.5, topY + 1.0, ARCH_Z); part(gold, 0.5, 1.3, 0.5, 0, topY + 2.1, ARCH_Z);
+}
+
 // distant hills, a pale skyline, the bay, and a bridge span (placeholder for Coronado), all past the end of the street
 {
   const E = STREET_END;

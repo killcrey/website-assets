@@ -139,3 +139,20 @@ even lighting, no cast shadows. Keep the same composition and the same sign name
 any political signs, brand logos and readable license plates.
 ```
 Save each as its own file (for example `record_store.jfif`, `taqueria.jfif`) in `3d\art\_originals\`.
+
+---
+
+## OPTIONAL: Barrio Logan arch from the photo (image 14)
+The game already has a code-built Barrio Logan arch (orange band, gold letters, white towers, stepped crest). If you want it as real art instead, upload the arch photo first and a style reference (the bodega image) second, then paste:
+```
+Use the first image (the photo of the Barrio Logan arch sign) as the layout reference and the second image
+(the bodega storefront) as the art style reference. Redraw ONLY the arch sign in the same stylized low-poly
+3D game art style as the second image: clean flat-shaded shapes, soft color gradients, daylight look,
+slightly worn. Not photorealistic. Straight-on front elevation, flat orthographic view with no perspective,
+the whole arch centered on a plain light-gray background with a margin around it, soft even lighting, no
+cast shadows. Keep the orange curved band with the gold slab-serif letters reading BARRIO LOGAN, the two
+white towers with their teal panels and capstones, and the stepped Aztec-style crest with the corn motif
+and the green and blue ornaments. Leave out the cars, buildings, trees, wires, traffic lights, people and
+the street.
+```
+Save as `barrio_logan_arch.jfif` in `3d\art\_originals\`.

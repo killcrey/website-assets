@@ -53,6 +53,7 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - **Performance:** ~45-200 draw calls depending on where you stand (props beyond 100 m are hidden, static shadows are one instanced mesh, clouds/skyline/hills/planters are instanced).
 
 ## Barrio Logan (decided 2026-10-22)
+**Built:** a code-made **BARRIO LOGAN arch** over the main street at z = -186 (orange curved band with gold letters on both sides, two white towers with teal panels, a stepped crest), modeled on the real arch (the user's photo). The area label switches to BARRIO LOGAN past z = -185. A Gemini art version of the arch is an optional prompt (#14 in `ASSET_PROMPTS_2.md`).
 The **far end of the street is Barrio Logan** and **the record store is there** (the user will provide a reference picture; it becomes a storefront like the bodega, plus the vinyl spots, the mural wall / bridge pillars and the Tear nearby). The Gaslamp end stays the start. Real-life note: Barrio Logan sits under the Coronado Bridge, which is already the bridge span in the skyline.
 
 ## Hunt rules v2 (decided with the user 2026-10-22; tuning numbers are first guesses to playtest; NOT built yet)
