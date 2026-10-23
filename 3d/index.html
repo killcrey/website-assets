@@ -521,7 +521,7 @@ class Billboard {
     this.group = new THREE.Group();
     const geo = new THREE.PlaneGeometry(1, 1); geo.translate(0, 0.5, 0);
     this.mesh = new THREE.Mesh(geo, null); this.mesh.visible = false; this.group.add(this.mesh);
-    this.static = !!opts.static;
+    this.static = !!opts.static; this.tint = false; this.jitter = 0; this._tinted = false;
     if (!opts.noBlob && opts.static) STATIC_BLOBS.push({ b: this, rx: opts.blobX || 0.6, rz: opts.blobZ || 0.6 }); // merged into one draw call later
     else if (!opts.noBlob) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.09; blob.scale.set(opts.blobX || 0.6, opts.blobZ || 0.6, 1); this.group.add(blob); }
     (opts.views || ['front', 'side', 'back']).forEach((v) => onSprite(key + '_' + v, (e) => {
@@ -547,32 +547,80 @@ class Billboard {
     this.mesh.material = this.mats[view]; this.mesh.visible = true;
     this.mesh.scale.set(e.w * s * (flip ? -1 : 1), e.h * s * (1 + this.breath), 1);
     this.mesh.rotation.y = Math.atan2(dx, dz); this.mesh.position.y = this.bob;
+    this.mesh.position.x = this.jitter ? (Math.random() - 0.5) * this.jitter : 0; // a frozen enemy glitches in place
+    if (this.tint !== this._tinted) { this._tinted = this.tint; for (const m of Object.values(this.mats)) m.color.setHex(this.tint ? 0x8ff8ff : 0xffffff); }
   }
 }
 
-// Stationary things (parked cars, dumpsters, props, signs) do NOT turn to face you. They are fixed in the world: a 3-view object is a box of flat
-// panels (front, back and both flanks, each showing its own art), and a 1-view object is one fixed panel. Only characters and the moving van turn.
+// Stationary things (parked cars, dumpsters, carts, bus shelters, the bread truck) are real solid shapes that never turn.
+// Each one is built once from its three views like a sculptor would: the front view gives the width at every height, the side view gives the length
+// at every height, and the shape that fits both is the body (wheels, cabin, roof and all). The front, side and back art is wrapped onto its faces.
+// Anything with only one view (props, signs, hedges) stays one fixed panel.
+const HULLS = {};
+function maskOf(e) {
+  const c = document.createElement('canvas'); c.width = e.w; c.height = e.h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(e.tex.image, 0, 0);
+  return { w: e.w, h: e.h, a: g.getImageData(0, 0, e.w, e.h).data };
+}
+function buildHull(ent, heightM) {
+  const k = heightM / ent.front.h, F = maskOf(ent.front), S = maskOf(ent.side), B = maskOf(ent.back);
+  const fwM = F.w * k, slM = S.w * k, bwM = B.w * k, H = F.h * k, ROWS = 30, minPx = 4;
+  const on = (m, c, y) => m.a[(Math.max(0, Math.min(m.h - 1, Math.round((1 - y / H) * (m.h - 1)))) * m.w + c) * 4 + 3] > 128;
+  const runs = (m, y0, y1) => { // stretches of columns that are solid at both the bottom and the top of this slice of height
+    const out = []; let st = -1;
+    for (let c = 0; c <= m.w; c++) {
+      const solid = c < m.w && on(m, c, y0) && on(m, c, y1);
+      if (solid && st < 0) st = c; else if (!solid && st >= 0) { if (c - st >= minPx) out.push([st, c]); st = -1; }
+    }
+    return out;
+  };
+  const boxes = []; // {x0,x1,z0,z1,y0,y1}
+  for (let i = 0; i < ROWS; i++) {
+    const yb = (H * i) / ROWS, yt = (H * (i + 1)) / ROWS, ya = yb + (yt - yb) * 0.2, yz = yb + (yt - yb) * 0.8;
+    const fx = runs(F, ya, yz), sz = runs(S, ya, yz);
+    for (const [c0, c1] of fx) for (const [d0, d1] of sz) {
+      const b = { x0: (c0 / F.w - 0.5) * fwM, x1: (c1 / F.w - 0.5) * fwM, z0: slM / 2 - (d1 / S.w) * slM, z1: slM / 2 - (d0 / S.w) * slM, y0: yb, y1: yt };
+      const prev = boxes.find((q) => Math.abs(q.y1 - yb) < 1e-6 && Math.abs(q.x0 - b.x0) < 0.02 && Math.abs(q.x1 - b.x1) < 0.02 && Math.abs(q.z0 - b.z0) < 0.02 && Math.abs(q.z1 - b.z1) < 0.02 && !q.closed);
+      if (prev) prev.y1 = yt; else boxes.push(b);
+    }
+    for (const q of boxes) if (q.y1 < yt - 1e-6) q.closed = true;
+  }
+  // one texture holding the three views side by side, bottoms aligned
+  const AH = Math.max(F.h, S.h, B.h), ox = [0, F.w + 2, F.w + S.w + 4], AW = F.w + S.w + B.w + 6;
+  const cv = document.createElement('canvas'); cv.width = AW; cv.height = AH; const cg = cv.getContext('2d');
+  cg.drawImage(ent.front.tex.image, ox[0], AH - F.h); cg.drawImage(ent.side.tex.image, ox[1], AH - S.h); cg.drawImage(ent.back.tex.image, ox[2], AH - B.h);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+  const uv = (px, py) => [px / AW, py / AH];
+  const fU = (x, y) => uv(ox[0] + (x / fwM + 0.5) * F.w, y / k), bU = (x, y) => uv(ox[2] + (0.5 - x / bwM) * B.w, y / k), sU = (z, y) => uv(ox[1] + ((slM / 2 - z) / slM) * S.w, y / k);
+  let roofRow = 0; { const cx = Math.floor(S.w / 2); while (roofRow < S.h - 1 && S.a[(roofRow * S.w + cx) * 4 + 3] < 128) roofRow++; }
+  const roof = uv(ox[1] + S.w / 2, S.h - (roofRow + 8)); // a patch of the car's own roof colour for the flat top faces
+  const pos = [], uvs = [];
+  const quad = (p, t) => { for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(p[i][0], p[i][1], p[i][2]); uvs.push(t[i][0], t[i][1]); } };
+  for (const b of boxes) {
+    const { x0, x1, z0, z1, y0, y1 } = b;
+    quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [fU(x0, y0), fU(x1, y0), fU(x1, y1), fU(x0, y1)]); // front
+    quad([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [bU(x1, y0), bU(x0, y0), bU(x0, y1), bU(x1, y1)]); // back
+    quad([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [sU(z1, y0), sU(z0, y0), sU(z0, y1), sU(z1, y1)]); // +x flank
+    quad([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [sU(z0, y0), sU(z1, y0), sU(z1, y1), sU(z0, y1)]); // -x flank
+    quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [roof, roof, roof, roof]); // top
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  return { geo, mat: new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }), fw: fwM, sl: slM, boxes: boxes.length };
+}
 function makeStatic(key, heightM, x, z, facing, views, opts) {
   opts = opts || {};
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); STATIC_GROUPS.push({ g, x, z });
   const need = views || ['front', 'side', 'back'], ent = {}; let pending = need.length;
   const build = () => {
     if (!ent.front) { if (opts.onFail) opts.onFail(); return; }
-    const k = heightM / ent.front.h, fw = ent.front.w * k, th = facing || 0;
-    const panel = (e, mirror, px, pz, rotY, sideMode) => {
-      const t = mirror ? e.tex.clone() : e.tex;
-      if (mirror) { t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; t.needsUpdate = true; }
-      const w = e.w * k, h = e.h * k, geo = new THREE.PlaneGeometry(w, h); geo.translate(0, h / 2, 0);
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.3, side: sideMode }));
-      m.position.set(px, 0, pz); m.rotation.y = rotY; g.add(m); return m;
-    };
-    if (!ent.side || !ent.back) { panel(ent.front, false, 0, 0, th, THREE.DoubleSide); return; } // single-view prop: one fixed panel
-    const sl = ent.side.w * k, fx = Math.sin(th), fz = Math.cos(th), rx = Math.cos(th), rz = -Math.sin(th);
-    panel(ent.front, false, fx * sl / 2, fz * sl / 2, th, THREE.FrontSide);
-    panel(ent.back, false, -fx * sl / 2, -fz * sl / 2, th + Math.PI, THREE.FrontSide);
-    panel(ent.side, false, rx * fw / 2, rz * fw / 2, th + Math.PI / 2, THREE.FrontSide);
-    panel(ent.side, true, -rx * fw / 2, -rz * fw / 2, th - Math.PI / 2, THREE.FrontSide); // the other flank shows the mirrored art
-    if (opts.blob) STATIC_BLOBS.push({ b: { group: g }, rx: Math.max(Math.abs(fx) * sl, Math.abs(rx) * fw) / 2 * 1.15, rz: Math.max(Math.abs(fz) * sl, Math.abs(rz) * fw) / 2 * 1.15 });
+    const th = facing || 0;
+    if (!ent.side || !ent.back) { // single-view prop: one fixed panel
+      const k = heightM / ent.front.h, w = ent.front.w * k, h = ent.front.h * k, geo = new THREE.PlaneGeometry(w, h); geo.translate(0, h / 2, 0);
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: ent.front.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide })); m.rotation.y = th; g.add(m); return;
+    }
+    const hk = key + '@' + heightM; let hull = HULLS[hk]; if (!hull) hull = HULLS[hk] = buildHull(ent, heightM);
+    const m = new THREE.Mesh(hull.geo, hull.mat); m.rotation.y = th; g.add(m);
+    if (opts.blob) { const fx = Math.sin(th), fz = Math.cos(th), rx = Math.cos(th), rz = -Math.sin(th); STATIC_BLOBS.push({ b: { group: g }, rx: Math.max(Math.abs(fx) * hull.sl, Math.abs(rx) * hull.fw) / 2 * 1.15, rz: Math.max(Math.abs(fz) * hull.sl, Math.abs(rz) * hull.fw) / 2 * 1.15 }); }
   };
   need.forEach((v) => onSprite(key + '_' + v, (e) => { ent[v] = e.failed ? null : e; if (--pending === 0) build(); }));
   return g;
@@ -696,8 +744,8 @@ function updateSpeech(dt) {
 
 // ---- collectibles (carried loot; the plan is you lose it if you're caught) ----
 const loot = { points: 0, cards: 0, scratchers: 0, wire: 0, vinyl: 0, tape: 0 };
-const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 8;
-let curArea = 'GASLAMP QUARTER', hidden = false, stillFor = 0, heat = 0, heatTimer = 0, cloak = 0, toastTimer = 0, lowCBoost = 0;
+const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 30;
+let curArea = 'GASLAMP QUARTER', hidden = false, stillFor = 0, heat = 0, heatTimer = 0, speedBoost = 0, cloak = 0, toastTimer = 0, lowCBoost = 0;
 const HEAT_NAMES = ['CLEAR', 'WATCH', 'CULTIVATE', 'CONTAIN'];
 const pickups = [];
 const prng = mulberry32(77);
@@ -746,8 +794,8 @@ function mkBasket() {
   const bug = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), flat(0xff2b2b)); bug.position.set(0.1, -0.36, 0.3); g.add(bug); g.userData.bug = bug;
   return g;
 }
-const GLOWCOL = { card: 0xffd966, scratcher: 0x9ff0b0, wire: 0xff8a30, vinyl: 0xfff3c4, tape: 0xffe9b8, basket: 0xffe9b8 };
-const MAKERS = { card: mkCard, scratcher: mkScratcher, wire: mkWire, vinyl: mkVinyl, tape: mkTape, basket: mkBasket };
+const GLOWCOL = { card: 0xffd966, scratcher: 0x9ff0b0, wire: 0xff8a30, vinyl: 0xfff3c4, tape: 0xffe9b8, basket: 0xffe9b8, basketboost: 0x9dff9a };
+const MAKERS = { card: mkCard, scratcher: mkScratcher, wire: mkWire, vinyl: mkVinyl, tape: mkTape, basket: mkBasket, basketboost: mkBasket };
 function addPickup(kind, x, z) {
   const model = MAKERS[kind](), holder = new THREE.Group();
   holder.add(model); holder.position.set(x, 1.0, z); holder.scale.setScalar(1.35);
@@ -755,13 +803,25 @@ function addPickup(kind, x, z) {
   glow.scale.set(kind === 'wire' ? 3.4 : 1.35, kind === 'wire' ? 3.4 : 1.35, 1); holder.add(glow);
   scene.add(holder);
   const pk = { kind, holder, model, glow, sprite: null, phase: prng() * 6.28, taken: false }; pickups.push(pk);
-  onSprite('item_' + kind, (e) => {
+  onSprite('item_' + (kind === 'basketboost' ? 'basket' : kind), (e) => {
     if (e.failed) return;
-    const k = ITEM_H[kind] / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(e.w * k, e.h * k), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
+    const k = ITEM_H[kind] / e.h, w = e.w * k, h = e.h * k, m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: kind === 'basketboost' ? cleanBasket(e) : e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     holder.add(m); model.visible = false; pk.sprite = m;
+    if (kind === 'basket') { // the bug: a red light that blinks
+      const led = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff2b2b, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
+      led.scale.set(0.3, 0.3, 1); led.position.set(0.17 * w, -0.33 * h, 0.03); m.add(led); pk.led = led;
+    }
   });
 }
-const ITEM_H = { card: 0.78, scratcher: 0.78, wire: 0.62, vinyl: 0.76, tape: 0.55, basket: 0.9 };
+let BASKET_CLEAN = null;
+function cleanBasket(e) { // the gift basket: the art with the bug's red light painted out
+  if (BASKET_CLEAN) return BASKET_CLEAN;
+  const c = document.createElement('canvas'); c.width = e.w; c.height = e.h; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(e.tex.image, 0, 0);
+  const d = g.getImageData(0, 0, e.w, e.h), a = d.data;
+  for (let y = Math.floor(e.h * 0.55); y < e.h; y++) for (let x = 0; x < e.w; x++) { const i = (y * e.w + x) * 4; if (a[i + 3] > 40 && a[i] > 140 && a[i] - a[i + 1] > 70 && a[i] - a[i + 2] > 70) { a[i] = 58; a[i + 1] = 52; a[i + 2] = 48; } }
+  g.putImageData(d, 0, 0); BASKET_CLEAN = new THREE.CanvasTexture(c); BASKET_CLEAN.colorSpace = THREE.SRGBColorSpace; return BASKET_CLEAN;
+}
+const ITEM_H = { card: 0.78, scratcher: 0.78, wire: 0.62, vinyl: 0.76, tape: 0.55, basket: 0.9, basketboost: 0.9 };
 function placePickup(kind, x, z) { // nudge out of any wall so nothing spawns inside cover
   for (let i = 0; i < 14 && insideAnyWall(x, z, 0.8); i++) { if (Math.abs(x) < 10) x -= Math.sign(x || 1) * 0.4; else z += 1.2; }
   addPickup(kind, x, z);
@@ -773,7 +833,7 @@ CARD_XS.forEach((x, i) => placePickup('card', x, -14 - i * 22)); // along the ma
 [[-6.9, -60], [6.9, -125], [-6.9, -190], [6.9, -250]].forEach(([x, z]) => placePickup('wire', x, z));
 [[20, -117], [-20, -230]].forEach(([x, z]) => placePickup('vinyl', x, z)); // rare, tucked away in alleys
 [[1.2, -45], [-1.0, -160], [1.4, -215]].forEach(([x, z]) => placePickup('tape', x, z));
-[[0, -20], [0.4, -76], [-0.6, -168], [0.2, -245]].forEach(([x, z]) => placePickup('basket', x, z));
+[[0, -20, 'basketboost'], [0.4, -76, 'basket'], [-0.6, -168, 'basket'], [0.2, -245, 'basketboost']].forEach(([x, z, kind]) => placePickup(kind, x, z)); // two bugged, two gifts
 
 function showToast(msg, color) { const t = $('toast'); t.textContent = msg; t.style.color = color || '#ffe08a'; t.style.opacity = 1; toastTimer = 1.5; }
 function updateLootHud() {
@@ -782,6 +842,7 @@ function updateLootHud() {
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (hidden) lines.push('HIDDEN');
   if (cloak > 0) lines.push('ANALOG CLOAK ' + Math.ceil(cloak) + 's');
+  if (speedBoost > 0) lines.push('SPEED +20%  ' + Math.ceil(speedBoost) + 's');
   if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
   $('hud-status').innerHTML = lines.join('<br>');
 }
@@ -791,6 +852,7 @@ function pickSfx(kind) {
   else if (kind === 'scratcher') { for (let i = 0; i < 4; i++) tone('square', 520 + i * 140, t + i * 0.05, 0.06, 0.05, 3000); }
   else if (kind === 'wire') { tone('sawtooth', 140, t, 0.16, 0.09, 900); tone('sawtooth', 210, t + 0.05, 0.14, 0.07, 900); }
   else if (kind === 'vinyl') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, t + i * 0.06, 0.25, 0.08, 4000)); }
+  else if (kind === 'basketboost') { [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, t + i * 0.05, 0.2, 0.07, 3500)); }
   else if (kind === 'tape') { tone('sawtooth', 330, t, 0.25, 0.06, 1200); tone('sawtooth', 165, t + 0.12, 0.3, 0.06, 900); }
   else { tone('sawtooth', 90, t, 0.35, 0.12, 400); tone('square', 60, t + 0.1, 0.3, 0.1, 300); }
 }
@@ -807,7 +869,9 @@ function collect(p) {
   } else if (p.kind === 'vinyl') {
     loot.vinyl++; loot.points += VINYL_VALUE; showToast('+' + VINYL_VALUE + '  VINYL');
   } else if (p.kind === 'tape') {
-    loot.tape++; loot.points += TAPE_VALUE; cloak = Math.min(12, cloak + CLOAK_SECONDS); showToast('+' + TAPE_VALUE + '  TAPE  •  ANALOG CLOAK', '#e9d8b4');
+    loot.tape++; loot.points += TAPE_VALUE; cloak = Math.min(60, cloak + CLOAK_SECONDS); showToast('+' + TAPE_VALUE + '  TAPE  •  ANALOG CLOAK 30s', '#7ff6ff');
+  } else if (p.kind === 'basketboost') {
+    speedBoost = 60; showToast('A GIFT!  SPEED +20% FOR 60s', '#9fe8a0');
   } else {
     bumpHeat(1); showToast('IT WAS BUGGED!', '#ff6b5e');
   }
@@ -824,11 +888,13 @@ function updatePickups(dt) {
     if (k.kind === 'wire') { k.glow.material.opacity = 0.6 + Math.sin(k.phase * 1.7) * 0.2; k.glow.scale.setScalar(3.2 + Math.sin(k.phase * 1.7) * 0.5); }
     if (k.sprite) { k.sprite.rotation.y = Math.atan2(camera.position.x - k.holder.position.x, camera.position.z - k.holder.position.z); k.sprite.rotation.z = Math.sin(k.phase * 0.5) * 0.12; }
     if (k.kind === 'vinyl') k.model.rotation.x = 0.35;
+    if (k.led) k.led.material.opacity = Math.sin(tAccum * 6.5) > 0.35 ? 0.95 : 0;
     if (k.kind === 'basket' && !k.sprite) k.model.userData.bug.visible = Math.sin(tAccum * 5) > 0.6;
     if (Math.hypot(p.x - k.holder.position.x, p.z - k.holder.position.z) < 1.2) collect(k);
   }
   let changed = false;
-  if (cloak > 0) { cloak = Math.max(0, cloak - dt); changed = true; }
+  if (cloak > 0) { const c0 = Math.ceil(cloak); cloak = Math.max(0, cloak - dt); if (Math.ceil(cloak) !== c0) changed = true; }
+  if (speedBoost > 0) { const c0 = Math.ceil(speedBoost); speedBoost = Math.max(0, speedBoost - dt); if (Math.ceil(speedBoost) !== c0) changed = true; if (speedBoost === 0) showToast('SPEED BOOST OVER', '#ffb347'); }
   if (changed) updateLootHud();
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').style.opacity = 0; }
 }
@@ -1039,8 +1105,8 @@ function makeCone(range, fov, color) { // a flat fan on the ground showing where
   m.frustumCulled = false; scene.add(m); return m;
 }
 const SPECS = {
-  suit: { key: 'suit', h: 1.85, range: 15, fov: 0.9, patrol: 2.4, alert: 3.3, chase: 5.2 },
-  thug: { key: 'thug', h: 2.15, range: 18, fov: 1.0, patrol: 0, alert: 6.0, chase: 6.4 },
+  suit: { key: 'suit', h: 1.85, range: 8.5, fov: 0.42, patrol: 2.4, alert: 3.3, chase: 5.2 },
+  thug: { key: 'thug', h: 2.15, range: 11, fov: 0.5, patrol: 0, alert: 6.0, chase: 6.4 },
 };
 function makeEnemy(kind, x, z, zone) {
   const spec = SPECS[kind], b = new Billboard(spec.key, spec.h, { blobX: 0.6, blobZ: 0.6 });
@@ -1074,14 +1140,14 @@ function goTo(e, tx, tz, speed, dt) { // straight when it can see the spot, othe
 function pickPatrolNode(e) { const c = NAV.filter((n) => Math.abs(n.x) < 12.5 && n.z <= e.zone[0] && n.z >= e.zone[1]); return c[Math.floor(Math.random() * c.length)] || NAV[0]; }
 function visionRange(e) { // how far this enemy can notice you right now
   if (invis > 0) return 0;
-  let r = e.spec.range * (heatLevel() >= 1 ? 1.2 : 1);
-  if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.35; if (lowCActive) r *= 1.5; if (cloak > 0) r = Math.min(r, 1.6);
+  let r = e.spec.range * (heatLevel() >= 1 ? 1.12 : 1);
+  if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.25; if (lowCActive) r *= 1.3; if (cloak > 0) r = Math.min(r, 1.6);
   return r;
 }
 function sightOf(e, range, fov) { // 0 = can't see you, up to 1 = right in front of its face
   const dx = player.position.x - e.x, dz = player.position.z - e.z, d = Math.hypot(dx, dz);
   if (d > range) return 0;
-  if (d > 2.4 && (Math.sin(e.facing) * dx + Math.cos(e.facing) * dz) / (d || 1) < Math.cos(fov)) return 0;
+  if (d > 2.0 && (Math.sin(e.facing) * dx + Math.cos(e.facing) * dz) / (d || 1) < Math.cos(fov)) return 0;
   if (!hasLineOfSight(e.x, e.z, player.position.x, player.position.z)) return 0;
   return 1 - d / range;
 }
@@ -1096,9 +1162,12 @@ function onNotice(e) {
 // ---- the van ----
 const van = { x: 1.6, z: -30, dir: -1, speed: 7, stop: 1, facing: Math.PI, vb: null, cone: null, unload: 0, seeing: 0, aware: 0 };
 {
-  van.vb = new Billboard('van', 2.3, { sideFacesRight: false, blobX: 1.1, blobZ: 2.4, facing: van.facing }); van.cone = makeCone(26, 0.42, 0xfff2a8);
+  van.vb = new Billboard('van', 2.3, { sideFacesRight: false, blobX: 1.1, blobZ: 2.4, facing: van.facing }); van.cone = makeCone(16, 0.28, 0xfff2a8);
 }
 function updateVan(dt) {
+  const frozenV = lowCActive && !captured && Math.hypot(player.position.x - van.x, player.position.z - van.z) < 12; // the Low C stalls the van too
+  van.vb.tint = frozenV; van.vb.jitter = frozenV ? 0.08 : 0;
+  if (frozenV) { van.seeing = 0; van.cone.visible = false; return; }
   if (van.stop > 0) van.stop -= dt;
   else {
     van.z += van.dir * van.speed * dt; van.x = van.dir < 0 ? 1.6 : -1.6;
@@ -1106,7 +1175,7 @@ function updateVan(dt) {
   }
   van.facing = van.dir < 0 ? Math.PI : 0; van.vb.facing = van.facing; van.vb.group.position.set(van.x, 0, van.z);
   van.cone.position.set(van.x, 0, van.z); van.cone.rotation.y = van.facing;
-  const s = sightOf({ x: van.x, z: van.z, facing: van.facing }, visionRange({ spec: { range: 26 } }), 0.42);
+  const s = sightOf({ x: van.x, z: van.z, facing: van.facing }, visionRange({ spec: { range: 16 } }), 0.28);
   van.seeing = s; van.cone.material.color.setHex(s > 0 ? 0xff5a3a : 0xfff2a8); van.cone.material.opacity = s > 0 ? 0.26 : 0.14;
   van.cone.visible = van.vb.group.position.distanceTo(player.position) < 90;
 }
@@ -1118,6 +1187,9 @@ makeEnemy('suit', 0, -240, [-180, -290]);
 
 function updateEnemy(e, dt) {
   const p = player.position, wire = loot.wire, lvl = heatLevel();
+  const frozen = lowCActive && !captured && Math.hypot(p.x - e.x, p.z - e.z) < 8.5; // while the Low C is on, anything near you stops in its tracks
+  e.b.tint = frozen; e.b.jitter = frozen ? 0.08 : 0;
+  if (frozen) { e.seeing = 0; e.aware = Math.max(0, e.aware - dt * 0.6); e.b.group.position.set(e.x, 0, e.z); e.b.facing = e.facing; e.mark.visible = false; e.cone.visible = false; return; }
   const range = visionRange(e), s = sightOf(e, range, e.spec.fov); e.seeing = s;
   if (e.kind === 'suit') {
     if (s > 0) { e.aware = Math.min(1.2, e.aware + dt * (0.9 + 2.2 * s)); if (e.lost > 0) e.lost = 0; if (e.state === 'CHASE') { e.lx = p.x; e.lz = p.z; } }
@@ -1186,12 +1258,14 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; lowCBoost = 0; cloak = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   const spots = [[0, -50], [0, -150], [0, -240]]; enemies.filter((e) => e.kind === 'suit').forEach((e, i) => { e.x = spots[i][0]; e.z = spots[i][1]; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; });
   van.z = -30; van.dir = -1; van.stop = 1;
   player.position.set(0, 0, 6); vel.set(0, 0, 0); updateLootHud();
 }
+const cloakGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
+cloakGlow.scale.set(3.2, 3.8, 1); cloakGlow.position.y = 1.0; cloakGlow.visible = false; playerBill.group.add(cloakGlow);
 $('null-btn').addEventListener('click', restartRun);
 updateLootHud(); // show CREW 0/3 from the start
 
@@ -1199,6 +1273,7 @@ function updateHunt(dt) {
   if (!started) return;
   if (invis > 0) { invis = Math.max(0, invis - dt); $('invis').style.display = 'block'; $('invis').textContent = 'INVISIBLE  ' + Math.ceil(invis); if (invis === 0) { $('invis').style.display = 'none'; showToast('YOU CAN BE SEEN AGAIN', '#ffb347'); } }
   updateCrew();
+  { const cg = cloak > 0 || invis > 0; cloakGlow.visible = cg; if (cg) cloakGlow.material.opacity = 0.34 + 0.12 * Math.sin(tAccum * 4); }
   aura = Math.max(0, aura - dt * 3);
   updateVan(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
@@ -1235,7 +1310,7 @@ function update(dt) {
     if (keys.KeyQ) { yaw += dt * 1.8; lookIdle = 0; } if (keys.KeyZ) { yaw -= dt * 1.8; lookIdle = 0; }
   } else { ix = iy = 0; }
   const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
-  const run = (keys.ShiftLeft || keys.ShiftRight) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
+  const run = (keys.ShiftLeft || keys.ShiftRight) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1) * (speedBoost > 0 ? 1.2 : 1);
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
   vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
@@ -1281,7 +1356,7 @@ function update(dt) {
   let nearCover = false;
   if (stillFor > 1) for (const w of walls) { if (!w.cover) continue; const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)); if (Math.hypot(p.x - cx, p.z - cz) < 1.5) { nearCover = true; break; } }
   if (nearCover !== hidden) { hidden = nearCover; updateLootHud(); }
-  for (const m of Object.values(playerBill.mats)) m.opacity = invis > 0 ? 0.38 : hidden ? 0.6 : 1;
+  for (const m of Object.values(playerBill.mats)) { m.opacity = invis > 0 ? 0.36 : cloak > 0 ? 0.5 : hidden ? 0.6 : 1; m.color.setHex(invis > 0 || cloak > 0 ? 0xbff8ff : 0xffffff); }
   { // compass arrow toward the Tear, relative to where the camera is looking
     const vx = PORTAL.x - p.x, vz = PORTAL.z - p.z, fwd = vx * -Math.sin(yaw) + vz * -Math.cos(yaw), rgt = vx * Math.cos(yaw) + vz * -Math.sin(yaw);
     $('compass-arrow').style.transform = 'rotate(' + (Math.atan2(rgt, fwd) * 180 / Math.PI).toFixed(1) + 'deg)';
