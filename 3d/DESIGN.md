@@ -38,6 +38,17 @@ Tuning numbers live at the top of the collectibles block in `3d/index.html`.
 - **Camera:** it orbits behind the player, **zooms in when you turn toward the walls**, never leaves the street corridor (it slides along the wall and never sits inside the character), eases back behind you about 1.3 seconds after you let go of the look control, and the mouse tilts it up and down. Tested across 135 angle/position combinations: it never passed x = 7.5.
 - **Low C** is the trigger: a 30-second meter (each copper wire adds 10), cyan ripples and a screen pulse while held, a 65 Hz tone (phones can't play 32.7 Hz), and it can overstrain ("waking hurts": locked out until the meter recovers to 30%, slower movement). It doesn't stall anything yet because the Agency doesn't chase you yet; the hook is `lowCActive` in `3d/index.html`.
 
+## Long street: built (2026-10-22), step 1 of the hunt plan
+- **Layout:** one ~310 m main street (Gaslamp start) with **4 cross streets** (z = -88, -145, -202, -259) that open into **two parallel alleys** (x = +-20), so you can loop around a block. All of it is a collision map of boxes (`walls` in `3d/index.html`); the player slides along buildings and cover, the camera is pulled in by a ray against the map (it stops in front of buildings and cover), and inside a cross street the camera swings to follow your heading.
+- **Cover (placeholder boxes until the Gemini art arrives):** parked cars along the curbs, dumpsters, hedges, crates, concrete barriers, vendor carts with canopies. Stand still beside cover ~1 s and you're **HIDDEN** (shown in the HUD, the sprite fades). `hasLineOfSight()` already exists for the enemies to use.
+- **Compass arrow** points to the Tear with the distance. HUD area label switches to **BARRIO LOGAN** past z = -185.
+- **Pickups** re-spread for the long street: 14 cards (11 street + 3 in alleys), 8 scratchers, 4 glowing copper wire, 2 vinyl (rare, in alleys), 3 tapes, 4 fruit-basket traps. (Card set bonus is still at 8 cards.)
+- **Performance:** the whole scene is ~58 draw calls and ~7.5k triangles (all boxes are one instanced mesh; lamps and palms are instanced).
+- **Tested:** 37,800 random-walk samples across the map: 0 escapes from the walkable area; it reached the alleys and cross streets; never stuck on the way down the street.
+
+## Barrio Logan (decided 2026-10-22)
+The **far end of the street is Barrio Logan** and **the record store is there** (the user will provide a reference picture; it becomes a storefront like the bodega, plus the vinyl spots, the mural wall / bridge pillars and the Tear nearby). The Gaslamp end stays the start. Real-life note: Barrio Logan sits under the Coronado Bridge, which is already the bridge span in the skyline.
+
 ## Hunt rules v2 (decided with the user 2026-10-22; tuning numbers are first guesses to playtest; NOT built yet)
 **Low C is your weapon and your health.** Capacity **32.7** units ("seconds" at the lore's slow rate). Blasting burns it ~3x faster, so a full bar is about 11 seconds of blast. It does not come back by itself (only a trickle); the Kid refills it.
 - **Zero charge:** if an enemy touches you at 0 -> caught (STATUS: NULL). At 0 with no enemy touching you, you are only weak and slow ("waking hurts"). A Suit's aura alone never ends the run.

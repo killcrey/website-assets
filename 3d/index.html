@@ -27,6 +27,9 @@
   #lowc.locked { color: #ff6ec7; } #lowc.locked #lowc-fill { background: #ff6ec7; box-shadow: 0 0 8px #ff6ec7; }
   #lowc-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,255,249,0) 40%, rgba(0,255,249,.38) 100%); transition: opacity .15s; }
   #lowc-btn { position: fixed; right: 18px; bottom: calc(96px + env(safe-area-inset-bottom)); width: 84px; height: 84px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: 1rem; z-index: 5; touch-action: none; }
+  #compass { position: fixed; right: 18px; top: calc(96px + env(safe-area-inset-top)); width: 70px; text-align: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #compass-arrow { font-size: 1.6rem; line-height: 1; color: #00fff9; transition: transform .08s linear; }
+  #compass-dist { font-size: .95rem; color: #fff; }
   #hud-debug { position: fixed; bottom: 6px; left: 8px; font-size: .9rem; color: #a0aec0; pointer-events: none; white-space: pre; display: none; }
   .btn { background: rgba(5,5,5,.6); border: 1px solid #00fff9; color: #00fff9; padding: 8px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 0 10px rgba(0,255,249,.2); text-decoration: none; display: inline-block; }
   .btn.pink { border-color: #ff6ec7; color: #ff6ec7; background: rgba(5,5,5,.6); box-shadow: 0 0 14px rgba(255,110,199,.35); }
@@ -52,6 +55,7 @@
 <body>
 <div id="stage"></div>
 <div id="topshade"></div>
+<div id="compass" class="vt"><div id="compass-arrow">▲</div><div id="compass-dist"></div></div>
 <div id="hud-loc" class="vt">SAN DIEGO // GASLAMP QUARTER</div>
 <div id="hud-obj" class="vt">FIND THE TEAR</div>
 <div id="hud-loot" class="vt">CARRYING 0  |  CARDS 0/8</div>
@@ -178,8 +182,9 @@ function glowTexture() {
 }
 const glowTex = glowTexture();
 
-// ---- world ----
-const STREET_END = -138, STREET_START = 12, HALF_WIDTH = 7.2;
+// ---- world: one long main street, cross streets and alleys, with a real collision map ----
+const STREET_START = 12, STREET_END = -300, HALF_WIDTH = 7.2, WORLD_X = 33;
+const GAPS = [-88, -145, -202, -259], GAP_W = 8; // cross streets: open lanes from the main street back to the alleys
 const TERRA = 0xc9744c, ADOBE = 0xd9a766, CREAM = 0xe9d8b4, SAGE = 0x8d9b6e, BRICK = 0xb85c3e, SAND = 0xd6b88a, DUSTY = 0x7f9bb0;
 const STUCCO = [TERRA, ADOBE, CREAM, SAGE, BRICK, SAND, CREAM, ADOBE, DUSTY];
 const INK = new THREE.LineBasicMaterial({ color: 0x3b2a1e });
@@ -190,32 +195,52 @@ const flat = (c) => new THREE.MeshBasicMaterial({ color: c });
 scene.add(new THREE.HemisphereLight(0xcfe4ff, 0xa88a60, 2.4));
 const sun = new THREE.DirectionalLight(0xfff0d2, 2.4); sun.position.set(-30, 50, 25); scene.add(sun);
 
-// ground, road, sidewalks
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 340), flat(0x9a8566));
-ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, -100); scene.add(ground);
-const road = new THREE.Mesh(new THREE.PlaneGeometry(10.8, 340), flat(0x5d5852));
-road.rotation.x = -Math.PI / 2; road.position.set(0, 0.03, -100); scene.add(road);
+// collision map: axis-aligned boxes. cover = true means low enough to hide behind (and it blocks enemy sight, but not the camera)
+const walls = [];
+function addWall(x0, x1, z0, z1, cover) { const w = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), cover: !!cover }; walls.push(w); return w; }
+// first time (0..1) the segment a->b enters any wall; 1 = clear. skipCover ignores low cover (used by the camera).
+function firstHit(ax, az, bx, bz, skipCover) {
+  const dx = bx - ax, dz = bz - az; let best = 1;
+  for (const w of walls) {
+    if (skipCover && w.cover) continue;
+    let t0 = 0, t1 = 1, ok = true;
+    if (Math.abs(dx) < 1e-9) { if (ax < w.x0 || ax > w.x1) ok = false; } else { let a = (w.x0 - ax) / dx, b = (w.x1 - ax) / dx; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; }
+    if (ok) { if (Math.abs(dz) < 1e-9) { if (az < w.z0 || az > w.z1) ok = false; } else { let a = (w.z0 - az) / dz, b = (w.z1 - az) / dz; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; } }
+    if (ok && t0 < best) best = t0;
+  }
+  return best;
+}
+const hasLineOfSight = (ax, az, bx, bz) => firstHit(ax, az, bx, bz, false) >= 0.999; // used by the enemies later
+const insideAnyWall = (x, z, pad) => walls.some((w) => x > w.x0 - pad && x < w.x1 + pad && z > w.z0 - pad && z < w.z1 + pad);
+
+// ground, road, sidewalks, cross streets, alleys
+const MID_Z = (STREET_START + STREET_END) / 2, LEN = STREET_START - STREET_END;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, LEN + 160), flat(0x9a8566)); ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, MID_Z - 40); scene.add(ground);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(10.8, LEN + 20), flat(0x5d5852)); road.rotation.x = -Math.PI / 2; road.position.set(0, 0.03, MID_Z); scene.add(road);
 for (const x of [-6.7, 6.7]) {
-  const walk = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 340), flat(0xcdbd9f));
-  walk.rotation.x = -Math.PI / 2; walk.position.set(x, 0.06, -100); scene.add(walk);
-  const curb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 340), flat(0xe3d8c0)); curb.position.set(x > 0 ? 5.4 : -5.4, 0.08, -100); scene.add(curb);
+  const walk = new THREE.Mesh(new THREE.PlaneGeometry(2.6, LEN + 20), flat(0xcdbd9f)); walk.rotation.x = -Math.PI / 2; walk.position.set(x, 0.06, MID_Z); scene.add(walk);
+  const curb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, LEN + 20), flat(0xe3d8c0)); curb.position.set(x > 0 ? 5.4 : -5.4, 0.08, MID_Z); scene.add(curb);
+}
+for (const sx of [-1, 1]) {
+  const alley = new THREE.Mesh(new THREE.PlaneGeometry(4, LEN + 20), flat(0x6a645c)); alley.rotation.x = -Math.PI / 2; alley.position.set(sx * 20, 0.03, MID_Z); scene.add(alley);
+  for (const gz of GAPS) { const cs = new THREE.Mesh(new THREE.PlaneGeometry(10, GAP_W), flat(0x5d5852)); cs.rotation.x = -Math.PI / 2; cs.position.set(sx * 13, 0.04, gz); scene.add(cs); }
 }
 // painted road line (dashed yellow, like the real thing)
+const DASHES = Math.floor(LEN / 5) + 2;
 const dashGeo = new THREE.PlaneGeometry(0.22, 2.4); dashGeo.rotateX(-Math.PI / 2);
-const dashes = new THREE.InstancedMesh(dashGeo, flat(0xe3b52e), 32);
-const dm = new THREE.Matrix4();
-for (let i = 0; i < 32; i++) { dm.setPosition(0, 0.05, STREET_START - i * 5); dashes.setMatrixAt(i, dm); }
+const dashes = new THREE.InstancedMesh(dashGeo, flat(0xe3b52e), DASHES); const dm = new THREE.Matrix4();
+for (let i = 0; i < DASHES; i++) { dm.setPosition(0, 0.05, STREET_START - i * 5); dashes.setMatrixAt(i, dm); }
 scene.add(dashes);
 
 // sun disc + soft clouds
 {
   const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff2c4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  sunSpr.scale.set(70, 70, 1); sunSpr.position.set(-70, 85, -250); scene.add(sunSpr);
+  sunSpr.scale.set(70, 70, 1); sunSpr.position.set(-70, 85, STREET_END - 110); scene.add(sunSpr);
   const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 14; i++) {
     const g = new THREE.Group(), n = 3 + Math.floor(rnd() * 3);
     for (let j = 0; j < n; j++) { const b = new THREE.Mesh(new THREE.SphereGeometry(5 + rnd() * 4, 8, 6), cloudMat); b.position.set(j * 7 - n * 3, rnd() * 2, rnd() * 3); b.scale.y = 0.55; g.add(b); }
-    g.position.set(-130 + i * 32 + rnd() * 10, 55 + rnd() * 30, -260 - rnd() * 40); scene.add(g);
+    g.position.set(-170 + i * 30 + rnd() * 10, 55 + rnd() * 30, STREET_END - 90 - rnd() * 60 + (i % 3) * 120); scene.add(g);
   }
 }
 
@@ -243,65 +268,114 @@ function addSign(word, x, y, z, side) {
   const m = new THREE.Mesh(geo, signMat); m.position.set(x, y, z); m.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
 }
 
-// stucco buildings both sides (inner face at |x| = 8): terracotta, adobe, cream, sage
-const windowGeo = new THREE.PlaneGeometry(1.0, 1.35);
-const windows = new THREE.InstancedMesh(windowGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), 3000);
+// every box in the world (buildings, parapets, awnings, cover) goes into ONE instanced mesh, with inked edges merged into one line mesh
+const boxes = [], edgeVerts = [];
+const UNIT = [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1], [-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], EDGE_PAIRS = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+function box(cx, cy, cz, sx, sy, sz, color, ink, rotZ) {
+  boxes.push({ cx, cy, cz, sx, sy, sz, color, rotZ: rotZ || 0 });
+  if (ink) for (const [a, b] of EDGE_PAIRS) for (const i of [a, b]) edgeVerts.push(cx + UNIT[i][0] * sx / 2, cy + UNIT[i][1] * sy / 2, cz + UNIT[i][2] * sz / 2);
+}
+// solid cover you can hide behind: a visible box (or a few) plus a collision/sight box
+function cover(cx, cz, sx, sz, sy, color, parts) {
+  box(cx, sy / 2, cz, sx, sy, sz, color, true);
+  (parts || []).forEach((p) => box(cx + p[0], p[1], cz + p[2], p[3], p[4], p[5], p[6], true));
+  return addWall(cx - sx / 2, cx + sx / 2, cz - sz / 2, cz + sz / 2, true);
+}
+
+// stucco buildings both sides (inner face at |x| = 8), broken by cross streets
+const windowGeo = new THREE.PlaneGeometry(1.0, 1.35), MAX_WIN = 9000;
+const windows = new THREE.InstancedMesh(windowGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), MAX_WIN);
 windows.instanceMatrix.setUsage(THREE.StaticDrawUsage);
 let wCount = 0; const wm = new THREE.Matrix4(), wq = new THREE.Quaternion(), wc = new THREE.Color();
 const WIN_COLS = [0x35546b, 0x35546b, 0x4a6a82, 0x4a6a82, 0x2c4358, 0xf0d9a0];
 const AWNINGS = [0xb85c3e, 0x2f5d8a, 0x3f6b45, 0xd9a766];
 const BODEGA = { set: false, z: -60, w: 10 };
-for (const side of [-1, 1]) {
-  let z = STREET_START;
-  while (z > STREET_END - 10) {
-    const w = 8 + rnd() * 4, depth = 10; let h = 6 + rnd() * 6 + Math.min(8, Math.abs(z) * 0.05);
-    const isBodega = side > 0 && !BODEGA.set && z < -52;
-    if (isBodega) { BODEGA.set = true; BODEGA.z = z - w / 2; BODEGA.w = w; h = Math.max(h, 9); }
-    const bld = new THREE.Mesh(new THREE.BoxGeometry(depth, h, w), lam(isBodega ? BRICK : STUCCO[Math.floor(rnd() * STUCCO.length)]));
-    bld.position.set(side * (8 + depth / 2), h / 2, z - w / 2); scene.add(bld);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(bld.geometry), INK); edges.position.copy(bld.position); scene.add(edges);
-    const parapet = new THREE.Mesh(new THREE.BoxGeometry(depth + 0.3, 0.7, w + 0.3), lam(0x8a6f4d)); parapet.position.set(bld.position.x, h + 0.2, bld.position.z); scene.add(parapet);
-    // storefront awning
-    if (rnd() > 0.35) {
-      const aw = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.18, Math.min(w - 1.5, 6)), lam(AWNINGS[Math.floor(rnd() * AWNINGS.length)]));
-      aw.position.set(side * 7.1, 3.0, z - w / 2); aw.rotation.z = side * 0.18; scene.add(aw);
-    }
+const SEGS = []; { let top = STREET_START; for (const g of GAPS) { SEGS.push([top, g + GAP_W / 2]); top = g - GAP_W / 2; } SEGS.push([top, STREET_END]); }
+for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
+  const len = top - bottom, n = Math.max(1, Math.round(len / 10)), bw = len / n;
+  addWall(side > 0 ? 8 : -18, side > 0 ? 18 : -8, bottom, top, false); // the whole block is solid
+  for (let k = 0; k < n; k++) {
+    const zc = top - bw * (k + 0.5); let h = 6 + rnd() * 6 + Math.min(8, Math.abs(zc) * 0.05);
+    const isBodega = side > 0 && !BODEGA.set && Math.abs(zc + 60) <= bw / 2 + 0.01;
+    if (isBodega) { BODEGA.set = true; BODEGA.z = zc; BODEGA.w = bw; h = Math.max(h, 9); }
+    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : STUCCO[Math.floor(rnd() * STUCCO.length)], true); // building
+    box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
+    if (rnd() > 0.35) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), AWNINGS[Math.floor(rnd() * AWNINGS.length)], false, side * 0.18); // storefront awning
     // glass windows on the street-facing side
     wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
-    const cols = Math.floor((w - 1.2) / 2.2), rows = Math.floor((h - 2) / 3);
+    const cols = Math.floor((bw - 1.2) / 2.2), rows = Math.floor((h - 2) / 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      if (rnd() > 0.7 || wCount >= 3000) continue;
-      wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, z - 1.4 - c * 2.2 - (w - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
+      if (rnd() > 0.7 || wCount >= MAX_WIN) continue;
+      wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, zc + bw / 2 - 1.4 - c * 2.2 - (bw - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
       windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(WIN_COLS[Math.floor(rnd() * WIN_COLS.length)])); wCount++;
     }
-    if (rnd() > 0.5 && z < STREET_START - 14 && !isBodega) addSign(Math.floor(rnd() * 8), side * 7.9, 3.8 + rnd() * 1.4, z - w / 2, side);
-    z -= w + 1.2;
+    if (rnd() > 0.55 && !isBodega && zc < STREET_START - 14) addSign(Math.floor(rnd() * 8), side * 7.9, 3.8 + rnd() * 1.4, zc, side);
   }
 }
 windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.instanceColor) windows.instanceColor.needsUpdate = true; scene.add(windows);
-
-// street lamps + palms
-const palmTrunkMat = lam(0x8a6a45);
-const frondMats = [lam(0x4f7d3a), lam(0x5f9244)];
-const frondGeo = new THREE.BoxGeometry(0.34, 0.06, 3.2); frondGeo.translate(0, 0, 1.6);
-const trunkGeo = new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7); trunkGeo.translate(0, 3.3, 0);
-const lampPostGeo = new THREE.BoxGeometry(0.16, 4.8, 0.16); lampPostGeo.translate(0, 2.4, 0);
-const lampMat = lam(0x1f3a2e), lanternMat = flat(0xffe2a0);
-for (let i = 0; i < 9; i++) {
-  const z = STREET_START - 8 - i * 15;
+// the back buildings behind the alleys are one continuous wall (no gaps where cross streets meet the alley)
+{
+  const b = [STREET_START + 8, ...GAPS, STREET_END - 8];
   for (const side of [-1, 1]) {
-    const x = side * 6.3;
-    const post = new THREE.Mesh(lampPostGeo, lampMat); post.position.set(x, 0, z); scene.add(post);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.42), lanternMat); head.position.set(x, 5.05, z); scene.add(head);
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 0.6), lampMat); cap.position.set(x, 5.4, z); scene.add(cap);
-    colliders.push({ x, z, r: 0.3 });
+    addWall(side > 0 ? 22 : -34, side > 0 ? 34 : -22, STREET_END - 8, STREET_START + 8, false);
+    for (let i = 0; i < b.length - 1; i++) box(side * 28, 7, (b[i] + b[i + 1]) / 2, 12, 14, b[i] - b[i + 1], STUCCO[Math.floor(rnd() * STUCCO.length)], true);
   }
-  const px = (i % 2 ? 1 : -1) * 5.0, pz = z - 7.5;
-  const trunk = new THREE.Mesh(trunkGeo, palmTrunkMat); trunk.position.set(px, 0, pz); scene.add(trunk);
-  for (let f = 0; f < 9; f++) {
-    const fr = new THREE.Mesh(frondGeo, frondMats[f % 2]); fr.position.set(px, 6.5, pz); fr.rotation.y = (f / 9) * Math.PI * 2; fr.rotation.x = 0.5; scene.add(fr);
+}
+// the street ends in walls
+addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X, WORLD_X, STREET_START, STREET_START + 8, false);
+
+// ---- placeholder cover (cars, dumpsters, carts, hedges, crates, barriers) until the Gemini art arrives ----
+const crnd = mulberry32(2024);
+const CAR_COLS = [0x3a8f8c, 0xb4452f, 0xd9a82e, 0x4a6a82];
+let nextCar = -20;
+for (let z = -22; z > STREET_END + 14; z -= 18 + crnd() * 10) {
+  const side = crnd() > 0.5 ? 1 : -1, x = side * 3.9, near = (zz) => Math.abs(z - zz) < 7;
+  if (GAPS.some((g) => Math.abs(z - g) < 7) || (side > 0 && near(BODEGA.z + 5))) continue; // keep cross streets and the bread truck's spot clear
+  const col = CAR_COLS[Math.floor(crnd() * CAR_COLS.length)];
+  cover(x, z, 1.9, 4.6, 1.2, col, [[0, 1.55, -0.2, 1.7, 0.7, 2.4, 0xcfe0e8]]);
+}
+for (const gz of GAPS) for (const sx of [-1, 1]) {
+  cover(sx * 21.0, gz + 8.5, 1.9, 2.0, 1.4, 0x2f5a3a, [[0, 1.5, 0, 2.0, 0.15, 2.2, 0x1f3a2e]]); // dumpster in the alley
+  cover(sx * 16.5, gz + 2.7, 3.2, 1.0, 1.4, 0x3f7a40); // hedge in the cross street
+  cover(sx * 19.2, gz - 11, 1.3, 1.3, 1.3, 0x9a7448); // crates
+  cover(sx * 20, gz - 18, 2.6, 0.7, 0.8, 0xbdb8ac); // concrete barrier across half the alley
+  cover(sx * 10.5, gz - 3.0, 1.9, 1.9, 1.3, 0x2f5a3a, [[0, 1.4, 0, 2.1, 0.15, 2.1, 0x1f3a2e]]); // dumpster at the cross-street mouth
+}
+for (const [x, z] of [[-3.2, -100], [3.2, -190], [-3.4, -240], [3.2, -52]]) cover(x, z, 2.2, 1.1, 1.0, 0xd9a766, [[0, 2.2, 0, 2.6, 0.15, 2.6, 0xb85c3e]]); // vendor carts with a canopy
+{
+  // flush all boxes into one instanced mesh
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), boxes.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
+  boxes.forEach((b, i) => { q.setFromEuler(e.set(0, 0, b.rotZ)); m4.compose(new THREE.Vector3(b.cx, b.cy, b.cz), q, new THREE.Vector3(b.sx, b.sy, b.sz)); mesh.setMatrixAt(i, m4); mesh.setColorAt(i, col.setHex(b.color)); });
+  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; scene.add(mesh);
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.Float32BufferAttribute(edgeVerts, 3)); scene.add(new THREE.LineSegments(eg, INK));
+}
+
+// street lamps + palms (instanced), placed on the main street's sidewalks
+const LAMPS = 20;
+const lampPosts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.16, 4.8, 0.16).translate(0, 2.4, 0), lam(0x1f3a2e), LAMPS * 2);
+const lampHeads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.55, 0.42), flat(0xffe2a0), LAMPS * 2);
+const lampCaps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.14, 0.6), lam(0x1f3a2e), LAMPS * 2);
+const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7).translate(0, 3.3, 0), lam(0x8a6a45), LAMPS);
+const fronds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).translate(0, 0, 1.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), LAMPS * 9);
+{
+  const d = new THREE.Object3D(); let li = 0, fi = 0; const c1 = new THREE.Color(0x4f7d3a), c2 = new THREE.Color(0x5f9244);
+  for (let i = 0; i < LAMPS; i++) {
+    const z = STREET_START - 8 - i * 15;
+    for (const side of [-1, 1]) {
+      const x = side * 5.9;
+      d.rotation.set(0, 0, 0); d.position.set(x, 0, z); d.updateMatrix(); lampPosts.setMatrixAt(li, d.matrix);
+      d.position.set(x, 5.05, z); d.updateMatrix(); lampHeads.setMatrixAt(li, d.matrix);
+      d.position.set(x, 5.4, z); d.updateMatrix(); lampCaps.setMatrixAt(li, d.matrix); li++;
+      colliders.push({ x, z, r: 0.3 });
+    }
+    const px = (i % 2 ? 1 : -1) * 6.9, pz = z - 7.5;
+    d.rotation.set(0, 0, 0); d.position.set(px, 0, pz); d.updateMatrix(); trunks.setMatrixAt(i, d.matrix);
+    for (let f = 0; f < 9; f++) { d.position.set(px, 6.5, pz); d.rotation.set(0.5, (f / 9) * Math.PI * 2, 0); d.updateMatrix(); fronds.setMatrixAt(fi, d.matrix); fronds.setColorAt(fi, f % 2 ? c2 : c1); fi++; }
+    colliders.push({ x: px, z: pz, r: 0.5 });
   }
-  colliders.push({ x: px, z: pz, r: 0.5 });
+  for (const m of [lampPosts, lampHeads, lampCaps, trunks, fronds]) { m.instanceMatrix.needsUpdate = true; scene.add(m); }
+  fronds.instanceColor.needsUpdate = true;
 }
 
 // GASLAMP QUARTER arch (green board, gold lettering)
@@ -316,28 +390,26 @@ for (let i = 0; i < 9; i++) {
   for (const x of [-7.2, 7.2]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.34, 10, 0.34), lam(0x1f3a2e)); p.position.set(x, 5, -30); scene.add(p); }
 }
 
-// distant hills, a pale skyline, the bay, and a bridge span (placeholder for Coronado)
+// distant hills, a pale skyline, the bay, and a bridge span (placeholder for Coronado), all past the end of the street
 {
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(500, 160), flat(0x4f9cc9)); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.1, -240); scene.add(sea);
+  const E = STREET_END;
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(600, 200), flat(0x4f9cc9)); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.1, E - 110); scene.add(sea);
   const hillMat = flat(0xa4b9cb);
-  for (let i = 0; i < 7; i++) {
-    const h = new THREE.Mesh(new THREE.ConeGeometry(34 + rnd() * 20, 22 + rnd() * 18, 5), hillMat); h.position.set(-150 + i * 50 + rnd() * 10, 8, -300 - rnd() * 20); scene.add(h);
-  }
+  for (let i = 0; i < 9; i++) { const h = new THREE.Mesh(new THREE.ConeGeometry(34 + rnd() * 20, 22 + rnd() * 18, 5), hillMat); h.position.set(-200 + i * 50 + rnd() * 10, 8, E - 170 - rnd() * 20); scene.add(h); }
   const skyMat = lam(0xc4cdd6);
-  for (let i = 0; i < 24; i++) {
-    const w = 5 + rnd() * 8, h = 16 + rnd() * 46, x = -86 + i * 7.4 + rnd() * 3;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), skyMat); b.position.set(x, h / 2, -176 - rnd() * 14); scene.add(b);
-    const e = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry), INK); e.position.copy(b.position); scene.add(e);
+  for (let i = 0; i < 26; i++) {
+    const w = 5 + rnd() * 8, h = 16 + rnd() * 46, x = -96 + i * 7.4 + rnd() * 3;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), skyMat); b.position.set(x, h / 2, E - 40 - rnd() * 14); scene.add(b);
   }
-  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-130, 6, -215), new THREE.Vector3(-40, 62, -225), new THREE.Vector3(70, 6, -215));
+  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-130, 6, E - 80), new THREE.Vector3(-40, 62, E - 90), new THREE.Vector3(70, 6, E - 80));
   scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.6, 5, false), lam(0xe9e2d2)));
 }
 
 // end-of-street planters
-for (let x = -7; x <= 7; x += 2.3) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), lam(TERRA)); b.position.set(x, 0.35, STREET_END); scene.add(b); }
+for (let x = -7; x <= 7; x += 2.3) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), lam(TERRA)); b.position.set(x, 0.35, STREET_END + 0.5); scene.add(b); }
 
 // the Tear (placeholder exit): a silent, geometric rip in the sky — the one surreal thing on Earth
-const PORTAL = { x: 0, z: -118 };
+const PORTAL = { x: 0, z: -284 };
 const portal = new THREE.Group(); portal.position.set(PORTAL.x, 5.2, PORTAL.z); scene.add(portal);
 const tearPts = [[0, 5.4], [0.9, 3.0], [0.45, 2.0], [1.35, 0.4], [0.7, -0.7], [1.15, -2.4], [0, -5.2], [-0.85, -2.6], [-0.4, -1.3], [-1.25, 0.2], [-0.6, 1.5], [-1.0, 3.0]];
 const tearShape = new THREE.Shape(tearPts.map((p) => new THREE.Vector2(p[0], p[1])));
@@ -349,6 +421,7 @@ const tearGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(),
 portal.scale.setScalar(1.3);
 const disc = tearGlow, ring = tearEdge, ring2 = tearEdge2; // names used by the update loop
 const beam = { visible: false };
+
 
 // ---- player (placeholder pancho: capsule + glowing eye) ----
 const player = new THREE.Group(); scene.add(player);
@@ -436,17 +509,17 @@ addNpc('pancho', 'PANCHO', 1.75, 6.5, BZ + 1.6, { sideFacesRight: false, name: '
 addNpc('father', 'PANCHO’S FATHER', 1.7, 6.1, BZ - 1.4, { lines: ['Frankie... the sky is a cage.', 'I’ve carried heavier.'] });
 addNpc('kid', 'THE KID', 1.3, 6.0, -24, { lines: ['You don’t even watch sports.'] });
 addNpc('luz', 'LUZ', 1.68, -6.1, -76, { lines: ['We never needed proof. We needed medicine.', 'I was the first to identify the hum.'] });
-addNpc('suit', 'AGENCY', 1.85, -6.2, -43, { lines: ['We were just in the neighborhood. Wanted to check on our guys.', 'How’s the leg?', 'Don’t try to figure out what went wrong up there on your own.'] });
-addNpc('suit', 'AGENCY', 1.85, -5.3, -45.5, { lines: ['Take care.'] });
-addNpc('thug', '', 2.15, -5.4, -93, { lines: [], lookRange: 12 });
-addNpc('thug', '', 2.15, -2.2, -92, { lines: [], lookRange: 12 });
+addNpc('suit', 'AGENCY', 1.85, -6.2, -125, { lines: ['We were just in the neighborhood. Wanted to check on our guys.', 'How’s the leg?', 'Don’t try to figure out what went wrong up there on your own.'] });
+addNpc('suit', 'AGENCY', 1.85, -5.3, -127.5, { lines: ['Take care.'] });
+addNpc('thug', '', 2.15, -5.4, -170, { lines: [], lookRange: 12 });
+addNpc('thug', '', 2.15, -2.2, -168, { lines: [], lookRange: 12 });
 addVehicle('truck', 2.9, 3.4, BZ + 5, -Math.PI / 2, [[1.2, BZ + 5, 0.9], [2.6, BZ + 5, 0.9], [4.0, BZ + 5, 0.9], [5.2, BZ + 5, 0.9]]);
-addVehicle('van', 2.3, -3.4, -98, 0, [[-3.4, -98.5, 1.0], [-3.4, -97.3, 1.0]]);
+addVehicle('van', 2.3, -3.4, -175, 0, [[-3.4, -175.5, 1.0], [-3.4, -174.3, 1.0]]);
 
 // the crew waits by the Tear (their sheets live in 3d/art/_originals; add new characters the same way)
-addNpc('christopher', 'CHRISTOPHER', 1.82, -4.4, -124, { sideFacesRight: true, lines: ['Just the dark. And then... gravity.', 'It showed me the garden.'] });
-addNpc('juancarlos', 'JUAN CARLOS', 1.72, 4.6, -125, { lines: ['Don’t tell them ANYTHING!', 'It’s real.'] });
-addNpc('eduardo', 'EDUARDO', 1.76, 0.0, -131, { lines: ['We are not batteries. We are human.', 'You had to go up clean.'] });
+addNpc('christopher', 'CHRISTOPHER', 1.82, -4.4, -291, { sideFacesRight: true, lines: ['Just the dark. And then... gravity.', 'It showed me the garden.'] });
+addNpc('juancarlos', 'JUAN CARLOS', 1.72, 4.6, -292, { lines: ['Don’t tell them ANYTHING!', 'It’s real.'] });
+addNpc('eduardo', 'EDUARDO', 1.76, 0.0, -297, { lines: ['We are not batteries. We are human.', 'You had to go up clean.'] });
 
 // the bodega: Pancho's corner store, on the building tagged during street generation
 let bodegaNeon = null;
@@ -489,7 +562,7 @@ function updateSpeech(dt) {
 // ---- collectibles (carried loot; the plan is you lose it if you're caught) ----
 const loot = { points: 0, cards: 0, scratchers: 0, wire: 0, vinyl: 0, tape: 0 };
 const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 8;
-let heat = 0, heatTimer = 0, cloak = 0, toastTimer = 0, lowCBoost = 0;
+let curArea = 'GASLAMP QUARTER', hidden = false, stillFor = 0, heat = 0, heatTimer = 0, cloak = 0, toastTimer = 0, lowCBoost = 0;
 const HEAT_NAMES = ['CLEAR', 'WATCH', 'CULTIVATE', 'CONTAIN'];
 const pickups = [];
 const prng = mulberry32(77);
@@ -538,15 +611,15 @@ function mkBasket() {
   const bug = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), flat(0xff2b2b)); bug.position.set(0.1, -0.36, 0.3); g.add(bug); g.userData.bug = bug;
   return g;
 }
-const GLOWCOL = { card: 0xffd966, scratcher: 0x9ff0b0, wire: 0xffa860, vinyl: 0xfff3c4, tape: 0xffe9b8, basket: 0xffe9b8 };
+const GLOWCOL = { card: 0xffd966, scratcher: 0x9ff0b0, wire: 0xff8a30, vinyl: 0xfff3c4, tape: 0xffe9b8, basket: 0xffe9b8 };
 const MAKERS = { card: mkCard, scratcher: mkScratcher, wire: mkWire, vinyl: mkVinyl, tape: mkTape, basket: mkBasket };
 function addPickup(kind, x, z) {
   const model = MAKERS[kind](), holder = new THREE.Group();
   holder.add(model); holder.position.set(x, 1.0, z); holder.scale.setScalar(1.35);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: GLOWCOL[kind], blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.32 }));
-  glow.scale.set(1.35, 1.35, 1); holder.add(glow);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: GLOWCOL[kind], blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: kind === 'wire' ? 0.7 : 0.32 }));
+  glow.scale.set(kind === 'wire' ? 3.4 : 1.35, kind === 'wire' ? 3.4 : 1.35, 1); holder.add(glow);
   scene.add(holder);
-  const pk = { kind, holder, model, sprite: null, phase: prng() * 6.28, taken: false }; pickups.push(pk);
+  const pk = { kind, holder, model, glow, sprite: null, phase: prng() * 6.28, taken: false }; pickups.push(pk);
   onSprite('item_' + kind, (e) => {
     if (e.failed) return;
     const k = ITEM_H[kind] / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(e.w * k, e.h * k), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
@@ -554,18 +627,25 @@ function addPickup(kind, x, z) {
   });
 }
 const ITEM_H = { card: 0.78, scratcher: 0.78, wire: 0.62, vinyl: 0.76, tape: 0.55, basket: 0.9 };
-[[-4, -14], [2.5, -26.5], [-2.5, -39], [4, -51.5], [-4.5, -64], [1.5, -76.5], [-1.5, -89], [3.5, -101.5]].forEach(([x, z]) => addPickup('card', x, z));
-[[-1, -9], [3.2, -30], [-3.4, -45], [2.4, -60], [-2, -82], [3.6, -97]].forEach(([x, z]) => addPickup('scratcher', x, z));
-[[-6.9, -38], [6.9, -72], [0.5, -108]].forEach(([x, z]) => addPickup('wire', x, z));
-[[-6.9, -55], [6.9, -88], [-6.9, -112]].forEach(([x, z]) => addPickup('vinyl', x, z));
-[[1.2, -40], [-1.0, -93]].forEach(([x, z]) => addPickup('tape', x, z));
-[[0, -20], [0.4, -76]].forEach(([x, z]) => addPickup('basket', x, z));
+function placePickup(kind, x, z) { // nudge out of any wall so nothing spawns inside cover
+  for (let i = 0; i < 14 && insideAnyWall(x, z, 0.8); i++) { if (Math.abs(x) < 10) x -= Math.sign(x || 1) * 0.4; else z += 1.2; }
+  addPickup(kind, x, z);
+}
+const CARD_XS = [-4, 2.4, -2.2, 4, -4.4, 1.2, -1.4, 3.4, -3, 3.8, -0.6];
+CARD_XS.forEach((x, i) => placePickup('card', x, -14 - i * 22)); // along the main street
+[[-19.5, -117], [19.5, -174], [-19.5, -231]].forEach(([x, z]) => placePickup('card', x, z)); // in the alleys
+[-1, 3.2, -3.4, 2.4, -2, 3.6, -0.4, -3.6].forEach((x, i) => placePickup('scratcher', x, -9 - i * 36));
+[[-6.9, -60], [6.9, -125], [-6.9, -190], [6.9, -250]].forEach(([x, z]) => placePickup('wire', x, z));
+[[20, -117], [-20, -230]].forEach(([x, z]) => placePickup('vinyl', x, z)); // rare, tucked away in alleys
+[[1.2, -45], [-1.0, -160], [1.4, -215]].forEach(([x, z]) => placePickup('tape', x, z));
+[[0, -20], [0.4, -76], [-0.6, -168], [0.2, -245]].forEach(([x, z]) => placePickup('basket', x, z));
 
 function showToast(msg, color) { const t = $('toast'); t.textContent = msg; t.style.color = color || '#ffe08a'; t.style.opacity = 1; toastTimer = 1.5; }
 function updateLootHud() {
-  $('hud-loot').textContent = 'CARRYING ' + loot.points.toLocaleString() + '  |  CARDS ' + loot.cards + '/' + CARD_SET;
+  $('hud-loot').textContent = 'CARRYING ' + loot.points.toLocaleString() + '  |  CARDS ' + loot.cards + (loot.cards < CARD_SET ? '/' + CARD_SET : '');
   const lines = [];
   if (heat > 0) lines.push('HEAT: ' + HEAT_NAMES[heat]);
+  if (hidden) lines.push('HIDDEN');
   if (cloak > 0) lines.push('ANALOG CLOAK ' + Math.ceil(cloak) + 's');
   if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
   $('hud-status').textContent = lines.join('\n');
@@ -603,6 +683,7 @@ function updatePickups(dt) {
   for (const k of pickups) {
     if (k.taken) continue;
     k.phase += dt * 2.4; k.holder.position.y = 1.0 + Math.sin(k.phase) * 0.12; k.model.rotation.y += dt * 1.6;
+    if (k.kind === 'wire') { k.glow.material.opacity = 0.6 + Math.sin(k.phase * 1.7) * 0.2; k.glow.scale.setScalar(3.2 + Math.sin(k.phase * 1.7) * 0.5); }
     if (k.sprite) { k.sprite.rotation.y = Math.atan2(camera.position.x - k.holder.position.x, camera.position.z - k.holder.position.z); k.sprite.rotation.z = Math.sin(k.phase * 0.5) * 0.12; }
     if (k.kind === 'vinyl') k.model.rotation.x = 0.35;
     if (k.kind === 'basket' && !k.sprite) k.model.userData.bug.visible = Math.sin(tAccum * 5) > 0.6;
@@ -767,7 +848,14 @@ function update(dt) {
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
   vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
   const p = player.position; p.x += vel.x * dt; p.z += vel.z * dt;
-  p.x = Math.max(-HALF_WIDTH, Math.min(HALF_WIDTH, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
+  p.x = Math.max(-WORLD_X, Math.min(WORLD_X, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
+  const R = 0.45;
+  for (const w of walls) { // slide along buildings and cover
+    const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)), dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= R * R) continue;
+    if (d2 > 1e-8) { const d = Math.sqrt(d2); p.x = cx + (dx / d) * R; p.z = cz + (dz / d) * R; }
+    else { const pl = p.x - w.x0, pr = w.x1 - p.x, pt = p.z - w.z0, pb = w.z1 - p.z, mn = Math.min(pl, pr, pt, pb); if (mn === pl) p.x = w.x0 - R; else if (mn === pr) p.x = w.x1 + R; else if (mn === pt) p.z = w.z0 - R; else p.z = w.z1 + R; }
+  }
   for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + 0.45; if (d < min && d > 0.0001) { p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; } }
   updatePickups(dt); updateLowC(dt);
   const spd = Math.hypot(vel.x, vel.z);
@@ -777,25 +865,42 @@ function update(dt) {
   body.rotation.x = outline.rotation.x = Math.min(0.25, spd / SPEED * 0.25);
   if (spd > 2) { stepTimer -= dt; if (stepTimer <= 0) { blip(spd > 5 ? 220 : 196); stepTimer = 0.32; } }
 
-  // camera: orbit behind the player, zoom in when turned toward the walls, never leave the street corridor
+  // camera: orbit behind the player, zoom in when turned, and pull in whenever a building would get between it and the character
   lookIdle += dt;
   yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-  if (!locked && look.id === null && lookIdle > 1.3) { const r = 1 - Math.exp(-2.0 * dt); yaw -= yaw * r; pitch += (PITCH0 - pitch) * r; } // ease back behind you when you let go
+  // when you let go of the look control the camera eases back: down the street on the main street, or along your heading inside a cross street
+  let tgtYaw = 0, recenter = true;
+  if (Math.abs(p.x) > 7.6 && Math.abs(p.x) < 18.4 && GAPS.some((g) => Math.abs(p.z - g) < GAP_W / 2 + 0.3)) {
+    if (Math.hypot(vel.x, vel.z) > 1) tgtYaw = Math.abs(vel.x) > Math.abs(vel.z) ? (vel.x > 0 ? -Math.PI / 2 : Math.PI / 2) : 0; else recenter = false;
+  }
+  if (!locked && look.id === null && lookIdle > 1.3 && recenter) { const r = 1 - Math.exp(-2.4 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
   const baseD = camera.aspect < 1 ? 7.4 : 6.2, turned = Math.min(1, Math.abs(Math.sin(yaw)) * 1.4);
-  let wantD = baseD - (baseD - 3.6) * turned;
-  const cp = Math.cos(pitch), sideK = Math.sin(yaw) * cp;
-  if (Math.abs(sideK) > 0.001) wantD = Math.min(wantD, Math.max(3.2, (HALF_WIDTH + 0.1 - Math.sign(sideK) * p.x) / Math.abs(sideK)));
+  const wantD = baseD - (baseD - 3.6) * turned, cp = Math.cos(pitch);
   camDist += (wantD - camDist) * (1 - Math.exp(-(wantD < camDist ? 16 : 3.5) * dt));
-  camTarget.set(p.x + Math.sin(yaw) * cp * camDist, 1.7 + Math.sin(pitch) * camDist, p.z + Math.cos(yaw) * cp * camDist);
-  camTarget.x = Math.max(-(HALF_WIDTH + 0.3), Math.min(HALF_WIDTH + 0.3, camTarget.x)); // slide along the wall instead of going through it
-  { const hx = camTarget.x - p.x, hz = camTarget.z - p.z; if (Math.hypot(hx, hz) < 2.4) camTarget.z = p.z + Math.sqrt(Math.max(0, 2.4 * 2.4 - hx * hx)) * (Math.cos(yaw) >= 0 ? 1 : -1); } // and never sit inside the character
+  let ox = Math.sin(yaw) * cp * camDist, oz = Math.cos(yaw) * cp * camDist;
+  const hitT = firstHit(p.x, p.z, p.x + ox, p.z + oz, false); // cover counts too, so a dumpster can't block your view
+  if (hitT < 1) { const full = Math.hypot(ox, oz) || 1, use = Math.max(0.9, hitT * full - 0.5); ox *= use / full; oz *= use / full; }
+  camTarget.set(p.x + ox, 1.7 + Math.sin(pitch) * camDist, p.z + oz);
   camera.position.lerp(camTarget, 1 - Math.exp(-12 * dt));
   if (lowCActive) { camera.position.x += (Math.random() - 0.5) * 0.06; camera.position.y += (Math.random() - 0.5) * 0.06; }
   lookTarget.set(p.x, 1.6, p.z); camera.lookAt(lookTarget);
+  // hiding: stand still next to cover for a second
+  stillFor = Math.hypot(vel.x, vel.z) < 0.7 ? stillFor + dt : 0;
+  let nearCover = false;
+  if (stillFor > 1) for (const w of walls) { if (!w.cover) continue; const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)); if (Math.hypot(p.x - cx, p.z - cz) < 1.5) { nearCover = true; break; } }
+  if (nearCover !== hidden) { hidden = nearCover; updateLootHud(); }
+  for (const m of Object.values(playerBill.mats)) m.opacity = hidden ? 0.6 : 1;
+  { // compass arrow toward the Tear, relative to where the camera is looking
+    const vx = PORTAL.x - p.x, vz = PORTAL.z - p.z, fwd = vx * -Math.sin(yaw) + vz * -Math.cos(yaw), rgt = vx * Math.cos(yaw) + vz * -Math.sin(yaw);
+    $('compass-arrow').style.transform = 'rotate(' + (Math.atan2(rgt, fwd) * 180 / Math.PI).toFixed(1) + 'deg)';
+  }
   updateBillboards(dt); updateSpeech(dt);
 
   ring2.scale.setScalar(0.72 + Math.sin(tAccum * 2.4) * 0.05); disc.material.opacity = 0.7 + Math.sin(tAccum * 3) * 0.2; portal.scale.setScalar(1.3 * (1 + Math.sin(tAccum * 2.2) * 0.025));
   const dist = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.z);
+  $('compass-dist').textContent = Math.round(dist) + 'm';
+  const area = p.z < -185 ? 'BARRIO LOGAN' : 'GASLAMP QUARTER'; // far end of the street is Barrio Logan
+  if (area !== curArea) { curArea = area; $('hud-loc').textContent = 'SAN DIEGO // ' + area; showToast(area, '#ffffff'); }
   $('hud-obj').textContent = dist < 5 ? 'THE TEAR IS OPEN' : 'FIND THE TEAR  ▸  ' + Math.round(dist) + 'm';
   $('enter-btn').style.display = (started && dist < 5) ? 'block' : 'none';
 }
