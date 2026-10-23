@@ -72,15 +72,16 @@ a concrete jersey barrier with faded stripes, a rolled-up chain-link fence secti
 a row of three stacked tires.
 ```
 
-### 8. Four more storefronts (one image, four facades)
+### 8. Two more storefronts (one image, two facades)
+The **record store and the taqueria will come from the user's own photos**, so they are not generated here (see "Photo to game art" at the bottom).
 ```
-Four different small corner-store facades drawn in a row, straight-on front elevation, flat orthographic
+Two different small corner-store facades drawn side by side, straight-on front elevation, flat orthographic
 view with no perspective, each facade fully visible with a gap between them, same height ground line.
-Left to right: (1) a RECORD STORE with a hand-painted sign reading VINYL & TAPES, crates of records in the
-window and a spinning-record sign; (2) a TAQUERIA with a sign reading TAQUERIA, striped awning, menu
-board and a few red chairs outside; (3) a BARBER SHOP with a sign reading BARBER, a red-white-blue
-pole and big mirrored window; (4) a LAUNDROMAT with a sign reading LAUNDRY, rows of round-window
-machines visible inside. Warm stucco and brick in earth tones, worn paint, hand-painted signs.
+Left to right: (1) a COFFEE SHOP with a hand-painted sign reading COFFEE, a striped awning, a chalkboard
+menu on an easel, small round tables and a big window with a few espresso cups and a hanging plant;
+(2) a PAN DULCE BAKERY (panaderia) with a hand-painted sign reading PANADERIA, a glass window full of
+colorful pan dulce (conchas, cuernos, empanadas) on trays, a wooden door, and a striped awning.
+Warm stucco and brick in earth tones, worn paint, hand-painted signs.
 ```
 
 ---
@@ -123,3 +124,18 @@ likeness, no team names or logos). Flat straight-on front elevation, plain gray 
 A set of street signs in one row on a plain background: a stop sign, a one-way sign, a no-parking sign,
 a street-name sign reading FIFTH AVE, a pedestrian-crossing sign. Front view, flat, hand-worn.
 ```
+
+---
+
+## PHOTO TO GAME ART (for the record store, the taqueria, and any other real storefront photo)
+Upload the photo first, then a style reference (the bodega image), and paste:
+```
+Use the first image (the photo) as the layout reference and the second image (the bodega storefront) as
+the art style reference. Redraw the building in the same stylized low-poly 3D game art style as the second
+image: clean flat-shaded shapes, soft color gradients, warm earth-tone palette, daylight look, slightly
+worn. Not photorealistic. Straight-on front elevation, flat orthographic view with no perspective and no
+angle, the whole facade centered on a plain light-gray background with a little margin around it, soft
+even lighting, no cast shadows. Keep the same composition and the same sign names as the photo. Leave out
+any political signs, brand logos and readable license plates.
+```
+Save each as its own file (for example `record_store.jfif`, `taqueria.jfif`) in `3d\art\_originals\`.
