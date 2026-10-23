@@ -16,8 +16,7 @@
   .vt { font-family: 'VT323', monospace; }
   #hud-loc { position: fixed; top: calc(14px + env(safe-area-inset-top)); left: 16px; font-size: clamp(1.05rem, 4.6vw, 1.5rem); letter-spacing: 1px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
   #hud-obj { position: fixed; top: calc(40px + env(safe-area-inset-top)); left: 16px; font-size: 1.2rem; color: #ffe08a; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
-  #hud-loot { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 16px; font-size: 1.15rem; color: #fff; text-shadow: 0 1px 3px #000, 0 0 10px rgba(0,0,0,.55); pointer-events: none; }
-  #hud-status { position: fixed; top: calc(86px + env(safe-area-inset-top)); left: 16px; font-size: 1.05rem; color: #ffb347; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: pre; }
+  #hud-status { position: fixed; top: calc(66px + env(safe-area-inset-top)); left: 16px; font-size: 1.05rem; color: #ffb347; text-shadow: 0 1px 3px #000; pointer-events: none; white-space: pre; }
   #toast { position: fixed; left: 0; right: 0; top: 24%; text-align: center; font-size: clamp(1.6rem, 7vw, 2.4rem); color: #ffe08a; text-shadow: 0 2px 4px #000, 0 0 14px rgba(0,0,0,.6); pointer-events: none; opacity: 0; transition: opacity .25s; }
   #speech { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(80vw, 400px); text-align: left; padding: 3px 10px; background: rgba(0,0,0,.3); border-left: 3px solid rgba(255,255,255,.55); border-radius: 4px; font-size: 1.02rem; line-height: 1.12; color: #fff; text-shadow: 0 1px 2px #000; opacity: 0; transition: opacity .25s; pointer-events: none; }
   #speech b { display: inline; font-size: .85rem; letter-spacing: 2px; margin-right: 8px; }
@@ -36,7 +35,7 @@
   #void i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #a30018, #ff2a3a); }
   #void span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; }
   #void.hot span { animation: voidblink .5s steps(2) infinite; } @keyframes voidblink { 50% { opacity: .35; } }
-  body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-loot, body.void-on #hud-status, body.void-on #goals, body.void-on #audio-controls, body.void-on #back { transform: translateY(24px); }
+  body.void-on #hud-loc, body.void-on #hud-obj, body.void-on #hud-status, body.void-on #goals, body.void-on #audio-controls, body.void-on #back { transform: translateY(24px); }
   #ego-btn { position: fixed; right: 126px; bottom: calc(max(15vh, 96px) + 92px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .9rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
   #stick-ghost { position: fixed; left: 24%; bottom: calc(max(19vh, 128px) + env(safe-area-inset-bottom)); width: 110px; height: 110px; margin-left: -55px; border: 2px dashed rgba(0,255,249,.3); border-radius: 50%; display: none; pointer-events: none; }
   #stick-ghost::after { content: ''; position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: rgba(0,255,249,.16); }
@@ -99,7 +98,6 @@
 <div id="compass" class="vt"><div id="compass-arrow">▲</div><div id="compass-dist"></div></div>
 <div id="hud-loc" class="vt">SAN DIEGO // GASLAMP QUARTER</div>
 <div id="hud-obj" class="vt">FIND THE TEAR</div>
-<div id="hud-loot" class="vt">CARRYING 0  |  CARDS 0/8</div>
 <div id="hud-status" class="vt"></div>
 <div id="goals" class="vt"></div>
 <div id="toast" class="vt"></div>
@@ -986,8 +984,7 @@ CARD_XS.forEach((x, i) => placePickup('card', x, -14 - i * 22)); // along the ma
 
 function showToast(msg, color) { const t = $('toast'); t.textContent = msg; t.style.color = color || '#ffe08a'; t.style.opacity = 1; toastTimer = 1.5; }
 function updateLootHud() {
-  $('hud-loot').textContent = 'CARRYING ' + loot.points.toLocaleString() + '  |  CARDS ' + loot.cards + (loot.cards < CARD_SET ? '/' + CARD_SET : '');
-  const lines = ['CREW ' + crewFound + '/3'];
+  const lines = [];
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (inTruck) lines.push('IN THE BREAD TRUCK  <span style="opacity:.7">(MOVE TO GET OUT)</span>'); else if (hidden) lines.push('HIDDEN');
   if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
