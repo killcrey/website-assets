@@ -31,6 +31,7 @@
   #swap-btn { position: fixed; right: 24px; bottom: calc(max(15vh, 96px) + 118px + env(safe-area-inset-bottom)); width: 68px; height: 68px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .85rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ffb347; color: #ffc46b; box-shadow: 0 0 14px rgba(255,179,71,.5); }
   #lowc-btn.gunmode { border-color: #ffb347; color: #ffc46b; box-shadow: 0 0 14px rgba(255,179,71,.45); }
   #lowc-btn.gunmode.on { background: rgba(255,179,71,.4); box-shadow: 0 0 22px rgba(255,179,71,.8); }
+  #np { position: fixed; right: 10px; bottom: calc(4px + env(safe-area-inset-bottom)); max-width: 70vw; text-align: right; font-size: .85rem; color: rgba(255,255,255,.75); text-shadow: 0 1px 2px #000; pointer-events: none; opacity: 0; transition: opacity .6s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #void { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); height: 22px; display: none; z-index: 6; pointer-events: none; background: rgba(90,0,16,.7); border-bottom: 1px solid #ff4a5a; }
   #void i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #a30018, #ff2a3a); }
   #void span { position: relative; display: block; text-align: center; line-height: 22px; font-size: 1.1rem; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 2px #000; }
@@ -101,6 +102,7 @@
 <div id="goals" class="vt"></div>
 <div id="toast" class="vt"></div>
 <div id="tip" class="vt"></div>
+<div id="np" class="vt"></div>
 <div id="lowc-fx"></div>
 <div id="vibes"></div>
 <div id="ego-fx"></div>
@@ -1105,13 +1107,14 @@ updateHint(false);
 
 // ---- audio (synth, same spirit as the 2D game) ----
 let ac = null, master = null, muted = false, nextStep = 0, stepIdx = 0;
+const SFX_VOL = 0.45, MUSIC_VOL = 0.3, MUSIC_DUCK = 0.12; // the album sits under the effects
 const CHORDS = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 function startAudio() {
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   if (!ac) {
     try { ac = new AC(); } catch (e) { return; }
-    master = ac.createGain(); master.gain.value = muted ? 0 : 0.32; master.connect(ac.destination);
+    master = ac.createGain(); master.gain.value = muted ? 0 : SFX_VOL; master.connect(ac.destination);
     nextStep = ac.currentTime + 0.1; setInterval(scheduleMusic, 60);
   }
   if (ac.state !== 'running') ac.resume && ac.resume();
@@ -1123,6 +1126,7 @@ function tone(type, freq, t, dur, vol, lp) {
   o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 function scheduleMusic() {
+  if (albumOn) { if (ac) nextStep = Math.max(nextStep, ac.currentTime); return; } // the real music is playing: the synth bed steps aside (it's the fallback if the files can't play)
   if (!ac || ac.state !== 'running') { if (ac) nextStep = Math.max(nextStep, ac.currentTime); return; }
   const SPB = 60 / 96 / 4; // 16th note
   while (nextStep < ac.currentTime + 0.25) {
@@ -1135,8 +1139,39 @@ function scheduleMusic() {
   }
 }
 function blip(freq) { if (!ac || ac.state !== 'running' || muted) return; tone('square', freq, ac.currentTime, 0.05, 0.05, 1800); }
-$('mute').addEventListener('click', () => { muted = !muted; $('mute').textContent = muted ? 'SND OFF' : 'SND ON'; if (master) master.gain.value = muted ? 0 : 0.32; startAudio(); });
-document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend && ac.suspend(); else ac.resume && ac.resume(); });
+// ---- the album: Memories of Home plays behind the game (shuffled, started by the tap that starts the game) ----
+const ALBUM = [['SIMPLE (REMIX) ft 60 East & 2Mex', 'simple-remix'], ['GET THE ft Parker Edison', 'get-the'], ['DAYGO FAITHFUL', 'daygo-faithful'], ['FEEL GOOD', 'feel-good'], ['SMILE NOW CRY NOW', 'smile-now-cry-now'], ['THE REIGN', 'the-reign'],
+  ['WINS & LOSSES', 'wins-and-losses'], ['ASTRONAUTS ft Mr Lil One', 'astronauts'], ['LONG RUN ft Indian K', 'long-run'], ['SAMESAME', 'samesame'], ['SHORTS AND A SWEATER', 'shorts-and-a-sweater'], ['SIEN MIEDO', 'sien-miedo']];
+let musicRetryT = 0, musicEl = null, musicGain = null, albumOn = false, albumOrder = [], albumIdx = -1, npTimer = 0;
+function nextTrack() {
+  if (!musicEl) return;
+  albumIdx = (albumIdx + 1) % albumOrder.length; const t = ALBUM[albumOrder[albumIdx]];
+  musicEl.src = 'music/' + t[1] + '.mp3'; const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => { /* waits for the next tap */ });
+  $('np').textContent = '♪ ' + t[0] + '  •  THE INVISIBLE PANCHOS'; $('np').style.opacity = 1; clearTimeout(npTimer); npTimer = setTimeout(() => { $('np').style.opacity = 0; }, 6000);
+}
+function startMusic() {
+  if (musicEl || !ac) return;
+  albumOrder = ALBUM.map((_, i) => i); for (let i = albumOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [albumOrder[i], albumOrder[j]] = [albumOrder[j], albumOrder[i]]; }
+  musicEl = new Audio(); musicEl.preload = 'auto';
+  try { const src = ac.createMediaElementSource(musicEl); musicGain = ac.createGain(); musicGain.gain.value = muted ? 0 : MUSIC_VOL; src.connect(musicGain); musicGain.connect(ac.destination); } catch (e) { musicGain = null; musicEl.volume = muted ? 0 : MUSIC_VOL; }
+  musicEl.addEventListener('playing', () => { albumOn = true; });
+  musicEl.addEventListener('ended', nextTrack);
+  musicEl.addEventListener('error', () => { albumOn = false; setTimeout(nextTrack, 1500); }); // a missing file just skips to the next one
+  nextTrack();
+}
+function updateMusic(dt) { // quiet the album while the Low C, the gun or the ego blast is going
+  if (!musicEl) return;
+  musicRetryT -= dt; if (musicRetryT <= 0 && !muted && musicEl.paused && started && !document.hidden) { musicRetryT = 1.5; const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } // a blocked autoplay starts on the next tap
+  if (!musicGain || muted) return;
+  const loud = lowCActive || ego > 0 || (weapon === 'gun' && fireCool > 0), target = loud ? MUSIC_DUCK : MUSIC_VOL; musicGain.gain.value += (target - musicGain.gain.value) * (1 - Math.exp(-6 * dt));
+}
+$('mute').addEventListener('click', () => {
+  muted = !muted; $('mute').textContent = muted ? 'SND OFF' : 'SND ON'; if (master) master.gain.value = muted ? 0 : SFX_VOL;
+  if (musicGain) musicGain.gain.value = muted ? 0 : MUSIC_VOL; else if (musicEl) musicEl.volume = muted ? 0 : MUSIC_VOL;
+  if (musicEl) { if (muted) musicEl.pause(); else { const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } }
+  startAudio();
+});
+document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) { ac.suspend && ac.suspend(); if (musicEl) musicEl.pause(); } else { ac.resume && ac.resume(); if (musicEl && !muted && started) { const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } } });
 
 // ---- the Low C: hold to push out a 32.7 Hz pulse (will stall anything digital once hunters exist) ----
 const LOWC_BASE = 32.7;
@@ -1698,7 +1733,7 @@ function updateHunt(dt) {
   aura = Math.max(0, aura - dt * 3);
   killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
@@ -1716,7 +1751,7 @@ function updateHunt(dt) {
 }
 
 // ---- start / portal ----
-$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); updateHint(true); });
+$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); updateHint(true); });
 function tryEnterPortal() { if (started && tearOpen && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 5) location.href = '../'; }
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
@@ -1846,7 +1881,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
 requestAnimationFrame(frame);
 </script>
 </body>
