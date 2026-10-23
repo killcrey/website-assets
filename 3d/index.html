@@ -26,11 +26,14 @@
   #lowc-fill { height: 100%; width: 100%; background: #00fff9; box-shadow: 0 0 8px #00fff9; }
   #lowc.locked { color: #ff6ec7; } #lowc.locked #lowc-fill { background: #ff6ec7; box-shadow: 0 0 8px #ff6ec7; }
   #lowc-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,255,249,0) 40%, rgba(0,255,249,.38) 100%); transition: opacity .15s; }
-  #lowc-btn { position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 100px; height: 100px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: 1.15rem; z-index: 5; touch-action: none; }
+  #lowc-btn { position: fixed; right: 16px; bottom: calc(max(15vh, 96px) + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: 1.15rem; z-index: 5; touch-action: none; }
   #lowc-btn.on { background: rgba(255,110,199,.45); box-shadow: 0 0 22px rgba(255,110,199,.8); }
-  #ego-btn { position: fixed; right: 122px; bottom: calc(170px + env(safe-area-inset-bottom)); width: 82px; height: 82px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .95rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
-  #goals { position: fixed; right: 12px; top: calc(166px + env(safe-area-inset-top)); width: 178px; font-size: 1.05rem; line-height: 1.15; text-align: right; pointer-events: none; text-shadow: 0 1px 3px #000; }
-  #goals div { margin-bottom: 5px; padding: 3px 8px; background: rgba(0,0,0,.45); border-right: 3px solid #666; }
+  #ego-btn { position: fixed; right: 126px; bottom: calc(max(15vh, 96px) + 92px + env(safe-area-inset-bottom)); width: 78px; height: 78px; border-radius: 50%; display: none; align-items: center; justify-content: center; padding: 0; font-size: .9rem; line-height: 1.05; text-align: center; z-index: 5; touch-action: none; border-color: #ff5a5a; color: #ff7a7a; box-shadow: 0 0 16px rgba(255,90,90,.55); }
+  #stick-ghost { position: fixed; left: 24%; bottom: calc(max(19vh, 128px) + env(safe-area-inset-bottom)); width: 110px; height: 110px; margin-left: -55px; border: 2px dashed rgba(0,255,249,.3); border-radius: 50%; display: none; pointer-events: none; }
+  #stick-ghost::after { content: ''; position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: rgba(0,255,249,.16); }
+  #goals { position: fixed; right: 12px; top: calc(100px + env(safe-area-inset-top)); text-align: right; pointer-events: none; font-size: .95rem; line-height: 1.12; white-space: nowrap; text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6); }
+  #goals div { margin-bottom: 2px; }
+  #compass { display: none !important; }
   #compass { position: fixed; right: 18px; top: calc(96px + env(safe-area-inset-top)); width: 70px; text-align: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
   #compass-arrow { font-size: 1.6rem; line-height: 1; color: #00fff9; transition: transform .08s linear; }
   #compass-dist { font-size: .95rem; color: #fff; }
@@ -83,13 +86,14 @@
 <a id="back" class="btn" href="../">&#9664; Void Runner</a>
 <button id="enter-btn" class="btn pink vt" type="button">ENTER THE TEAR</button>
 <div id="stick"><div id="knob"></div></div>
+<div id="stick-ghost"></div>
 <div id="hint" class="vt">LEFT THUMB: MOVE &nbsp;|&nbsp; RIGHT SIDE: LOOK</div>
 
 <div id="start" class="overlay">
   <div class="title vt">LAYERS</div>
   <div class="sub vt">SAN DIEGO &mdash; EARLY PROTOTYPE</div>
   <button id="start-btn" class="btn pink vt" type="button" style="font-size:1.4rem;padding:12px 30px;">TAP TO START</button>
-  <div class="small vt">PC: WASD to move, mouse to aim (click the game to capture it), hold Left Click or Space for LOW C, Shift to run, F for an EGO BLAST.<br>Phone: left thumb moves (push to the rim to run), right thumb holds LOW C (or tap it once to latch it on).<br>Take baseball cards to the Kid and copper wire to Pancho to charge up. At 100% the Tear opens, but only for a little while.</div>
+  <div class="small vt">PC: WASD to move, mouse to aim (click the game to capture it), hold Left Click or Space for LOW C, Shift to run, F for an EGO BLAST.<br>Phone: left thumb moves (push to the rim to run); hold anywhere on the lower right for LOW C, or tap once to latch it on.<br>Take baseball cards to the Kid and copper wire to Pancho to charge up. At 100% the Tear opens, but only for a little while.</div>
   <a class="btn" href="../" style="margin-top:18px;font-size:.85rem;">Back to the 2D game</a>
 </div>
 
@@ -178,7 +182,7 @@ function resize() {
   composer.setPixelRatio(renderer.getPixelRatio());
   composer.setSize(w, h);
   camera.aspect = w / h;
-  camera.fov = camera.aspect < 1 ? 74 : 62;
+  camera.fov = camera.aspect < 0.8 ? 80 : camera.aspect < 1 ? 74 : 62;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -995,7 +999,7 @@ const stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 }, look = { id: null, lx: 0, 
 const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 50;
 function updateHint(flash) {
   const h = $('hint');
-  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: LOW C (HOLD, OR TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C  |  F: EGO BLAST');
+  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD ANYWHERE FOR LOW C (TAP TO LATCH)' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C  |  F: EGO BLAST');
   if (flash) { h.style.opacity = 1; clearTimeout(updateHint.t); updateHint.t = setTimeout(() => { h.style.opacity = 0; }, isTouchDevice ? 6000 : 9000); }
 }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvasEl; if (!locked) mouseLowC = false; if (started) updateHint(true); });
@@ -1011,10 +1015,11 @@ window.addEventListener('pointerdown', (e) => {
     if (e.button === 0) mouseLowC = true;
     return;
   }
+  if (e.pointerType !== 'mouse' && e.clientX >= window.innerWidth / 2 && e.clientY > window.innerHeight * 0.35 && lcBtnId === null) { lcDown(e.pointerId); return; } // the whole lower right is the LOW C thumb, no aiming at a circle
   if (e.clientX < window.innerWidth / 2 && stick.id === null && e.pointerType !== 'mouse') {
     stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY;
     stickEl.style.left = e.clientX + 'px'; stickEl.style.top = e.clientY + 'px'; stickEl.style.display = 'block'; knobEl.style.transform = 'none';
-  } else if (look.id === null && (e.pointerType === 'mouse' || (e.clientX >= window.innerWidth / 2 && e.clientY < window.innerHeight * 0.6))) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; } // on a phone the lower right belongs to the thumb buttons
+  } else if (look.id === null && e.pointerType === 'mouse') { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; } // on a phone the lower right belongs to the thumb buttons
 });
 window.addEventListener('pointermove', (e) => {
   if (e.pointerId === stick.id) {
@@ -1030,19 +1035,21 @@ function endPointer(e) {
   if (e.pointerId === stick.id) { stick.id = null; stick.x = stick.y = 0; stickEl.style.display = 'none'; }
   if (e.pointerId === look.id) look.id = null;
   if (e.pointerType === 'mouse' && e.button === 0) mouseLowC = false;
+  if (e.type === 'pointercancel') { if (e.pointerId === lcBtnId) { lcBtnId = null; btnLowC = false; } } else lcUp(e.pointerId);
 }
 window.addEventListener('pointerup', endPointer); window.addEventListener('pointercancel', endPointer);
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 const lcBtn = $('lowc-btn');
 if (isTouchDevice) lcBtn.style.display = 'flex';
 let lcBtnId = null, lcBtnT = 0;
-lcBtn.addEventListener('pointerdown', (e) => {
-  e.preventDefault(); startAudio(); try { lcBtn.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ }
-  if (lowCLatch) { lowCLatch = false; btnLowC = false; lcBtnId = null; return; } // a tap while it's latched turns it off
-  lcBtnId = e.pointerId; lcBtnT = performance.now(); btnLowC = true;
-});
-lcBtn.addEventListener('pointerup', (e) => { if (e.pointerId !== lcBtnId) return; lcBtnId = null; btnLowC = false; if (performance.now() - lcBtnT < 250 && lowC > 0 && !lowCLock) lowCLatch = true; }); // a quick tap latches it on, so the thumb is free
-lcBtn.addEventListener('pointercancel', () => { lcBtnId = null; btnLowC = false; });
+function lcDown(id) { // hold = on while held; a quick tap latches it on, another tap turns it off
+  if (lowCLatch) { lowCLatch = false; btnLowC = false; lcBtnId = null; return; }
+  lcBtnId = id; lcBtnT = performance.now(); btnLowC = true; startAudio();
+}
+function lcUp(id) { if (id !== lcBtnId) return; lcBtnId = null; btnLowC = false; if (performance.now() - lcBtnT < 250 && lowC > 0 && !lowCLock) lowCLatch = true; }
+lcBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); try { lcBtn.setPointerCapture(e.pointerId); } catch (err) { /* fine without it */ } lcDown(e.pointerId); });
+lcBtn.addEventListener('pointerup', (e) => lcUp(e.pointerId));
+lcBtn.addEventListener('pointercancel', (e) => { if (e.pointerId === lcBtnId) { lcBtnId = null; btnLowC = false; } });
 $('ego-btn').addEventListener('pointerdown', (e) => { e.preventDefault(); startAudio(); fireEgo(); });
 updateHint(false);
 
@@ -1471,15 +1478,14 @@ function updateHelpers(dt) {
   } else if (was) { dadPct = -1; updateLootHud(); }
 }
 let goalsT = 0, goalsHtml = '';
-function updateGoals(dt) { // the standing reminders: what to do with what you pick up
+function updateGoals(dt) { // standing reminders, kept small: one line each, no boxes, so they don't cover the street
   goalsT -= dt; if (goalsT > 0) return; goalsT = 0.15;
-  const row = (color, text, where) => '<div style="border-color:' + color + ';color:' + color + '">' + text + '<br>' + where + '</div>', dim = '#9a9a9a';
-  let h = row(cardsHeld ? '#ffd966' : dim, 'CARDS \u25B8 THE KID &nbsp;<b>' + cardsHeld + '</b>', bearing(NPCS[2].b.group.position));
-  h += row(wiresHeld ? '#ffa860' : dim, 'COPPER \u25B8 PANCHO &nbsp;<b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position));
-  if (luzCool <= 0) h += row('#ffd9a8', 'THE HUM \u25B8 LUZ', bearing(NPCS[3].b.group.position));
-  if (lowC < lowCMax() * 0.6) h += row('#bcd4ff', 'POWER UP \u25B8 PANCHO\u2019S DAD<br>(HEAT RISES)', bearing(NPCS[1].b.group.position));
-  if (heatLevel() >= 2) h += row('#ff5a5a', 'HEAT HIGH! FIND EDUARDO', bearing(CREW[2].b.group.position));
-  if (tearOpen) h += row('#7ff6ff', 'THE TEAR CLOSES IN ' + Math.ceil(tearT) + 's', bearing(PORTAL));
+  const row = (color, text, where, dim) => '<div style="color:' + color + ';opacity:' + (dim ? 0.6 : 1) + '">' + text + ' ' + where + '</div>';
+  let h = row(cardsHeld ? '#ffd966' : '#e6e6e6', 'CARDS▸KID <b>' + cardsHeld + '</b>', bearing(NPCS[2].b.group.position), !cardsHeld);
+  h += row(wiresHeld ? '#ffa860' : '#e6e6e6', 'WIRE▸PANCHO <b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position), !wiresHeld);
+  if (lowC < lowCMax() * 0.4) h += row('#9fc8ff', 'POWER▸DAD', bearing(NPCS[1].b.group.position), false);
+  if (heatLevel() >= 2) h += row('#ff7a7a', 'HEAT▸EDUARDO', bearing(CREW[2].b.group.position), false);
+  if (tearOpen) h += row('#7ff6ff', 'TEAR ' + Math.ceil(tearT) + 's', bearing(PORTAL), false);
   if (h !== goalsHtml) { goalsHtml = h; $('goals').innerHTML = h; }
 }
 // ---- ego blast: freezes everything and turns off its eyes ----
@@ -1538,7 +1544,7 @@ function tryEnterPortal() { if (started && tearOpen && Math.hypot(player.positio
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
 // ---- game loop ----
-const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
+const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
 const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(); let camDist = 6.4;
 const SPEED = 7.2;
 function update(dt) {
@@ -1555,6 +1561,7 @@ function update(dt) {
   // the camera stays behind the way you're heading: any turn of more than ~15 degrees from the view, or a push back toward it, and the view follows round.
   // The stick keeps its old meaning until you let go, flip it, or push 'forward' again once the view has caught up, so nothing lurches or spirals.
   const lockLen = Math.hypot(lockX, lockY), lockDot = ix * lockX + iy * lockY;
+  if (isTouchDevice) { const gs = started && !captured && stick.id === null ? 'block' : 'none'; if (gs !== ghostShown) { ghostShown = gs; $('stick-ghost').style.display = gs; } }
   if (!frameLocked) inYaw = yaw;
   else if (m < 0.1 || lockDot < 0.25 * m * lockLen || (!swinging && iy > 0.5 * m && lockDot < 0.9 * m * lockLen)) { frameLocked = false; inYaw = yaw; }
   if (!frameLocked && started && !captured && !inTruck && m > 0.3 && iy < 0.966 * m && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
@@ -1603,9 +1610,8 @@ function update(dt) {
   }
   if (recenter && Math.abs(p.x) <= 7.6) tgtYaw = faceAngle + Math.PI; // otherwise settle in behind whichever way the character is facing
   if (!locked && look.id === null && lookIdle > (isTouchDevice ? 0.2 : 1.3) && recenter && !frameLocked) { const r = 1 - Math.exp(-4.5 * dt), dYaw = Math.atan2(Math.sin(tgtYaw - yaw), Math.cos(tgtYaw - yaw)); yaw += dYaw * r; pitch += (PITCH0 - pitch) * r; }
-  const baseD = camera.aspect < 1 ? 6.6 : 6.0, turned = Math.min(1, Math.abs(Math.sin(yaw)) * 1.4);
-  const wantD = baseD - (baseD - 3.6) * turned, cp = Math.cos(pitch);
-  camDist += (wantD - camDist) * (1 - Math.exp(-(wantD < camDist ? 16 : 3.5) * dt));
+  const baseD = camera.aspect < 1 ? 6.6 : 6.0, wantD = baseD, cp = Math.cos(pitch); // steady distance: turning no longer zooms, only a wall in the way pulls it in
+  camDist += (wantD - camDist) * (1 - Math.exp(-6 * dt));
   let ox = Math.sin(yaw) * cp * camDist, oz = Math.cos(yaw) * cp * camDist;
   let hitT = firstHit(p.x, p.z, p.x + ox, p.z + oz, false); // cover counts too, so a dumpster can't block your view
   { const fl = Math.hypot(ox, oz) || 1, qx = -oz / fl * 0.7, qz = ox / fl * 0.7; // two more rays to either side of the lens so a corner can't slice the picture
