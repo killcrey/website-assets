@@ -56,6 +56,12 @@
   #compass-dist { font-size: .95rem; color: #fff; }
   .hb { display: inline-block; width: 64px; height: 7px; margin-left: 8px; border: 1px solid rgba(255,255,255,.8); background: rgba(0,0,0,.4); vertical-align: middle; } .hb i { display: block; height: 100%; background: linear-gradient(90deg, #ffd54a, #ff4d4d); }
   #ego-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,40,.08) 30%, rgba(255,40,40,.5) 100%); transition: opacity .3s; }
+  #behind-fx { position: fixed; left: 0; right: 0; bottom: 0; height: 34%; pointer-events: none; opacity: 0; background: linear-gradient(to top, rgba(255,24,24,.6) 0%, rgba(255,24,24,.24) 45%, rgba(255,24,24,0) 100%); }
+  #bodega-cd { position: fixed; left: 0; right: 0; top: 34%; text-align: center; display: none; font-size: clamp(1.7rem, 8.5vw, 3.2rem); letter-spacing: .1em; color: #fff; text-shadow: 0 0 16px #46ff7a, 0 0 34px #46ff7a, 0 3px 6px #000; pointer-events: none; z-index: 7; }
+  #bodega-modal { position: fixed; inset: 0; display: none; flex-direction: column; background: rgba(5,5,5,.96); z-index: 30; }
+  #bodega-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); border-bottom: 1px solid rgba(70,255,122,.5); }
+  #bodega-bar .t { flex: 1; color: #7dff9a; letter-spacing: 2px; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bodega-frame { flex: 1; width: 100%; border: 0; background: #fff; }
   #tip { position: fixed; left: 50%; top: 33%; transform: translateX(-50%); width: min(86vw, 440px); text-align: center; font-size: 1.15rem; line-height: 1.15; color: #fff; padding: 5px 12px; background: rgba(0,0,0,.38); border-radius: 6px; text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #tip b { display: block; color: #ffe08a; font-size: .9rem; letter-spacing: 2px; }
   #start { overflow-y: auto; justify-content: flex-start; }
@@ -115,6 +121,7 @@
 <div id="lowc-fx"></div>
 <div id="vibes"></div>
 <div id="ego-fx"></div>
+<div id="behind-fx"></div>
 <div id="invis" class="vt"></div>
 <div id="lowc" class="vt">LOW C<div id="lowc-bar"><div id="lowc-fill"></div></div></div>
 <button id="lowc-btn" class="btn pink vt" type="button">LOW C</button>
@@ -124,6 +131,7 @@
 <div id="elevate" class="vt"></div>
 <div id="void" class="vt"><i></i><span></span></div>
 <div id="sealbar" class="vt"><i></i><span></span></div>
+<div id="bodega-cd" class="vt"></div>
 <div id="speech" class="vt"><b id="speech-name"></b><span id="speech-line"></span></div>
 <div id="hud-debug" class="vt"></div>
 <div id="audio-controls">
@@ -143,11 +151,16 @@
   <div class="how vt">
     <div><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right: it shoves enemies back, then freezes them. It drains, so be stingy.</span></div>
     <div><img src="art/sprites/item_card.webp" alt=""><img src="art/sprites/kid_front.webp" alt=""><span><b>7 cards</b> to the <b>Kid</b> = a full charge.</span></div>
-    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>3 copper wires</b> to <b>Pancho</b> = <b>ammo</b> for the auto-aim gun. A new circle swaps gun and LOW C.</span></div>
+    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>5 copper wires</b> to <b>Pancho</b> = <b>ammo</b> for the auto-aim gun. A new circle swaps gun and LOW C.</span></div>
     <div><span>At <b>100%</b> the <b>TEAR</b> opens, but only for a short time. Run for it. Too hot? Find <b>Eduardo</b>.</span></div>
   </div>
   <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C (hold) / FIRE (tap), scroll wheel or R = swap weapon, Shift run, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
+</div>
+
+<div id="bodega-modal" role="dialog" aria-label="Panchos Bodega">
+  <div id="bodega-bar"><span class="t vt">PANCHOS BODEGA</span><a class="btn" id="bodega-open" href="https://bodega.theinvisiblepanchos.com/" target="_blank" rel="noopener" style="font-size:.8rem;padding:4px 10px;">OPEN FULL SITE</a><button class="btn pink" id="bodega-close" type="button" style="font-size:.8rem;padding:4px 12px;">BACK TO GAME</button></div>
+  <iframe id="bodega-frame" title="Panchos Bodega" allow="payment"></iframe>
 </div>
 
 <div id="null-screen" class="overlay" style="display:none; z-index: 15;">
@@ -794,7 +807,7 @@ function addVehicle(key, heightM, x, z, facing, hitX) { // a parked vehicle: fix
   (hitX || []).forEach(([hx, hz, r]) => colliders.push({ x: hx, z: hz, r })); return v;
 }
 const BZ = BODEGA.z;
-addNpc('pancho', 'PANCHO', 1.75, 6.5, BZ + 1.6, { sideFacesRight: false, name: 'PANCHO', lines: ['Foil hats are half off for the neighborhood heroes.', 'Where do you think astronauts come from?', 'You boys look like you took a header off a flying saucer.'] });
+addNpc('pancho', 'PANCHO', 1.75, 6.5, BZ + 3.6, { sideFacesRight: false, name: 'PANCHO', lines: ['Foil hats are half off for the neighborhood heroes.', 'Where do you think astronauts come from?', 'You boys look like you took a header off a flying saucer.'] });
 addNpc('father', 'PANCHO’S FATHER', 1.7, 6.1, BZ - 1.4, { lines: ['Frankie... the sky is a cage.', 'I’ve carried heavier.'] });
 addNpc('kid', 'THE KID', 1.3, 6.0, -24, { lines: ['You don’t even watch sports.'] });
 addNpc('luz', 'LUZ', 1.68, -6.1, -76, { lines: ['We never needed proof. We needed medicine.', 'I was the first to identify the hum.'] });
@@ -867,7 +880,7 @@ function addCrew(key, name, h, x, z, glow, css, line, boon, opts) {
   CREW.push({ key, name, b, x, z, css, line, boon, beam, found: false, cool: 0, h, bar: makeBar(css, name) });
 }
 addCrew('juancarlos', 'JUAN CARLOS', 1.72, 19, -133, 0xffa860, '#ffb27a', 'You\u2019re one of us now.', 'invisible');
-addCrew('christopher', 'CHRISTOPHER', 1.82, -19.5, -186, 0x7fb8ff, '#9fd0ff', 'It\u2019s not mine. It\u2019s ours.', 'lowc2', { sideFacesRight: true });
+addCrew('christopher', 'CHRISTOPHER', 1.82, -19.5, -186, 0x7fb8ff, '#9fd0ff', 'It\u2019s not mine. It\u2019s ours.', 'refill', { sideFacesRight: true });
 addCrew('eduardo', 'EDUARDO', 1.76, 19.5, -246, 0xc9a8ff, '#d9c8ff', 'Hold the line.', 'cool');
 // Pancho, the Kid and the crew roam: walk to a spot, stay a while, then pick the next one
 const ROAMERS = [];
@@ -890,13 +903,16 @@ function updateRoamers(dt) {
   }
 }
 {
-  const bodegaSpot = [6.5, BZ + 1.6];
+  const bodegaSpot = [6.5, BZ + 3.6];
   makeRoamer(NPCS[0], 2.4, (r) => { // Pancho: the bodega, or wherever a crew member is, 40 s at each
     const opts = [null, ...CREW].filter((o) => o !== r.last); const o = opts[Math.floor(Math.random() * opts.length)]; r.last = o;
     if (!o) return bodegaSpot.slice(); const q = o.b.group.position; return [q.x + 1.2, q.z];
   }, () => 40).last = null;
-  const kid = makeRoamer(NPCS[2], 2.6, (r) => { r.far = !r.far; return r.far ? [6.3, BZ + 1.5] : [5.0, -26]; }, () => 40); kid.far = false; // the Kid: the bodega in Barrio Logan <-> the Gaslamp sign, 40 s at each end
-  CREW.forEach((c) => makeRoamer(NPCS.find((n) => n.b === c.b), 1.9, () => { const n = NAV[Math.floor(Math.random() * NAV.length)]; return [n.x, n.z]; }, () => 6 + Math.random() * 14)); // the crew roam the whole map
+  const kid = makeRoamer(NPCS[2], 2.6, (r) => { r.far = !r.far; return r.far ? [6.3, BZ + 3.2] : [5.0, -26]; }, () => 40); kid.far = false; // the Kid: the bodega in Barrio Logan <-> the Gaslamp sign, 40 s at each end
+  CREW.forEach((c) => { const far = c.key === 'christopher'; // Christopher never stays put: he crosses the whole map, alleys and all, to a spot far from where he is
+    const any = () => { const n = NAV[Math.floor(Math.random() * NAV.length)]; return [n.x, n.z]; };
+    const farPick = (r) => { const q = r.b.group.position, c2 = NAV.filter((n) => Math.hypot(n.x - q.x, n.z - q.z) > 70); if (!c2.length) return any(); const n = c2[Math.floor(Math.random() * c2.length)]; return [n.x, n.z]; };
+    makeRoamer(NPCS.find((n) => n.b === c.b), far ? 3.4 : 1.9, far ? farPick : any, far ? () => 2 + Math.random() * 3 : () => 6 + Math.random() * 14); }); // the crew roam the whole map
 }
 
 // the bodega: Pancho's corner store, on the building tagged during street generation
@@ -920,6 +936,16 @@ onSprite('bodega', (e) => {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
   m.position.set(7.86, hM / 2, BZ); m.rotation.y = -Math.PI / 2; scene.add(m);
 });
+
+// the green circle in front of the bodega: stand on it for 5 seconds and the real shop opens over the game
+const BODEGA_SPOT = { x: 6.2, z: BZ, r: 1.2, T: 5 };
+{
+  const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(BODEGA_SPOT.r - 0.14, BODEGA_SPOT.r, 40), mat(0x46ff7a, 0.9)), disc = new THREE.Mesh(new THREE.CircleGeometry(BODEGA_SPOT.r, 40), mat(0x46ff7a, 0.2));
+  ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.set(BODEGA_SPOT.x, 0.14, BZ); disc.position.set(BODEGA_SPOT.x, 0.13, BZ); scene.add(ring, disc);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x46ff7a, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.4 })); glow.scale.set(3.6, 2.2, 1); glow.position.set(BODEGA_SPOT.x, 0.7, BZ); scene.add(glow);
+  BODEGA_SPOT.disc = disc; BODEGA_SPOT.glow = glow; BODEGA_SPOT.ring = ring;
+}
 
 // what people say when you walk up to them (lines are from the script)
 let speechTimer = 0;
@@ -1031,6 +1057,7 @@ CARD_XS.forEach((x, i) => placePickup('card', x, -14 - i * 22)); // along the ma
 [[-19.5, -117], [19.5, -174], [-19.5, -231]].forEach(([x, z]) => placePickup('card', x, z)); // in the alleys
 [[-1, -48], [3.2, -150], [-2, -228]].forEach(([x, z]) => placePickup('scratcher', x, z)); // rare
 [[-6.9, -60], [6.9, -125], [-6.9, -190], [6.9, -250], [3.5, -35], [-3.2, -85], [2.4, -150], [-2.8, -175], [3.6, -215], [-3.4, -270], [6.9, -72], [-6.9, -230], [19.5, -95], [-19.5, -140], [19.5, -205], [-19.5, -265]].forEach(([x, z]) => placePickup('wire', x, z)); // 16 of them
+[[-4.2, -30], [4.4, -100], [-4.4, -135], [4.2, -165], [-2, -200], [4.5, -240], [-4.5, -258], [2, -275], [-19.5, -60], [19.5, -150], [-19.5, -190], [19.5, -270], [6.9, -100], [-6.9, -120]].forEach(([x, z]) => placePickup('wire', x, z)); // and 14 more
 [[20, -117], [-20, -230]].forEach(([x, z]) => placePickup('vinyl', x, z)); // rare, tucked away in alleys
 [[1.2, -45], [-1.0, -160], [1.4, -215]].forEach(([x, z]) => placePickup('tape', x, z));
 [[0, -20], [0.4, -76], [-0.6, -168], [0.2, -245], [-1, -205]].forEach(([x, z]) => placePickup('basket', x, z)); // all look the same; some are bugged and you can't tell which
@@ -1116,6 +1143,7 @@ const PITCH0 = 0.17, PITCH_MIN = 0.08, PITCH_MAX = 0.32; // capped so you can ne
 let yaw = 0, pitch = PITCH0, started = false, locked = false, lookIdle = 99, mouseLowC = false, btnLowC = false, lowCLatch = false, pressBuf = 0;
 const IGNORE_START = ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'Tab', 'F5', 'F11', 'F12', 'Escape'];
 window.addEventListener('keydown', (e) => {
+  if (gamePaused) { if (e.code === 'Escape') closeBodega(); return; }
   keys[e.code] = true;
   if (!started && !IGNORE_START.includes(e.code) && $('start').style.display !== 'none') $('start-btn').click(); // any key starts the game on PC
   if (e.code === 'KeyE' || e.code === 'Enter') tryEnterPortal();
@@ -1141,7 +1169,7 @@ document.addEventListener('mousemove', (e) => {
   yaw -= e.movementX * 0.0026; pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch + e.movementY * 0.0022)); lookIdle = 0;
 });
 window.addEventListener('pointerdown', (e) => {
-  if (!started || (e.target.closest && e.target.closest('button,a'))) return;
+  if (!started || gamePaused || (e.target.closest && e.target.closest('button,a'))) return;
   startAudio();
   if (e.pointerType === 'mouse' && hasLock) {
     if (!locked) { try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* stays in drag-look mode */ } return; }
@@ -1298,13 +1326,13 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0;
+let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, gamePaused = false;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
-  else if (id === 'lowc2') { lowCMult = 2; lowC = Math.min(lowCMax(), Math.max(lowC * 2, 10)); showToast('LOW C DOUBLED', '#9fd0ff'); }
+  else if (id === 'refill') { lowC = lowCMax(); lowCLock = false; ammo = AMMO_MAX; laserAmmo = LASER_MAX; egoCharges = 2; showToast('ALL WEAPONS FILLED', '#9fd0ff'); }
   else if (id === 'cool') {
     heatF = 0; unseenT = 0; lastLevel = 0; showToast('HEAT: CLEAR', '#9fe8a0');
-    for (const e of enemies) { if (e.kind === 'thug') e.dead = true; else if (e.state === 'CHASE' || e.state === 'INVESTIGATE') { e.state = 'SEARCH'; e.search = 3; e.aware = 0; } }
+    for (const e of enemies) { if (e.kind === 'thug' && !e.guard) e.dead = true; else if (e.state === 'CHASE' || e.state === 'INVESTIGATE') { e.state = 'SEARCH'; e.search = 3; e.aware = 0; } }
   }
   sting(330, 440);
 }
@@ -1451,7 +1479,7 @@ function updateVan(dt) {
   van.facing = van.dir < 0 ? Math.PI : 0; van.vb.group.rotation.y = van.facing; van.vb.group.position.set(van.x, 0, van.z); van.vb.sg.x = van.x; van.vb.sg.z = van.z; vanLook();
   van.cone.position.set(van.x, 0, van.z); van.cone.rotation.y = van.facing;
   const s = sightOf({ x: van.x, z: van.z, facing: van.facing }, visionRange({ spec: { range: 16 } }), 0.28);
-  van.seeing = s; if (s > 0) { vanWatchT += dt; if (vanWatchT > 1.5 && !vanWarned) { vanWarned = true; showToast('THE VAN HAS YOU  \u2022  GET OUT OF ITS BEAM', '#ff8a5a'); } if (vanWatchT > 4 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead).length < 3) { spawnThugs(3); van.unload = 16; vanWatchT = 0; vanWarned = false; } } else { vanWatchT = Math.max(0, vanWatchT - dt * 0.5); if (vanWatchT < 0.5) vanWarned = false; }
+  van.seeing = s; if (s > 0) { vanWatchT += dt; if (vanWatchT > 1.5 && !vanWarned) { vanWarned = true; showToast('THE VAN HAS YOU  \u2022  GET OUT OF ITS BEAM', '#ff8a5a'); } if (vanWatchT > 4 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead && !e.guard).length < 3) { spawnThugs(3); van.unload = 16; vanWatchT = 0; vanWarned = false; } } else { vanWatchT = Math.max(0, vanWatchT - dt * 0.5); if (vanWatchT < 0.5) vanWarned = false; }
   van.cone.material.color.setHex(s > 0 ? 0xff5a3a : 0xfff2a8); van.cone.material.opacity = s > 0 ? 0.26 : 0.14;
   van.cone.visible = van.vb.group.position.distanceTo(player.position) < 90;
 }
@@ -1468,6 +1496,8 @@ function makeSuitFromDef(def) {
   const solo = [d(0, -48, [-20, -90]), d(0, -168, [-125, -205]), d(0, -270, [-235, -295]), d(0, -135, [-40, -270])];
   const p1a = d(-1.4, -102, [-70, -150]), p1b = d(1.4, -105, [-70, -150], p1a, true); p1a.mate = p1b;
   const p2a = d(-1.4, -218, [-175, -255]), p2b = d(1.4, -221, [-175, -255], p2a, true); p2a.mate = p2b;
+  [[0, -64, [-40, -95]], [0, -85, [-60, -120]], [0, -150, [-120, -185]], [0, -190, [-155, -225]], [0, -205, [-175, -240]], [0, -250, [-215, -290]]].forEach(([x, z, zone]) => d(x, z, zone)); // more Suits along the street: more to shoot
+  for (const [z, zone] of [[-76, [-45, -110]], [-160, [-130, -200]], [-262, [-230, -292]]]) { const a = d(-1.4, z, zone), b = d(1.4, z - 3, zone, a, true); a.mate = b; } // three more pairs
   for (const def of SUIT_DEFS) makeSuitFromDef(def);
 }
 function updateSuitRespawn(dt) {
@@ -1496,7 +1526,8 @@ function updateEnemy(e, dt) {
     } else if (e.aware >= 0.4 && lvl >= 2 && e.state !== 'CHASE') { e.lx = p.x; e.lz = p.z; e.state = 'CHASE'; e.path.length = 0; }
     const wireK = 1 + 0.12 * wire, chaseSpeed = e.spec.chase * wireK * (lvl >= 3 ? 1.12 : 1);
     if (e.state === 'PATROL') {
-      if (e.follower && e.buddy && !e.buddy.dead && e.buddy.state === 'PATROL') { // the second of a pair sticks with the first
+      if (e.guard) { if (Math.hypot(e.guard.x - e.x, e.guard.z - e.z) > 1.2) stepEnemy(e, e.guard.x, e.guard.z, e.spec.alert, dt); else e.facing += Math.atan2(Math.sin(-e.facing), Math.cos(-e.facing)) * (1 - Math.exp(-3 * dt)); } // a guard holds its post, facing the street
+      else if (e.follower && e.buddy && !e.buddy.dead && e.buddy.state === 'PATROL') { // the second of a pair sticks with the first
         if (Math.hypot(e.buddy.x - e.x, e.buddy.z - e.z) > 2.4) stepEnemy(e, e.buddy.x + 1.1, e.buddy.z + 0.6, (lvl >= 1 ? e.spec.alert : e.spec.patrol) * wireK * 1.15, dt);
         else e.facing += (e.buddy.facing - e.facing) * (1 - Math.exp(-3 * dt));
       }
@@ -1526,7 +1557,8 @@ function updateEnemy(e, dt) {
     e.cd = Math.max(0, e.cd - dt);
     if (s > 0 || lureT > 0) { e.lx = p.x; e.lz = p.z; e.lost = 0; } else e.lost += dt; // they hunt what they saw, or you if you're bugged: never your real position otherwise
     const chaseSpeed = e.spec.chase * (1 + 0.04 * wire);
-    if (e.lost > 0 && Math.hypot(e.lx - e.x, e.lz - e.z) < 2) { // reached the last known spot and found nothing: sweep the street
+    if (e.guard && e.lost > 3) { e.lx = e.guard.x; e.lz = e.guard.z; e.lost = 3; if (Math.hypot(e.guard.x - e.x, e.guard.z - e.z) < 0.6) e.facing += Math.atan2(Math.sin(-e.facing), Math.cos(-e.facing)) * (1 - Math.exp(-3 * dt)); } // a guard that lost you goes back to its post
+    if (!e.guard && e.lost > 0 && Math.hypot(e.lx - e.x, e.lz - e.z) < 2) { // reached the last known spot and found nothing: sweep the street
       e.sweep = (e.sweep || 0) - dt; if (e.sweep <= 0) { const cand = NAV.filter((nn) => Math.hypot(nn.x - e.x, nn.z - e.z) < 40 && Math.hypot(nn.x - e.x, nn.z - e.z) > 6); if (cand.length) { const nn = cand[Math.floor(Math.random() * cand.length)]; e.lx = nn.x; e.lz = nn.z; } e.sweep = 2 + Math.random() * 3; }
     }
     goTo(e, e.lx, e.lz, e.lost > 0 ? chaseSpeed * 0.8 : chaseSpeed, dt);
@@ -1536,7 +1568,7 @@ function updateEnemy(e, dt) {
       const kx = (p.x - e.x) / (d || 1), kz = (p.z - e.z) / (d || 1); p.x += kx * 1.4; p.z += kz * 1.4; resolveCircle(p, 0.45); vel.x = kx * 9; vel.z = kz * 9; showToast('HIT  -8 LOW C', '#ff6b5e'); sting(110, 80);
       if (wasEmpty) capture('A thug took the last of your signal.');
     }
-    if (lvl < 2) { e.calm += dt; if (e.calm > 8) e.dead = true; } else e.calm = 0;
+    if (lvl < 2 && !e.guard) { e.calm += dt; if (e.calm > 8) e.dead = true; } else e.calm = 0;
   }
   // visuals
   if (cloak > 0) { e.b.jitter = 0.05; e.b.tintHex = 0x8ff8ff; e.b.tint = Math.sin(tAccum * 23 + e.sx * 3) > 0.2; e.facing += Math.sin(tAccum * 9 + e.sz) * dt * 2.2; } // the analog static: they glitch and can't hold a stare
@@ -1549,13 +1581,13 @@ function updateEnemy(e, dt) {
 }
 
 function spawnThugs(limit) {
-  const alive = enemies.filter((e) => e.kind === 'thug' && !e.dead).length, known = anySeeing() ? player.position : van; // they start from where something last saw you
+  const alive = enemies.filter((e) => e.kind === 'thug' && !e.dead && !e.guard).length, known = anySeeing() ? player.position : van; // they start from where something last saw you
   for (let i = alive; i < limit && i < alive + 2; i++) { const t = makeEnemy('thug', van.x + (i % 2 ? 1.6 : -1.6), van.z + (i < 2 ? 0 : -1.5), [0, -300]); t.lx = known.x; t.lz = known.z; t.lost = 1; }
   van.stop = 3; sting(100, 70); showToast('THEY UNLOADED THE VAN', '#ff4d4d');
 }
 function updateReinforce(dt, lvl) { // high heat brings more Suits, out of sight; they leave when it cools
   const re = enemies.filter((e) => e.reinf && !e.dead);
-  if (lvl >= 2) { reinfCalm = 0; reinfT += dt; if (reinfT > 9 && re.length < 4) { reinfT = 0; const c = NAV.filter((n) => { const d = Math.hypot(n.x - player.position.x, n.z - player.position.z); return d > 40 && d < 90 && Math.abs(n.x) < 12.5 && firstHit(player.position.x, player.position.z, n.x, n.z, false) < 0.999; }); if (c.length) { const n = c[Math.floor(Math.random() * c.length)], e = makeEnemy('suit', n.x, n.z, [n.z + 45, n.z - 45]); e.reinf = true; } } }
+  if (lvl >= 2) { reinfCalm = 0; reinfT += dt; if (reinfT > 6 && re.length < 6) { reinfT = 0; const c = NAV.filter((n) => { const d = Math.hypot(n.x - player.position.x, n.z - player.position.z); return d > 40 && d < 90 && Math.abs(n.x) < 12.5 && firstHit(player.position.x, player.position.z, n.x, n.z, false) < 0.999; }); if (c.length) { const n = c[Math.floor(Math.random() * c.length)], e = makeEnemy('suit', n.x, n.z, [n.z + 45, n.z - 45]); e.reinf = true; } } }
   else if (lvl < 1) { reinfCalm += dt; if (reinfCalm > 12) for (const e of re) if (Math.hypot(e.x - player.position.x, e.z - player.position.z) > 25) e.dead = true; }
 }
 
@@ -1567,12 +1599,12 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; yaw = 0; frameLocked = false; swinging = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; laserAmmo = 0; laserT = 0; elevateT = 5; elevating = false; supplyT = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; pressBuf = 0; vanWatchT = 0; vanWarned = false; reinfT = 0; sealDown(false); for (const e of enemies) if (e.reinf) e.dead = true; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; laserAmmo = 0; laserT = 0; elevateT = 5; elevating = false; supplyT = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; pressBuf = 0; vanWatchT = 0; vanWarned = false; reinfT = 0; sealDown(false); for (const e of enemies) if (e.reinf) e.dead = true; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearArmed = true; bodegaT = 0; for (const e of enemies) if (e.guard) e.dead = true; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   for (const def of SUIT_DEFS) if (!def.e || def.e.dead) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
   van.z = -30; van.dir = -1; van.stop = 1; van.unload = 0;
-  player.position.set(0, 0, 6); vel.set(0, 0, 0); respawnPickups('laser', 2); updateLootHud();
+  player.position.set(0, 0, 6); vel.set(0, 0, 0); respawnPickups('laser', 4); updateLootHud();
 }
 const cloakGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
 cloakGlow.scale.set(3.2, 3.8, 1); cloakGlow.position.y = 1.0; cloakGlow.visible = false; playerBill.group.add(cloakGlow);
@@ -1619,15 +1651,15 @@ function respawnPickups(kind, n) { // what you hand in turns up again somewhere 
   for (let i = 0; i < n; i++) for (let t = 0; t < 40; t++) {
     const alley = Math.random() < 0.25, x = alley ? (Math.random() < 0.5 ? -19.5 : 19.5) : Math.random() * 8.8 - 4.4, z = -16 - Math.random() * 272;
     if (insideAnyWall(x, z, 0.8) || Math.hypot(x - player.position.x, z - player.position.z) < 30) continue;
-    if (pickups.some((k) => !k.taken && Math.hypot(k.holder.position.x - x, k.holder.position.z - z) < 12)) continue;
+    if (pickups.some((k) => !k.taken && Math.hypot(k.holder.position.x - x, k.holder.position.z - z) < 8)) continue;
     addPickup(kind, x, z); pickups[pickups.length - 1].extra = true; break;
   }
 }
 function updateSupply(dt) {
-  laserT += dt; if (laserT > 15) { laserT = 0; if (pickups.filter((k) => k.kind === 'laser' && !k.taken).length < 3) respawnPickups('laser', 1); } // a new card and a new coil every 5 s while the street is running low on them
+  laserT += dt; if (laserT > 8) { laserT = 0; if (pickups.filter((k) => k.kind === 'laser' && !k.taken).length < 6) respawnPickups('laser', 1); } // a new card and a new coil every 5 s while the street is running low on them
+  wireT += dt; if (wireT > 3) { wireT = 0; if (pickups.filter((k) => k.kind === 'wire' && !k.taken).length < 36) respawnPickups('wire', 1); }
   supplyT += dt; if (supplyT < 5) return; supplyT = 0;
   if (pickups.filter((k) => k.kind === 'card' && !k.taken).length < 22) respawnPickups('card', 1);
-  if (pickups.filter((k) => k.kind === 'wire' && !k.taken).length < 24) respawnPickups('wire', 1);
 }
 function updateDeliveries(dt) {
   kidCool = Math.max(0, kidCool - dt); panCool = Math.max(0, panCool - dt);
@@ -1649,8 +1681,8 @@ function updateDeliveries(dt) {
   }
 }
 // ---- the gun: Pancho's ammo. It auto-aims at the nearest Suit or thug in sight (never the van); two hits drop a Suit, five a thug ----
-const AMMO_MAX = 24, AMMO_PER_WIRE = 8, FIRE_GAP = 0.28, GUN_RANGE = 18;
-const LASER_MAX = 45, LASER_PER_PICKUP = 15, LASER_RANGE = 24, LASER_GAP = 0.4; // a laser gun pickup is worth 15 rounds; never more than 3 lie around
+const AMMO_MAX = 50, AMMO_PER_WIRE = 10, FIRE_GAP = 0.28, GUN_RANGE = 18;
+const LASER_MAX = 50, LASER_PER_PICKUP = 15, LASER_RANGE = 24, LASER_GAP = 0.4; // a laser gun pickup is worth 15 rounds; never more than 3 lie around
 function weaponList() { return ['lowc', ...(ammo > 0 ? ['gun'] : []), ...(laserAmmo > 0 ? ['laser'] : [])]; }
 const tracers = [], puffs = [];
 const boltGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -1676,14 +1708,14 @@ function pickWeapon(w) {
   weapon = w; lowCLatch = false; showToast(w === 'gun' ? 'GUN  \u2022  AIMS FOR YOU, YOU PICK THE SHOT' : w === 'laser' ? 'LASER  \u2022  ONE SHOT DROPS A SUIT' : 'LOW C', w === 'gun' ? '#ffc46b' : '#7ff6ff'); updateLootHud();
 }
 let wheelT = 0;
-window.addEventListener('wheel', (e) => { if (!started) return; e.preventDefault(); const now = performance.now(); if (now - wheelT < 160) return; wheelT = now; swapWeapon(); }, { passive: false }); // the scroll wheel cycles the weapons you have
+window.addEventListener('wheel', (e) => { if (!started || gamePaused) return; e.preventDefault(); const now = performance.now(); if (now - wheelT < 160) return; wheelT = now; swapWeapon(); }, { passive: false }); // the scroll wheel cycles the weapons you have
 function swapWeapon() { // cycles through the weapons you have: Low C, the gun (if you have ammo), the laser (if you have rounds)
   if (!started || captured) return;
   const list = weaponList(); if (list.length < 2) { showToast('NO AMMO  \u2022  TAKE COPPER TO PANCHO OR FIND A LASER GUN', '#ffb347'); return; }
   pickWeapon(list[(Math.max(0, list.indexOf(weapon)) + 1) % list.length]);
 }
 function killEnemy(e) {
-  e.dead = true; if (e.def) { e.def.e = null; e.def.respawnT = 45; }
+  e.dead = true; if (e.def) { e.def.e = null; e.def.respawnT = 20; }
   const pts = e.kind === 'thug' ? 800 : 500; loot.points += pts; suitKills++; killT = 0; bumpHeat(Math.min(1, 0.15 + 0.1 * suitKills)); poof(e.x, e.z, e.kind === 'thug' ? 0xff3b3b : 0xffb347, 2.6, 1.0, 0.55); poof(e.x + 0.3, e.z - 0.2, 0xfff0b0, 1.6, 1.4, 0.4); poof(e.x - 0.3, e.z + 0.2, 0xff5a3a, 1.6, 0.6, 0.45); shake = Math.max(shake, 0.35); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 70, t, 0.45, 0.24, 300); tone('square', 110, t + 0.03, 0.25, 0.14, 700); }
   showToast((e.kind === 'thug' ? 'THUG' : 'SUIT') + ' DOWN  +' + pts, '#ffd27a');
 }
@@ -1697,6 +1729,7 @@ function updateGun(dt) {
   poof(p.x + (e.x - p.x) * 0.06, p.z + (e.z - p.z) * 0.06, laser ? 0x66f0ff : 0xffe08a, 1.5, 1.2, 0.18); shake = Math.max(shake, laser ? 0.1 : 0.14);
   if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; if (laser) { tone('square', 1600, t, 0.14, 0.14, 7000); tone('sawtooth', 600, t + 0.02, 0.2, 0.12, 4000); tone('square', 300, t + 0.04, 0.12, 0.1, 2000); } else { tone('sawtooth', 95, t, 0.22, 0.24, 600); tone('square', 520, t, 0.06, 0.15, 4500); tone('square', 250, t + 0.02, 0.1, 0.13, 2500); tone('sawtooth', 55, t + 0.01, 0.3, 0.2, 400); } }
   for (const o of enemies) if (o.kind === 'suit' && !o.dead && (o === e || Math.hypot(o.x - p.x, o.z - p.z) < 22) && (o.state === 'PATROL' || o.state === 'SEARCH')) { o.state = heatLevel() >= 2 ? 'CHASE' : 'INVESTIGATE'; o.lx = p.x; o.lz = p.z; o.path.length = 0; } // the shot is heard
+  for (const o of enemies) if (o.guard && o.kind === 'thug' && !o.dead && Math.hypot(o.x - p.x, o.z - p.z) < 24) { o.lx = p.x; o.lz = p.z; o.lost = 0; } // the Tear's guard thugs come for whoever is shooting
   if (e.seal) sealHit(laser ? SEAL_DMG.laser : SEAL_DMG.bullet, e.x);
   else {
     e.hp -= laser ? 2 : 1; e.hitT = 0.14; poof(e.x, e.z, laser ? 0x66f0ff : 0xff7a3a, 0.9, 1.1, 0.28);
@@ -1826,11 +1859,43 @@ function updateTear(dt) {
     document.body.classList.toggle('seal-on', on); sealShown = SEAL.hp; }
   if (SEAL.active) { SEAL.bar.set(SEAL.hp / SEAL.max); SEAL.mesh.material.opacity = 0.45 + 0.4 * (SEAL.hp / SEAL.max) + 0.12 * Math.sin(tAccum * 7); }
   tearCool = Math.max(0, tearCool - dt);
-  if (!tearOpen && !captured && tearCool <= 0 && lowC >= lowCMax() * 0.995) {
+  if (lowC < lowCMax() * 0.995) tearArmed = true; // it only opens again after the Low C has dropped below full and filled back up
+  if (!tearOpen && !captured && tearCool <= 0 && tearArmed && lowC >= lowCMax() * 0.995) {
     const d = Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z); tearT = Math.max(25, d / SPEED * 1.25 + 10); tearTotal = tearT;
-    tearOpen = true; portal.visible = true; if (player.position.z > SEAL.z + 1) sealUp(); showToast(SEAL.active ? 'THE TEAR OPENED!  BREAK THE SEAL: GUN, LOW C OR EGO BLAST' : 'THE TEAR OPENED!  GET TO IT', '#7ff6ff'); sting(520, 780); updateLootHud();
+    tearOpen = true; tearArmed = false; portal.visible = true; if (player.position.z > SEAL.z + 1) sealUp(); spawnTearGuards(); showToast(SEAL.active ? 'THE TEAR OPENED!  GUARDS AND A SEAL: FIGHT THROUGH' : 'THE TEAR OPENED!  GET TO IT', '#7ff6ff'); sting(520, 780); updateLootHud();
   }
-  if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; sealDown(false); tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
+  if (tearOpen) { tearT -= dt; if (tearT <= 0 || captured) { tearOpen = false; portal.visible = false; sealDown(false); clearTearGuards(); tearCool = 8; showToast('THE TEAR CLOSED', '#ff9fb0'); sting(200, 120); } }
+}
+
+function guardPost(x, z) { // nudge a post off cars, carts and walls
+  for (let i = 0; i < 8 && (insideAnyWall(x, z, 0.7) || colliders.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + 0.7)); i++) z += 1.4;
+  return [x, z];
+}
+function spawnTearGuards() { // when the Tear opens the Agency puts a squad in front of the seal: you shoot your way through
+  for (const [kind, x0, z0] of [['thug', -3.2, -277], ['thug', 0, -278.5], ['thug', 3.2, -277], ['suit', -4.6, -273.5], ['suit', -1.6, -274.5], ['suit', 1.6, -274.5], ['suit', 4.6, -273.5]]) {
+    const [x, z] = guardPost(x0, z0); if (Math.hypot(x - player.position.x, z - player.position.z) < 7) continue;
+    const e = makeEnemy(kind, x, z, [-262, -285]); e.guard = { x, z }; e.facing = 0;
+  }
+}
+function clearTearGuards() { for (const e of enemies) if (e.guard) e.dead = true; }
+
+// ---- the green circle at the bodega: 5 seconds standing on it pauses the game and opens the real shop ----
+function resetInputs() { for (const k in keys) keys[k] = false; stick.id = null; stick.x = stick.y = 0; stick.raw = 0; stickEl.style.display = 'none'; look.id = null; lcBtnId = null; btnLowC = false; mouseLowC = false; lowCLatch = false; pressBuf = 0; setLowCAudio(false); }
+function openBodega() {
+  if (gamePaused) return; gamePaused = true; resetInputs(); try { if (document.exitPointerLock) document.exitPointerLock(); } catch (err) { /* fine */ }
+  $('bodega-cd').style.display = 'none'; const f = $('bodega-frame'); if (!f.getAttribute('src')) f.src = 'https://bodega.theinvisiblepanchos.com/'; $('bodega-modal').style.display = 'flex';
+}
+function closeBodega() { if (!gamePaused) return; $('bodega-modal').style.display = 'none'; resetInputs(); gamePaused = false; }
+$('bodega-close').addEventListener('click', closeBodega);
+function updateBodegaSpot(dt) {
+  const B = BODEGA_SPOT, p = player.position, d = Math.hypot(p.x - B.x, p.z - B.z), here = d < B.r && !captured && !inTruck, pulse = 0.5 + 0.5 * Math.sin(tAccum * 3), cd = $('bodega-cd');
+  B.disc.material.opacity = 0.16 + 0.12 * pulse + (here ? 0.2 : 0); B.glow.material.opacity = 0.32 + 0.25 * pulse;
+  if (d > B.r + 0.6) bodegaUsed = false;
+  if (here && !bodegaUsed) {
+    const c0 = Math.ceil(B.T - bodegaT); bodegaT += dt; const left = Math.max(0, Math.ceil(B.T - bodegaT));
+    cd.style.display = 'block'; cd.textContent = 'PANCHOS BODEGA IN: ' + left; if (left !== c0 && left > 0) blip(520 + (B.T - left) * 90);
+    if (bodegaT >= B.T) { bodegaT = 0; bodegaUsed = true; openBodega(); }
+  } else { bodegaT = 0; if (cd.style.display !== 'none') cd.style.display = 'none'; }
 }
 
 // ---- first-contact tips: one short line the first time you meet each thing (remembered in the browser; add ?tips to the address to see them all again) ----
@@ -1848,8 +1913,9 @@ const TIPS = {
   dad: 'PANCHO’S FATHER|Hold still next to him to power up. It heats you up, so pick your moment. Blue arrow.',
   luz: 'LUZ|Her hum shows every enemy and which baskets are bugged.',
   juancarlos: 'JUAN CARLOS|Invisible to the Agency for 20 seconds. The crew recharge: watch the bar over their heads.',
-  christopher: 'CHRISTOPHER|Doubles your Low C.',
+  christopher: 'CHRISTOPHER|Fills your Low C, gun, laser and ego blast. He walks the whole map: look for the blue beam.',
   eduardo: 'EDUARDO|Wipes your heat to zero. Find him when it gets hot.',
+  bodega: 'PANCHOS BODEGA|Stand on the green circle for 5 seconds to open the real shop. The game waits for you.',
   e_suit: 'AGENCY SUIT|Stay out of its narrow cone. Being seen = heat. Two shots drop it.',
   e_thug: 'THUG|Hits hard and drains your Low C. It takes five shots, or freeze it and run.',
   e_van: 'AGENCY VAN|Its beam sees you too. At maximum heat it unloads thugs.',
@@ -1883,6 +1949,7 @@ function scanTips(dt) {
   for (const e of enemies) if (!e.dead && near(e.x, e.z, 26)) tip('e_' + e.kind);
   if (near(van.x, van.z, 30)) tip('e_van');
   if (near(TRUCK.x, TRUCK.z, 9)) tip('truck');
+  if (near(BODEGA_SPOT.x, BODEGA_SPOT.z, 9)) tip('bodega');
   if (heatF > 0.4) tip('heat');
   if (lowC > 0.1) tip('lowc');
   if (ammo > 0) tip('ammo');
@@ -1897,7 +1964,7 @@ function updateHunt(dt) {
   aura = Math.max(0, aura - dt * 3);
   killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
@@ -1909,14 +1976,20 @@ function updateHunt(dt) {
   const lvl = heatLevel();
   if (lvl !== lastLevel) { if (lvl > lastLevel) { showToast('HEAT: ' + HEAT_NAMES[lvl] + (lvl >= 2 ? '  \u2022  FIND EDUARDO!' : ''), lvl >= 3 ? '#ff4d4d' : '#ffb347'); sting(200 + lvl * 40, 260 + lvl * 40); if (lvl >= 2 && van.unload <= 0) { spawnThugs(lvl >= 3 ? 3 : 1); van.unload = 16; } } lastLevel = lvl; updateLootHud(); }
   if (van.unload > 0) van.unload -= dt;
-  if (lvl >= 2 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead).length < (lvl >= 3 ? 3 : 1)) { spawnThugs(lvl >= 3 ? 3 : 1); van.unload = 16; }
+  if (lvl >= 2 && van.unload <= 0 && enemies.filter((e) => e.kind === 'thug' && !e.dead && !e.guard).length < (lvl >= 3 ? 3 : 1)) { spawnThugs(lvl >= 3 ? 3 : 1); van.unload = 16; }
   updateReinforce(dt, lvl);
   const pct = Math.round(heatF / 3 * 20); if (pct !== lastHeatPct) { lastHeatPct = pct; updateLootHud(); }
   $('vibes').style.opacity = Math.min(0.85, aura * 0.9).toFixed(2);
+  { let bk = 0; // a red glow at the bottom of the screen when an enemy is close behind you
+    if (!captured && !inTruck && ego <= 0) { const pp = player.position, fx0 = -Math.sin(yaw), fz0 = -Math.cos(yaw);
+      for (const e of enemies) { if (e.dead || e.flee > 0) continue; const dx = e.x - pp.x, dz = e.z - pp.z, d = Math.hypot(dx, dz); if (d > 13 || d < 0.01 || (dx * fx0 + dz * fz0) / d > -0.3 || (lowCActive && d < 8.5)) continue;
+        const alert = e.kind === 'thug' || e.state === 'CHASE' || e.state === 'INVESTIGATE'; bk = Math.max(bk, (1 - d / 13) * (alert ? 1 : 0.55)); } }
+    behindK += (bk - behindK) * (1 - Math.exp(-8 * dt)); const sh = Math.round(behindK * 50) / 50;
+    if (sh !== behindShown) { behindShown = sh; $('behind-fx').style.opacity = sh; } }
 }
 
 // ---- start / portal ----
-$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 2); updateHint(true); });
+$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); updateHint(true); });
 function tryEnterPortal() { /* walking into the Tear is automatic now: stand in it and the countdown starts */ }
 function elevateGo() { if (window.__noNav) { window.__navigated = true; return; } location.href = '../'; } // up into the 2D game
 $('enter-btn').addEventListener('click', tryEnterPortal);
@@ -2027,7 +2100,7 @@ function update(dt) {
   $('compass-dist').textContent = Math.round(dist) + 'm';
   const area = p.z < -185 ? 'BARRIO LOGAN' : 'GASLAMP QUARTER'; // far end of the street is Barrio Logan
   if (area !== curArea) { curArea = area; $('hud-loc').textContent = 'SAN DIEGO // ' + area; showToast(area, '#ffffff'); }
-  $('hud-obj').textContent = tearOpen && SEAL.active ? 'BREAK THE SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  \u25B8  ' + Math.ceil(tearT) + 's' : tearOpen ? (dist < 5 ? 'TEAR OPEN  •  STAND IN IT' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'; $('compass').style.display = tearOpen ? 'block' : 'none';
+  $('hud-obj').textContent = tearOpen && SEAL.active ? 'BREAK THE SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  \u25B8  ' + Math.ceil(tearT) + 's' : tearOpen ? (dist < 5 ? 'TEAR OPEN  •  STAND IN IT' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : (lowC >= lowCMax() * 0.995 && !tearArmed ? 'TEAR CLOSED  •  USE LOW C, THEN REFILL' : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'); $('compass').style.display = tearOpen ? 'block' : 'none';
   $('enter-btn').style.display = 'none';
 }
 function render() { if (tier === 0) renderer.render(scene, camera); else composer.render(); }
@@ -2042,12 +2115,12 @@ const debugEl = $('hud-debug'); if (params.has('debug')) debugEl.style.display =
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  update(dt); render(); adapt(dt, now);
+  if (!gamePaused) { update(dt); render(); adapt(dt, now); }
   if (debugEl.style.display === 'block') debugEl.textContent = `tier ${tier}  ${Math.round(1 / emaDt)}fps  calls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}`;
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; } };
+window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearGuards, get guards() { return enemies.filter((q) => q.guard); } };
 requestAnimationFrame(frame);
 </script>
 </body>
