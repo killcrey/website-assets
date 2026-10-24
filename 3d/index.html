@@ -56,7 +56,9 @@
   #compass-dist { font-size: .95rem; color: #fff; }
   .hb { display: inline-block; width: 64px; height: 7px; margin-left: 8px; border: 1px solid rgba(255,255,255,.8); background: rgba(0,0,0,.4); vertical-align: middle; } .hb i { display: block; height: 100%; background: linear-gradient(90deg, #ffd54a, #ff4d4d); }
   #ego-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,40,.08) 30%, rgba(255,40,40,.5) 100%); transition: opacity .3s; }
-  @media (max-width: 600px) { #toast { left: 6px; right: 150px; font-size: clamp(1.05rem, 4.6vw, 1.45rem); line-height: 1.05; } }
+  @media (max-width: 600px) { #toast { left: 6px; right: 150px; font-size: clamp(1.05rem, 4.6vw, 1.45rem); line-height: 1.05; } #hud-loc { display: none; } #hud-obj { top: calc(14px + env(safe-area-inset-top)); font-size: 1.1rem; } #hud-status { top: calc(40px + env(safe-area-inset-top)); } #goals { font-size: .85rem; } }
+  @media (pointer: coarse) { #start .small { display: none; } }
+  #hud-obj, #hud-status, #goals { text-shadow: 0 0 3px #000, 0 1px 3px #000, 0 0 10px rgba(0,0,0,.7); }
   #left-fx, #right-fx { position: fixed; top: 0; bottom: 0; width: 24%; pointer-events: none; opacity: 0; }
   #left-fx { left: 0; background: linear-gradient(to right, rgba(255,24,24,.55) 0%, rgba(255,24,24,.2) 45%, rgba(255,24,24,0) 100%); }
   #right-fx { right: 0; background: linear-gradient(to left, rgba(255,24,24,.55) 0%, rgba(255,24,24,.2) 45%, rgba(255,24,24,0) 100%); }
@@ -154,10 +156,7 @@
   <div class="sub vt">SAN DIEGO &mdash; EARLY PROTOTYPE</div>
   <button id="start-btn" class="btn pink vt" type="button" style="font-size:1.4rem;padding:12px 30px;">TAP TO START</button>
   <div class="how vt">
-    <div><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right: it shoves enemies back, then freezes them. It drains, so be stingy.</span></div>
-    <div><img src="art/sprites/item_card.webp" alt=""><img src="art/sprites/kid_front.webp" alt=""><span><b>7 cards</b> to the <b>Kid</b> = a full charge.</span></div>
-    <div><img src="art/sprites/item_wire.webp" alt=""><img src="art/sprites/pancho_front.webp" alt=""><span><b>5 copper wires</b> to <b>Pancho</b> = <b>ammo</b> for the auto-aim gun. A new circle swaps gun and LOW C.</span></div>
-    <div><span>At <b>100%</b> the <b>TEAR</b> opens, but only for a short time. Run for it. Too hot? Find <b>Eduardo</b>.</span></div>
+    <div><img src="art/sprites/player_front.webp" alt=""><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right to freeze enemies. Fill it to <b>100%</b> and the <b>TEAR</b> opens.</span></div>
   </div>
   <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C (hold) / FIRE (tap), scroll wheel or R = swap weapon, Shift run, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
@@ -1072,13 +1071,13 @@ function updateLootHud() {
   const lines = [];
   if (heatF > 0.03) { const lv = Math.min(3, Math.floor(heatF)); lines.push('HEAT <b style="color:' + ['#9fe8a0', '#ffd54a', '#ffa347', '#ff4d4d'][lv] + '">' + HEAT_NAMES[lv] + '</b><span class="hb"><i style="width:' + Math.round(heatF / 3 * 100) + '%"></i></span>'); }
   if (inTruck) lines.push('IN THE BREAD TRUCK  <span style="opacity:.7">(MOVE TO GET OUT)</span>'); else if (hidden) lines.push('HIDDEN');
-  if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
-  if (ammo > 0) lines.push('<b style="color:#ffd27a">AMMO ' + ammo + '/' + AMMO_MAX + (weapon === 'gun' ? '  \u2022  GUN ON' : '') + (isTouchDevice ? '' : '  (scroll / R: swap)') + '</b>');
-  if (laserAmmo > 0) lines.push('<b style="color:#66f0ff">LASER ' + laserAmmo + '/' + LASER_MAX + (weapon === 'laser' ? '  -  ON' : '') + '</b>');
+  if (ego > 0) lines.push('<b style="color:#ff5a5a">EGO BLAST  ' + Math.ceil(ego) + 's  \u2022  THEY\u2019RE FROZEN AND BLIND</b>'); else if (egoCharges > 0 && !isTouchDevice) lines.push('<b style="color:#ff5a5a">EGO BLAST READY \u00D7' + egoCharges + (isTouchDevice ? '' : '  (F)') + '</b>');
+  if (ammo > 0 && !isTouchDevice) lines.push('<b style="color:#ffd27a">AMMO ' + ammo + '/' + AMMO_MAX + (weapon === 'gun' ? '  \u2022  GUN ON' : '') + (isTouchDevice ? '' : '  (scroll / R: swap)') + '</b>');
+  if (laserAmmo > 0 && !isTouchDevice) lines.push('<b style="color:#66f0ff">LASER ' + laserAmmo + '/' + LASER_MAX + (weapon === 'laser' ? '  -  ON' : '') + '</b>');
   if (humT > 0) lines.push('<b style="color:#ffd9a8">THE HUM  ' + Math.ceil(humT) + 's  \u2022  RED BASKETS ARE BUGGED</b>');
   if (dadOn) lines.push('<b style="color:#bcd4ff">POWERING UP  ' + Math.round(100 * lowC / lowCMax()) + '%  \u2022  HEAT RISING</b>');
   if (lureT > 0) lines.push('<b style="color:#ff6b5e">TRACKED  ' + Math.ceil(lureT) + 's</b>');
-  { const sb = $('swap-btn'), list = weaponList(), nx = list[(list.indexOf(weapon) + 1) % list.length], lb = $('lowc-btn'); sb.style.display = (started && isTouchDevice && list.length > 1) ? 'flex' : 'none'; sb.innerHTML = nx === 'lowc' ? 'LOW C' : nx === 'gun' ? 'GUN<br>' + ammo : 'LASER<br>' + laserAmmo; lb.textContent = weapon === 'lowc' ? 'LOW C' : weapon === 'laser' ? 'LASER' : 'FIRE'; lb.classList.toggle('gunmode', weapon === 'gun'); lb.classList.toggle('lasermode', weapon === 'laser'); }
+  { const sb = $('swap-btn'), list = weaponList(), nx = list[(list.indexOf(weapon) + 1) % list.length], lb = $('lowc-btn'); sb.style.display = (started && isTouchDevice && list.length > 1) ? 'flex' : 'none'; sb.innerHTML = nx === 'lowc' ? 'LOW C' : nx === 'gun' ? 'GUN<br>' + ammo : 'LASER<br>' + laserAmmo; lb.innerHTML = weapon === 'lowc' ? 'LOW C' : weapon === 'laser' ? 'LASER<br>' + laserAmmo : 'FIRE<br>' + ammo; lb.classList.toggle('gunmode', weapon === 'gun'); lb.classList.toggle('lasermode', weapon === 'laser'); }
   { const eb = $('ego-btn'); eb.style.display = (started && isTouchDevice && egoCharges > 0 && ego <= 0) ? 'flex' : 'none'; eb.innerHTML = 'EGO<br>BLAST' + (egoCharges > 1 ? ' \u00D7' + egoCharges : ''); }
   if (cloak > 0) lines.push('ANALOG STATIC ' + Math.ceil(cloak) + 's  \u2022  THEY CAN\u2019T SEE STRAIGHT');
   if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
@@ -1334,7 +1333,7 @@ const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12
 let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
-  else if (id === 'refill') { lowC = lowCMax(); lowCLock = false; ammo = AMMO_MAX; laserAmmo = LASER_MAX; egoCharges = 2; showToast('ALL WEAPONS FILLED', '#9fd0ff'); }
+  else if (id === 'refill') { lowC = Math.max(lowC, lowCMax() * 0.5); lowCLock = false; ammo = AMMO_MAX; laserAmmo = LASER_MAX; egoCharges = 2; showToast('GUN, LASER, EGO FILLED  •  LOW C HALF', '#9fd0ff'); }
   else if (id === 'cool') {
     heatF = 0; unseenT = 0; lastLevel = 0; showToast('HEAT: CLEAR', '#9fe8a0');
     for (const e of enemies) { if (e.kind === 'thug' && !e.guard) e.dead = true; else if (e.state === 'CHASE' || e.state === 'INVESTIGATE') { e.state = 'SEARCH'; e.search = 3; e.aware = 0; } }
@@ -1604,7 +1603,7 @@ function capture(why) {
 function restartRun() { // stub for "thrown back into the void": reset the street
   captured = false; yaw = 0; frameLocked = false; swinging = false; $('null-screen').style.display = 'none';
   for (const k of pickups) { k.taken = false; k.holder.visible = true; if (k.kind === 'basket') k.bugged = Math.random() < BUG_CHANCE; }
-  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; laserAmmo = 0; laserT = 0; elevateT = 5; elevating = false; supplyT = 0; suitKills = 0; ammo = 0; weapon = 'lowc'; fireCool = 0; lowCLatch = false; pressBuf = 0; vanWatchT = 0; vanWarned = false; reinfT = 0; sealDown(false); for (const e of enemies) if (e.reinf) e.dead = true; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearArmed = true; bodegaT = 0; for (const e of enemies) if (e.guard || e.mob) e.dead = true; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
+  loot.points = loot.cards = loot.scratchers = loot.wire = loot.vinyl = loot.tape = 0; laserAmmo = 0; laserT = 0; elevateT = 5; elevating = false; supplyT = 0; suitKills = 0; ammo = START_AMMO; weapon = 'lowc'; fireCool = 0; lowCLatch = false; pressBuf = 0; vanWatchT = 0; vanWarned = false; reinfT = 0; sealDown(false); for (const e of enemies) if (e.reinf) e.dead = true; luzCool = 0; humT = 0; dadOn = false; cardsHeld = 0; wiresHeld = 0; egoCharges = 0; ego = 0; kidCool = 0; panCool = 0; lureT = 0; tearOpen = false; tearArmed = true; bodegaT = 0; for (const e of enemies) if (e.guard || e.mob) e.dead = true; tearCool = 0; portal.visible = false; lowCLatch = false; $('ego-fx').style.opacity = 0; for (let i = pickups.length - 1; i >= 0; i--) if (pickups[i].extra) { scene.remove(pickups[i].holder); pickups.splice(i, 1); } if (inTruck) leaveTruck(); TRUCK.hinted = false; lowCBoost = 0; cloak = 0; speedBoost = 0; lowCMult = 1; lowC = 0; lowCLock = false; heatF = 0; lastLevel = 0; unseenT = 0; invis = 0; crewFound = 0; $('invis').style.display = 'none'; CREW.forEach((c) => { c.found = false; c.cool = 0; c.beam.visible = true; });
   for (const e of enemies.slice()) if (e.kind === 'thug') e.dead = true;
   for (const def of SUIT_DEFS) if (!def.e || def.e.dead) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
@@ -1686,7 +1685,7 @@ function updateDeliveries(dt) {
   }
 }
 // ---- the gun: Pancho's ammo. It auto-aims at the nearest Suit or thug in sight (never the van); two hits drop a Suit, five a thug ----
-const AMMO_MAX = 50, AMMO_PER_WIRE = 10, FIRE_GAP = 0.28, GUN_RANGE = 18;
+const AMMO_MAX = 50, AMMO_PER_WIRE = 10, START_AMMO = 10, FIRE_GAP = 0.28, GUN_RANGE = 18;
 const LASER_MAX = 50, LASER_PER_PICKUP = 15, LASER_RANGE = 24, LASER_GAP = 0.4; // a laser gun pickup is worth 15 rounds; never more than 3 lie around
 function weaponList() { return ['lowc', ...(ammo > 0 ? ['gun'] : []), ...(laserAmmo > 0 ? ['laser'] : [])]; }
 const tracers = [], puffs = [];
@@ -1705,6 +1704,23 @@ function gunTarget(range) {
   for (const e of enemies) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.z - p.z); if (d < bd && firstHit(p.x, p.z, e.x, e.z, true) >= 0.999) { bd = d; best = e; } } // low cover doesn't stop a bullet
   if (!best && SEAL.active) { const tx = Math.max(-5, Math.min(5, p.x)), tz = SEAL.z + 0.62; if (Math.hypot(tx - p.x, tz - p.z) < range && firstHit(p.x, p.z, tx, tz, true) >= 0.999) return { seal: true, x: tx, z: tz }; }
   return best;
+}
+const RET = { sp: null, bar: null, tgt: null, t: 0 };
+function updateReticle(dt) { // a ring on whatever the gun will hit next, with its health under it
+  if (!RET.sp) {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.strokeStyle = '#fff'; g.lineWidth = 4; g.shadowColor = '#000'; g.shadowBlur = 3;
+    g.beginPath(); g.arc(32, 32, 20, 0, 6.2832); g.stroke(); for (const [x0, y0, x1, y1] of [[32, 4, 32, 14], [32, 50, 32, 60], [4, 32, 14, 32], [50, 32, 60, 32]]) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace;
+    RET.sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, fog: false, depthTest: false, transparent: true })); RET.sp.renderOrder = 12; RET.sp.visible = false; scene.add(RET.sp);
+    RET.bar = makeBar('#ff6a3a', ''); RET.bar.sp.renderOrder = 12;
+  }
+  RET.t -= dt; const aim = started && !captured && !inTruck && !gamePaused && (weapon === 'gun' || weapon === 'laser');
+  if (aim && RET.t <= 0) { RET.t = 0.08; RET.tgt = gunTarget(weapon === 'laser' ? LASER_RANGE : GUN_RANGE); }
+  const t = aim ? RET.tgt : null;
+  if (!t || t.dead) { RET.sp.visible = false; RET.bar.sp.visible = false; if (!aim) RET.tgt = null; return; }
+  const seal = !!t.seal, y = seal ? 3.0 : t.spec.h * 0.55, d = Math.hypot(camera.position.x - t.x, camera.position.z - t.z), sc = Math.max(0.9, d * 0.045) * (1 + 0.06 * Math.sin(tAccum * 9));
+  RET.sp.visible = true; RET.sp.position.set(t.x, y, t.z); RET.sp.scale.set(sc, sc, 1); RET.sp.material.color.setHex(weapon === 'laser' ? 0x66f0ff : 0xff7a4a);
+  RET.bar.sp.visible = true; RET.bar.sp.position.set(t.x, y + sc * 0.55 + 0.3, t.z); RET.bar.set(seal ? SEAL.hp / SEAL.max : t.hp / (t.kind === 'thug' ? 5 : 2));
 }
 function pickWeapon(w) {
   if (!started || captured || w === weapon) return;
@@ -1798,8 +1814,8 @@ let goalsT = 0, goalsHtml = '';
 function updateGoals(dt) { // standing reminders, kept small: one line each, no boxes, so they don't cover the street
   goalsT -= dt; if (goalsT > 0) return; goalsT = 0.15;
   const row = (color, text, where, dim) => '<div style="color:' + color + ';opacity:' + (dim ? 0.6 : 1) + '">' + text + ' ' + where + '</div>';
-  let h = row(cardsHeld ? '#ffd966' : '#e6e6e6', 'CARDS▸KID <b>' + cardsHeld + '</b>', bearing(NPCS[2].b.group.position), !cardsHeld);
-  h += row(wiresHeld ? '#ffa860' : '#e6e6e6', 'WIRE▸PANCHO <b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position), !wiresHeld);
+  let h = (isTouchDevice && !cardsHeld) ? '' : row(cardsHeld ? '#ffd966' : '#e6e6e6', 'CARDS▸KID <b>' + cardsHeld + '</b>', bearing(NPCS[2].b.group.position), !cardsHeld);
+  h += (isTouchDevice && !wiresHeld) ? '' : row(wiresHeld ? '#ffa860' : '#e6e6e6', 'WIRE▸PANCHO <b>' + wiresHeld + '</b>', bearing(NPCS[0].b.group.position), !wiresHeld);
   if (lowC < lowCMax() * 0.4) h += row('#9fc8ff', 'POWER▸DAD', bearing(NPCS[1].b.group.position), false);
   if (heatLevel() >= 2) h += row('#ff7a7a', 'HEAT▸EDUARDO', bearing(CREW[2].b.group.position), false);
   if (tearOpen) h += row('#7ff6ff', (SEAL.active ? 'SEAL ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + ' \u25B8 ' : 'TEAR ') + Math.ceil(tearT) + 's', bearing(PORTAL), false);
@@ -1906,7 +1922,7 @@ const TIPS = {
   card: 'BASEBALL CARD|Take cards to the Kid. Seven fill your Low C.',
   wire: 'COPPER WIRE|Take it to Pancho for ammo. Each one you carry makes the Suits faster.',
   laser: 'LASER GUN|Picks up 15 rounds. One shot drops a Suit, three a thug, and it hits the seal for 4. Swap to it with the circle or the scroll wheel.',
-  ammo: 'AMMO|A new circle swaps between the gun and Low C (scroll wheel on PC). It aims for you, but you pick every shot: one tap, one round.',
+  ammo: 'AMMO|You start with 10 rounds. A new circle swaps between the gun and Low C (scroll wheel on PC). It aims for you, but you pick every shot: one tap, one round.',
   scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
   vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
   tape: 'ANALOG TAPE|30 seconds of static: enemies can’t see straight.',
@@ -1916,7 +1932,7 @@ const TIPS = {
   dad: 'PANCHO’S FATHER|Hold still next to him to power up. It heats you up, so pick your moment. Blue arrow.',
   luz: 'LUZ|Her hum shows every enemy and which baskets are bugged.',
   juancarlos: 'JUAN CARLOS|Invisible to the Agency for 20 seconds. The crew recharge: watch the bar over their heads.',
-  christopher: 'CHRISTOPHER|Fills your Low C, gun, laser and ego blast. He walks the whole map: look for the blue beam.',
+  christopher: 'CHRISTOPHER|Fills your gun, laser and ego blast and charges Low C to half. He walks the whole map: look for the blue beam.',
   eduardo: 'EDUARDO|Wipes your heat to zero. Find him when it gets hot.',
   bodega: 'PANCHOS BODEGA|Stand on the green circle for 5 seconds to open the real shop. The game waits for you.',
   e_suit: 'AGENCY SUIT|Stay out of its narrow cone. Being seen = heat. Two shots drop it.',
@@ -1938,7 +1954,7 @@ function tip(id) {
 function updateTips(dt) {
   if (tipT > 0) { tipT -= dt; if (tipT <= 0) { $('tip').style.opacity = 0; tipGap = 0.5; } return; }
   tipGap = Math.max(0, tipGap - dt);
-  if (tipGap > 0 || !tipQueue.length || captured) return;
+  if (tipGap > 0 || !tipQueue.length || captured || toastTimer > 0 || speechTimer > 0) return;
   const urgent = tipQueue[0].startsWith('e_') || tipQueue[0] === 'tear' || tipQueue[0] === 'heat';
   if (heatLevel() >= 2 && !urgent) return; // nothing to read while you're being hunted, except what helps right now
   const [title, text] = TIPS[tipQueue.shift()].split('|'); $('tip').innerHTML = '<b>' + title + '</b>' + text; $('tip').style.opacity = 1; tipT = 4.8;
@@ -1968,7 +1984,7 @@ function updateHunt(dt) {
   aura = Math.max(0, aura - dt * 3);
   killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
+  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateReticle(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
@@ -2003,7 +2019,7 @@ function updateHunt(dt) {
 }
 
 // ---- start / portal ----
-$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); updateHint(true); });
+$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); ammo = START_AMMO; updateLootHud(); updateHint(true); });
 function tryEnterPortal() { /* walking into the Tear is automatic now: stand in it and the countdown starts */ }
 function elevateGo() { if (window.__noNav) { window.__navigated = true; return; } location.href = '../'; } // up into the 2D game
 $('enter-btn').addEventListener('click', tryEnterPortal);
