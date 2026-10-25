@@ -862,7 +862,7 @@ ART_JOBS.forEach((j) => {
   onSprite('stadium', (e) => { // the ballpark looms behind the start of the street: the other centrepiece, opposite the pavilion
     if (e.failed) return;
     const wM = 38, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
-    m.position.set(0, hM / 2, STREET_START + 1.4); scene.add(m);
+    m.position.set(0, hM / 2, STREET_START + 1.4); m.rotation.y = Math.PI; scene.add(m); // turned round: its face looks down the street, not away from it
   });
   onSprite('kiosk', (e) => { // the Chicano Park pavilion, at the very end of the street behind the Tear
     if (e.failed) return;
