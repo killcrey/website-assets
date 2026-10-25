@@ -249,6 +249,22 @@ def main():
             sc = size / img.height
             save(img.resize((max(1, round(img.width * sc)), size), Image.LANCZOS), name, manifest)
         print('ok rects', fname, list(items))
+    path = os.path.join(SRC, 'petcopark.jfif')  # the ballpark: a whole scene with white and sky-blue behind it; only what touches the edge is backdrop
+    if want('stadium') and os.path.exists(path):
+        a = np.asarray(Image.open(path).convert('RGB')).astype(np.float32)
+        sky = np.median(a[0:8, 420:640].reshape(-1, 3), axis=0)
+        bgl = (np.sqrt(((a - 255) ** 2).sum(2)) < 30) | (np.sqrt(((a - sky) ** 2).sum(2)) < 42)
+        lab, n = ndi.label(bgl)
+        edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+        fg = ndi.binary_opening(~np.isin(lab, list(edge)), iterations=1)
+        lab2, n2 = ndi.label(fg)
+        fg = lab2 == int(np.argmax(ndi.sum(fg, lab2, range(1, n2 + 1)))) + 1
+        core = ndi.binary_erosion(fg, iterations=2)
+        _, idx = ndi.distance_transform_edt(~core, return_indices=True)
+        alpha = np.clip((ndi.gaussian_filter(ndi.binary_erosion(fg, iterations=1).astype(np.float32), 0.9) - 0.2) / 0.6, 0, 1)
+        img = Image.fromarray(np.dstack([a[idx[0], idx[1]], alpha * 255]).astype(np.uint8), 'RGBA')
+        save(img.crop(img.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()), 'stadium', manifest)
+        print('ok stadium', manifest['stadium'])
     for fname, boxes, size, prefix in MANUAL:
         if not want(prefix.strip('_') + '2', fname):
             continue
