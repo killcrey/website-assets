@@ -411,7 +411,7 @@ const BL_Z = -185; // Barrio Logan starts here
 const drnd = mulberry32(555); // dice for the extra detail only, so the street's existing look never reshuffles
 const TRIMS = [0xf0e6d0, 0xe7d9b8, 0x8a6f4d, 0xd9a766, 0xf4ead2], BASES = [0x6b4a36, 0x3f5a6b, 0x4a5d3a, 0x7a3b2e, 0x555555], DOORS = [0x2a1f16, 0x5a3b26, 0x2f5d8a, 0x3f6b45, 0x8a3b2e];
 function buildingDetail(side, zc, bw, h, plain, skipFront) { // plain = a normal building (the storefront-art ones already have a face of their own)
-  const pick = (a) => a[Math.floor(drnd() * a.length)], trim = pick(TRIMS), fb = skipFront ? () => {} : box;
+  const pick = (a) => a[Math.floor(drnd() * a.length)], trim = pick(TRIMS), fb = skipFront ? () => {} : box, cb = skipFront === 2 ? () => {} : box;
   if (plain) {
     fb(side * 7.95, 0.45, zc, 0.1, 0.9, bw - 0.3, pick(BASES), false); // painted base
     const dz = (drnd() - 0.5) * Math.max(0, bw - 3.8), dw = 1.25, door = pick(DOORS);
@@ -423,10 +423,10 @@ function buildingDetail(side, zc, bw, h, plain, skipFront) { // plain = a normal
   }
   for (let i = 0, n = 1 + Math.floor(drnd() * 3); i < n; i++) { // rooftop clutter
     const x = side * (9.5 + drnd() * 7), z = zc + (drnd() - 0.5) * Math.max(0, bw - 2), t = Math.floor(drnd() * 4), y = h + 0.55;
-    if (t === 0) box(x, y + 0.4, z, 1.1, 0.8, 0.9, 0xb8bcc0, false); // air conditioner
-    else if (t === 1) { box(x, y + 0.25, z, 1.1, 0.5, 1.1, 0x4a3a2a, false); box(x, y + 1.35, z, 1.3, 1.7, 1.3, 0x8a6f4d, false); } // water tank on legs
-    else if (t === 2) { box(x, y + 1.3, z, 0.1, 2.6, 0.1, 0x333333, false); box(x, y + 2.2, z, 1.2, 0.08, 0.08, 0x333333, false); } // antenna
-    else box(x, y + 0.7, z, 0.8, 1.4, 0.8, 0xa04f3a, false); // chimney
+    if (t === 0) cb(x, y + 0.4, z, 1.1, 0.8, 0.9, 0xb8bcc0, false); // air conditioner
+    else if (t === 1) { cb(x, y + 0.25, z, 1.1, 0.5, 1.1, 0x4a3a2a, false); cb(x, y + 1.35, z, 1.3, 1.7, 1.3, 0x8a6f4d, false); } // water tank on legs
+    else if (t === 2) { cb(x, y + 1.3, z, 0.1, 2.6, 0.1, 0x333333, false); cb(x, y + 2.2, z, 1.2, 0.08, 0.08, 0x333333, false); } // antenna
+    else cb(x, y + 0.7, z, 0.8, 1.4, 0.8, 0xa04f3a, false); // chimney
   }
 }
 const BODEGA = { set: false, z: -267.6, w: 10 }; // moved to Barrio Logan: it replaces the BAR on the right at the end of the street
@@ -448,24 +448,25 @@ for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
     let hPar = wasBodega ? Math.max(h, 9) : h; // the height the old layout used, for the random numbers below
     const isBodega = side > 0 && !BODEGA.set && Math.abs(zc + 267.6) <= bw / 2 + 0.01;
     if (isBodega) { BODEGA.set = true; BODEGA.z = zc; BODEGA.w = bw; h = Math.max(h, 9); }
+    const park = zc < -273; // the last stretch is a park: no buildings beside the pavilion, grass and trees instead
     const slot = STORE_SLOTS.find((sl) => !sl.used && sl.side === side && Math.abs(zc - sl.z) <= bw / 2 + 0.01);
     if (slot && slot.fresh) { slot.used = true; const q = FRESH[slot.key], wM = Math.min(q[1] * q[0], bw - 0.3); h = wM / q[0]; FACADES.push({ key: slot.key, side, zc, bw, wM, hM: h }); }
     else if (slot) { slot.used = true; if (!slot.ghost) { FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'recordstore' ? 7.6 : Math.max(h, 10); } hPar = slot.ghost ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(hPar, 10); } // (the ghost slot is where the taqueria used to be: it keeps the dice rolls so the street didn't reshuffle)
     const stuccoPick = (wasBodega || (slot && !slot.fresh)) ? 0 : Math.floor(rnd() * STUCCO.length);
-    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.fresh ? FRESH[slot.key][2] : slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[stuccoPick], true); // building
-    if (!(slot && slot.fresh)) box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
-    if (rnd() > 0.35 && !(slot && !slot.fresh) && !wasBodega) { const awc = AWNINGS[Math.floor(rnd() * AWNINGS.length)]; if (!isBodega && !slot) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), awc, false, side * 0.18); } // storefront awning
+    if (!park) box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.fresh ? FRESH[slot.key][2] : slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[stuccoPick], true); // building
+    if (!(slot && slot.fresh) && !park) box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
+    if (rnd() > 0.35 && !(slot && !slot.fresh) && !wasBodega) { const awc = AWNINGS[Math.floor(rnd() * AWNINGS.length)]; if (!isBodega && !slot && !park) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), awc, false, side * 0.18); } // storefront awning
     // glass windows on the street-facing side
     wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
     const cols = Math.floor((bw - 1.2) / 2.2), rows = Math.floor((hPar - 2) / 3), rowsAct = Math.floor((h - 2) / 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       if (rnd() > 0.7 || wCount >= MAX_WIN) continue;
-      const wcol = WIN_COLS[Math.floor(rnd() * WIN_COLS.length)]; if (r >= rowsAct || (slot && slot.fresh)) continue; // (the colour is rolled either way, so the rest of the street keeps its look)
+      const wcol = WIN_COLS[Math.floor(rnd() * WIN_COLS.length)]; if (r >= rowsAct || (slot && slot.fresh) || park) continue; // (the colour is rolled either way, so the rest of the street keeps its look)
       wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, zc + bw / 2 - 1.4 - c * 2.2 - (bw - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
       windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(wcol)); wCount++;
     }
-    if (rnd() > 0.55 && !wasBodega && !(slot && !slot.fresh) && zc < STREET_START - 14) { const sw = Math.floor(rnd() * 8), sy = Math.min(3.8 + rnd() * 1.4, h - 0.9); if (!isBodega && !slot) addSign(sw, side * 7.9, sy, zc, side); }
-    buildingDetail(side, zc, bw, h, !(slot && !slot.fresh) && !isBodega, !!(slot && slot.fresh));
+    if (rnd() > 0.55 && !wasBodega && !(slot && !slot.fresh) && zc < STREET_START - 14) { const sw = Math.floor(rnd() * 8), sy = Math.min(3.8 + rnd() * 1.4, h - 0.9); if (!isBodega && !slot && !park) addSign(sw, side * 7.9, sy, zc, side); }
+    buildingDetail(side, zc, bw, h, !(slot && !slot.fresh) && !isBodega, park ? 2 : !!(slot && slot.fresh));
   }
 }
 { // string lights hung across the street (one cable mesh and one instanced mesh of bulbs)
@@ -484,8 +485,35 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
   const b = [STREET_START + 8, ...GAPS, STREET_END - 8];
   for (const side of [-1, 1]) {
     addWall(side > 0 ? 22 : -34, side > 0 ? 34 : -22, STREET_END - 8, STREET_START + 8, false);
-    for (let i = 0; i < b.length - 1; i++) { const bh = (b[i] + b[i + 1]) / 2 < BL_Z ? 5 : 14; box(side * 28, bh / 2, (b[i] + b[i + 1]) / 2, 12, bh, b[i] - b[i + 1], STUCCO[Math.floor(rnd() * STUCCO.length)], true); }
+    for (let i = 0; i < b.length - 1; i++) { const bh = (b[i] + b[i + 1]) / 2 < BL_Z ? 5 : 14, e = i === b.length - 2 ? Math.max(b[i + 1], -273) : b[i + 1]; box(side * 28, bh / 2, (b[i] + e) / 2, 12, bh, b[i] - e, STUCCO[Math.floor(rnd() * STUCCO.length)], true); } // (the last one stops where the park starts)
   }
+}
+// the park at the end of the street, around the pavilion: grass, leafy trees and a few palms (its own dice, so nothing else changes)
+{
+  const pr = mulberry32(909), grassMat = flat(0x6f9a4a);
+  for (const sx of [-1, 1]) { const gr = new THREE.Mesh(new THREE.PlaneGeometry(26, 40), grassMat); gr.rotation.x = -Math.PI / 2; gr.position.set(sx * 20.95, 0.045, -291); scene.add(gr); }
+  const spots = [];
+  for (const sx of [-1, 1]) for (let tries = 0; tries < 200 && spots.filter((q) => q.sx === sx).length < 11; tries++) {
+    const x = sx * (10.5 + pr() * 16), z = -275 - pr() * 26;
+    if (spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4.2)) continue;
+    spots.push({ sx, x, z, s: 0.8 + pr() * 0.6, c: pr() });
+  }
+  const trunkT = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.34, 3.4, 7).translate(0, 1.7, 0), lam(0x6b4a2e), spots.length);
+  const crownT = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.3, 0), new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), spots.length);
+  const o = new THREE.Object3D(), g1 = new THREE.Color(0x4f8a3a), g2 = new THREE.Color(0x6aa044), cc = new THREE.Color();
+  spots.forEach((q, i) => {
+    o.rotation.set(0, 0, 0); o.scale.set(q.s, q.s, q.s); o.position.set(q.x, 0, q.z); o.updateMatrix(); trunkT.setMatrixAt(i, o.matrix);
+    o.scale.set(q.s, q.s * 0.85, q.s); o.position.set(q.x, 3.9 * q.s, q.z); o.updateMatrix(); crownT.setMatrixAt(i, o.matrix); crownT.setColorAt(i, cc.copy(g1).lerp(g2, q.c));
+  });
+  scene.add(trunkT, crownT);
+  const palms = []; for (const sx of [-1, 1]) for (const z of [-279, -288, -297]) palms.push([sx * (8.8 + pr() * 2), z + pr() * 2]);
+  const trunkP = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7).translate(0, 3.3, 0), lam(0x8a6a45), palms.length);
+  const frondP = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).translate(0, 0, 1.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), palms.length * 9);
+  let fi = 0; palms.forEach(([px, pz], i) => {
+    o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); o.position.set(px, 0, pz); o.updateMatrix(); trunkP.setMatrixAt(i, o.matrix);
+    for (let f = 0; f < 9; f++) { o.position.set(px, 6.5, pz); o.rotation.set(0.5, (f / 9) * Math.PI * 2, 0); o.updateMatrix(); frondP.setMatrixAt(fi, o.matrix); frondP.setColorAt(fi, cc.set(f % 2 ? 0x5f9244 : 0x4f7d3a)); fi++; }
+  });
+  scene.add(trunkP, frondP);
 }
 // the street ends in walls
 addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X, WORLD_X, STREET_START, STREET_START + 8, false);
@@ -1991,6 +2019,10 @@ function scanTips(dt) {
   tipScanT -= dt; if (tipScanT > 0) return; tipScanT = 0.25;
   const p = player.position, near = (x, z, r) => Math.hypot(p.x - x, p.z - z) < r;
   for (const k of pickups) if (!k.taken && near(k.holder.position.x, k.holder.position.z, 7)) tip(k.kind);
+  for (const k of pickups) if (!k.taken && (k.kind === 'basket' || k.kind === 'basketboost')) { // a basket might be bugged: warn once as you walk up to it (Luz's hum already shows you which ones)
+    const d = Math.hypot(p.x - k.holder.position.x, p.z - k.holder.position.z);
+    if (d < 5.5 && !k.warned) { k.warned = true; if (humT <= 0) showToast('CAREFUL! IT COULD BE BUGGED!', '#ff8a5a'); } else if (d > 9) k.warned = false;
+  }
   [['kid', NPCS[2]], ['pancho', NPCS[0]], ['dad', NPCS[1]], ['luz', NPCS[3]]].forEach(([id, n]) => { const g = n.b.group.position; if (near(g.x, g.z, 7)) tip(id); });
   CREW.forEach((c) => { if (near(c.x, c.z, 7)) tip(c.key); });
   for (const e of enemies) if (!e.dead && near(e.x, e.z, 26)) tip('e_' + e.kind);
