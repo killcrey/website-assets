@@ -358,5 +358,25 @@
   "w": 900,
   "h": 541,
   "kb": 52.4
+ },
+ "prop_olmec_front": {
+  "w": 259,
+  "h": 300,
+  "kb": 7.5
+ },
+ "prop_tirepot_front": {
+  "w": 444,
+  "h": 300,
+  "kb": 21.9
+ },
+ "prop_bollard_front": {
+  "w": 143,
+  "h": 300,
+  "kb": 5.2
+ },
+ "prop_bench2_front": {
+  "w": 752,
+  "h": 300,
+  "kb": 12.8
  }
 }

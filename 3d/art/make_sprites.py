@@ -57,6 +57,14 @@ SETS = [
 ]
 # buildings that touch each other: cut by fixed columns (fractions of the width): (file, [(name, left, right)], size px of the height, name prefix)
 MANUAL = [('gaslamp buildings 2.jfif', [('tower', 0.085, 0.275), ('red', 0.296, 0.634), ('cream', 0.634, 0.950)], 760, 'gl_')]
+# a sheet whose backdrop still has photo blur: each item is cut inside its own box (coordinates on a picture 1100 px wide), then scaled to a height
+# (file, {output name: (left, top, right, bottom, [boxes to ignore], px cut off the top)}, height px)
+RECTS = [('barrio logan elements.jfif', {
+    'prop_olmec_front': (48, 175, 352, 522, [(302, 0, 352, 430)], 0),
+    'prop_tirepot_front': (550, 405, 718, 522, [], 0),
+    'prop_bollard_front': (730, 352, 802, 522, [], 34),
+    'prop_bench2_front': (803, 408, 1070, 522, [], 0),
+}, 300)]
 WORK_W = 1376  # process at half size, it is plenty for 480px sprites
 
 
@@ -212,6 +220,34 @@ def main():
             sc = size / (img.height if mode == 'h' else img.width)
             save(img.resize((max(1, round(img.width * sc)), max(1, round(img.height * sc))), Image.LANCZOS), prefix + name + suffix, manifest)
         print('ok set', fname, names)
+    for fname, items, size in RECTS:
+        if not want('rects', 'prop_olmec', fname):
+            continue
+        path = os.path.join(SRC, fname)
+        if not os.path.exists(path):
+            continue
+        a = np.asarray(load(path)).astype(np.float32)
+        k = a.shape[1] / 1100.0
+        for name, (x0, y0, x1, y1, skip, cut_top) in items.items():
+            x0, y0, x1, y1 = [int(v * k) for v in (x0, y0, x1, y1)]
+            sub = a[y0:y1, x0:x1]
+            fg = np.sqrt(((sub - 220.0) ** 2).sum(axis=2)) > 40
+            for sx0, sy0, sx1, sy1 in skip:
+                fg[max(0, int(sy0 * k) - y0):max(0, int(sy1 * k) - y0), max(0, int(sx0 * k) - x0):max(0, int(sx1 * k) - x0)] = False
+            if cut_top:
+                fg[:int(cut_top * k)] = False
+            fg = ndi.binary_opening(fg, iterations=2)
+            lab, n = ndi.label(fg)
+            sizes = ndi.sum(fg, lab, range(1, n + 1))
+            m = ndi.binary_fill_holes(lab == int(np.argmax(sizes)) + 1)
+            core = ndi.binary_erosion(m, iterations=2)
+            _, idx = ndi.distance_transform_edt(~core, return_indices=True)
+            alpha = np.clip((ndi.gaussian_filter(ndi.binary_erosion(m, iterations=1).astype(np.float32), 0.9) - 0.2) / 0.6, 0, 1)
+            img = Image.fromarray(np.dstack([sub[idx[0], idx[1]], alpha * 255]).astype(np.uint8), 'RGBA')
+            img = img.crop(img.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+            sc = size / img.height
+            save(img.resize((max(1, round(img.width * sc)), size), Image.LANCZOS), name, manifest)
+        print('ok rects', fname, list(items))
     for fname, boxes, size, prefix in MANUAL:
         if not want(prefix.strip('_') + '2', fname):
             continue

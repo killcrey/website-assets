@@ -858,6 +858,7 @@ ART_JOBS.forEach((j) => {
     addProp(pr.key, pr.h, side * (pr.key === 'prop_hydrant' ? 5.75 : 7.35), z, 0.4);
   }
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
+  for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25], ['prop_bench2', 0.8, -7.2, -243, 0.5]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
   FACADES.forEach((f) => onSprite(f.key, (e) => {
     if (e.failed) return;
     const wM = f.wM || f.bw - 0.3, hM = f.hM || wM * e.h / e.w;
