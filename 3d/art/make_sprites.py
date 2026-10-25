@@ -43,7 +43,7 @@ SHEETS = {
 ITEMS = ('The collectibles set.jfif', ['card', 'scratcher', 'wire', 'vinyl', 'tape', 'basket'], 256)
 # single flat pieces: name: (source file, output width px)
 FLATS = {'bodega': ('bodega.jfif', 1024), 'recordstore': ('record store.jfif', 1024), 'taqueria': ('tacoshop.jfif', 1200),
-         'bl_farol': ('el farol barrio logan.jfif', 900, 0.79), 'bl_row': ('tierra libre barrio logan.jfif', 900)}  # (the Chicano Park pavilion, chicanopark kiosk.jfif, is waiting for a cleaner re-generation: the backdrop has photo remnants)
+         'bl_farol': ('el farol barrio logan.jfif', 900, 0.79), 'bl_row': ('tierra libre barrio logan.jfif', 900), 'kiosk': ('chicanopark kiosk.jfif', 800, 0.0, True, 7)}  # the pavilion: largest piece only, and its open middle stays see-through
 # several different items on one sheet, each saved on its own: (file, names left to right, 'h' or 'w', size px, name prefix, name suffix)
 SETS = [
     ('Small street props set.jfif', ['cans', 'mailbox', 'hydrant', 'bench', 'newsbox', 'cones'], 'h', 300, 'prop_', '_front'),
@@ -82,13 +82,13 @@ def load(path, crop_top=0.0, crop_bottom=0.0):
     return im
 
 
-def cutout(im, strip_lines=True, largest=False):
+def cutout(im, strip_lines=True, largest=False, thr=30):
     """Returns an RGBA image with the plain studio background removed and clean edges."""
     a = np.asarray(im).astype(np.float32)
     border = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
     bg = np.median(border, axis=0)
     dist = np.sqrt(((a - bg) ** 2).sum(axis=2))
-    bg_like = dist < 30
+    bg_like = dist < thr
     lab, n = ndi.label(bg_like)
     edge_labels = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     bg_mask = np.isin(lab, list(edge_labels))
@@ -119,7 +119,8 @@ def cutout(im, strip_lines=True, largest=False):
         if largest:
             keep = [int(np.argmax(sizes)) + 1]
         fg = np.isin(lab2, keep)
-    fg = ndi.binary_fill_holes(fg)
+    if not largest:
+        fg = ndi.binary_fill_holes(fg)
     core = ndi.binary_erosion(fg, iterations=2)
     # take colour from the nearest solid interior pixel so the grey backdrop never bleeds into the edge
     _, idx = ndi.distance_transform_edt(~core, return_indices=True)
@@ -267,7 +268,7 @@ def main():
         path = os.path.join(SRC, fname)
         if not os.path.exists(path):
             continue
-        rgba, fg = cutout(load(path, 0.0, spec[2] if len(spec) > 2 else 0.0), strip_lines=False, largest=len(spec) > 3 and spec[3])
+        rgba, fg = cutout(load(path, 0.0, spec[2] if len(spec) > 2 else 0.0), strip_lines=False, largest=len(spec) > 3 and spec[3], thr=spec[4] if len(spec) > 4 else 30)
         bbox = rgba.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
         img = rgba.crop(bbox)
         save(img.resize((out_w, max(1, round(img.height * out_w / img.width))), Image.LANCZOS), name, manifest)
