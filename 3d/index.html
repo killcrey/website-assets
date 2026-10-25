@@ -859,10 +859,10 @@ ART_JOBS.forEach((j) => {
   }
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
   for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25], ['prop_bench2', 0.8, -7.2, -243, 0.5]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
-  onSprite('kiosk', (e) => { // the Chicano Park pavilion, on the east alley wall in Barrio Logan
+  onSprite('kiosk', (e) => { // the Chicano Park pavilion, at the very end of the street behind the Tear
     if (e.failed) return;
-    const wM = 8.5, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
-    m.position.set(21.85, hM / 2, -228); m.rotation.y = -Math.PI / 2; scene.add(m);
+    const wM = 15.4, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
+    m.position.set(0, hM / 2, -291); scene.add(m);
   });
   FACADES.forEach((f) => onSprite(f.key, (e) => {
     if (e.failed) return;
