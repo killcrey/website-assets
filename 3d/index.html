@@ -433,9 +433,9 @@ const BODEGA = { set: false, z: -267.6, w: 10 }; // moved to Barrio Logan: it re
 const OLD_BODEGA = { set: false }; // the old corner store spot (z -60): kept only so the random look of every other building stays exactly as it was
 // storefronts drawn from the Gemini art, placed on whichever building covers these spots (Barrio Logan's record store is past z = -185)
 // round-3 art dropped onto buildings: key: [width / height of the picture, tallest it may be in meters, colour of the wall behind it]. Every random roll the plain building would have made is still made, so the rest of the street keeps its look.
-const FRESH = { gl_tower: [0.371, 18, 0xd9b88f], gl_red: [0.656, 16, 0xa8482f], gl_cream: [0.652, 14, 0xe0d2b4], gl_spire: [0.608, 17, 0xd8a877], gl_dark: [0.507, 18, 0x7a3a2e], gl_grey: [0.65, 15, 0xc9c3b6], gl_seafood: [1.07, 12, 0x7a2e26], gl_orange: [0.911, 14, 0xa4472e], pillar_a: [0.783, 9, 0x9a9a94], pillar_b: [0.789, 9, 0x9a9a94], bl_farol: [2.004, 6, 0x8a8a3a], bl_row: [1.664, 7, 0xd8c8a0] };
-const FRESH_SLOTS = [[-1, -34, 'gl_tower'], [-1, -54, 'gl_red'], [-1, -76, 'gl_cream'], [-1, -102, 'gl_spire'], [-1, -128, 'gl_grey'], [1, -44, 'gl_seafood'], [1, -66, 'gl_orange'], [1, -100, 'gl_dark'], [-1, -218, 'bl_row'], [-1, -240, 'bl_farol'], [-1, -277, 'pillar_a'], [1, -278, 'pillar_b']].map(([side, z, key]) => ({ side, z, key, fresh: true }));
-const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria' }, { side: 1, z: -232, key: 'recordstore' }, ...FRESH_SLOTS];
+const FRESH = { taqueria: [2.495, 99, CREAM], gl_tower: [0.371, 18, 0xd9b88f], gl_red: [0.656, 16, 0xa8482f], gl_cream: [0.652, 14, 0xe0d2b4], gl_spire: [0.608, 17, 0xd8a877], gl_dark: [0.507, 18, 0x7a3a2e], gl_grey: [0.65, 15, 0xc9c3b6], gl_seafood: [1.07, 12, 0x7a2e26], gl_orange: [0.911, 14, 0xa4472e], pillar_a: [0.783, 9, 0x9a9a94], pillar_b: [0.789, 9, 0x9a9a94], bl_farol: [2.004, 6, 0x8a8a3a], bl_row: [1.664, 7, 0xd8c8a0] };
+const FRESH_SLOTS = [[-1, -34, 'gl_tower'], [-1, -54, 'gl_red'], [-1, -76, 'gl_cream'], [-1, -102, 'gl_spire'], [-1, -128, 'gl_grey'], [1, -44, 'gl_seafood'], [1, -66, 'gl_orange'], [1, -100, 'gl_dark'], [-1, -218, 'bl_row'], [-1, -240, 'bl_farol'], [1, -183, 'taqueria'], [-1, -277, 'pillar_a'], [1, -278, 'pillar_b']].map(([side, z, key]) => ({ side, z, key, fresh: true }));
+const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria_old', ghost: true }, { side: 1, z: -232, key: 'recordstore' }, ...FRESH_SLOTS];
 const FACADES = [];
 const SEGS = []; { let top = STREET_START; for (const g of GAPS) { SEGS.push([top, g + GAP_W / 2]); top = g - GAP_W / 2; } SEGS.push([top, STREET_END]); }
 for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
@@ -450,7 +450,7 @@ for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
     if (isBodega) { BODEGA.set = true; BODEGA.z = zc; BODEGA.w = bw; h = Math.max(h, 9); }
     const slot = STORE_SLOTS.find((sl) => !sl.used && sl.side === side && Math.abs(zc - sl.z) <= bw / 2 + 0.01);
     if (slot && slot.fresh) { slot.used = true; const q = FRESH[slot.key], wM = Math.min(q[1] * q[0], bw - 0.3); h = wM / q[0]; FACADES.push({ key: slot.key, side, zc, bw, wM, hM: h }); }
-    else if (slot) { slot.used = true; FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(h, 10); hPar = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(hPar, 10); }
+    else if (slot) { slot.used = true; if (!slot.ghost) { FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'recordstore' ? 7.6 : Math.max(h, 10); } hPar = slot.ghost ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(hPar, 10); } // (the ghost slot is where the taqueria used to be: it keeps the dice rolls so the street didn't reshuffle)
     const stuccoPick = (wasBodega || (slot && !slot.fresh)) ? 0 : Math.floor(rnd() * STUCCO.length);
     box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.fresh ? FRESH[slot.key][2] : slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[stuccoPick], true); // building
     if (!(slot && slot.fresh)) box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
