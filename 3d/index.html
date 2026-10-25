@@ -410,16 +410,16 @@ const AWNINGS = [0xb85c3e, 0x2f5d8a, 0x3f6b45, 0xd9a766];
 const BL_Z = -185; // Barrio Logan starts here
 const drnd = mulberry32(555); // dice for the extra detail only, so the street's existing look never reshuffles
 const TRIMS = [0xf0e6d0, 0xe7d9b8, 0x8a6f4d, 0xd9a766, 0xf4ead2], BASES = [0x6b4a36, 0x3f5a6b, 0x4a5d3a, 0x7a3b2e, 0x555555], DOORS = [0x2a1f16, 0x5a3b26, 0x2f5d8a, 0x3f6b45, 0x8a3b2e];
-function buildingDetail(side, zc, bw, h, plain) { // plain = a normal building (the storefront-art ones already have a face of their own)
-  const pick = (a) => a[Math.floor(drnd() * a.length)], trim = pick(TRIMS);
+function buildingDetail(side, zc, bw, h, plain, skipFront) { // plain = a normal building (the storefront-art ones already have a face of their own)
+  const pick = (a) => a[Math.floor(drnd() * a.length)], trim = pick(TRIMS), fb = skipFront ? () => {} : box;
   if (plain) {
-    box(side * 7.95, 0.45, zc, 0.1, 0.9, bw - 0.3, pick(BASES), false); // painted base
+    fb(side * 7.95, 0.45, zc, 0.1, 0.9, bw - 0.3, pick(BASES), false); // painted base
     const dz = (drnd() - 0.5) * Math.max(0, bw - 3.8), dw = 1.25, door = pick(DOORS);
-    box(side * 7.93, 1.3, zc + dz, 0.16, 2.6, dw + 0.4, trim, false); // door frame
-    box(side * 7.9, 1.15, zc + dz, 0.22, 2.3, dw, door, false); // door
-    box(side * 7.93, 2.62, zc + dz, 0.16, 0.14, dw + 0.6, trim, false); // lintel
-    box(side * 7.92, h - 0.25, zc, 0.3, 0.4, bw + 0.1, trim, false); // cornice
-    if (h > 8) box(side * 7.95, 3.1, zc, 0.12, 0.28, bw - 0.2, trim, false); // floor band
+    fb(side * 7.93, 1.3, zc + dz, 0.16, 2.6, dw + 0.4, trim, false); // door frame
+    fb(side * 7.9, 1.15, zc + dz, 0.22, 2.3, dw, door, false); // door
+    fb(side * 7.93, 2.62, zc + dz, 0.16, 0.14, dw + 0.6, trim, false); // lintel
+    fb(side * 7.92, h - 0.25, zc, 0.3, 0.4, bw + 0.1, trim, false); // cornice
+    if (h > 8) fb(side * 7.95, 3.1, zc, 0.12, 0.28, bw - 0.2, trim, false); // floor band
   }
   for (let i = 0, n = 1 + Math.floor(drnd() * 3); i < n; i++) { // rooftop clutter
     const x = side * (9.5 + drnd() * 7), z = zc + (drnd() - 0.5) * Math.max(0, bw - 2), t = Math.floor(drnd() * 4), y = h + 0.55;
@@ -432,7 +432,10 @@ function buildingDetail(side, zc, bw, h, plain) { // plain = a normal building (
 const BODEGA = { set: false, z: -267.6, w: 10 }; // moved to Barrio Logan: it replaces the BAR on the right at the end of the street
 const OLD_BODEGA = { set: false }; // the old corner store spot (z -60): kept only so the random look of every other building stays exactly as it was
 // storefronts drawn from the Gemini art, placed on whichever building covers these spots (Barrio Logan's record store is past z = -185)
-const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria' }, { side: 1, z: -232, key: 'recordstore' }];
+// round-3 art dropped onto buildings: key: [width / height of the picture, tallest it may be in meters, colour of the wall behind it]. Every random roll the plain building would have made is still made, so the rest of the street keeps its look.
+const FRESH = { gl_tower: [0.371, 18, 0xd9b88f], gl_red: [0.656, 16, 0xa8482f], gl_cream: [0.652, 14, 0xe0d2b4], gl_spire: [0.608, 17, 0xd8a877], gl_dark: [0.507, 18, 0x7a3a2e], gl_grey: [0.65, 15, 0xc9c3b6], gl_seafood: [1.07, 12, 0x7a2e26], gl_orange: [0.911, 14, 0xa4472e], pillar_a: [0.783, 9, 0x9a9a94], pillar_b: [0.789, 9, 0x9a9a94], bl_farol: [2.004, 6, 0x8a8a3a], bl_row: [1.664, 7, 0xd8c8a0] };
+const FRESH_SLOTS = [[-1, -34, 'gl_tower'], [-1, -54, 'gl_red'], [-1, -76, 'gl_cream'], [-1, -102, 'gl_spire'], [-1, -128, 'gl_grey'], [1, -44, 'gl_seafood'], [1, -66, 'gl_orange'], [1, -100, 'gl_dark'], [-1, -218, 'bl_row'], [-1, -240, 'bl_farol'], [-1, -277, 'pillar_a'], [1, -278, 'pillar_b']].map(([side, z, key]) => ({ side, z, key, fresh: true }));
+const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria' }, { side: 1, z: -232, key: 'recordstore' }, ...FRESH_SLOTS];
 const FACADES = [];
 const SEGS = []; { let top = STREET_START; for (const g of GAPS) { SEGS.push([top, g + GAP_W / 2]); top = g - GAP_W / 2; } SEGS.push([top, STREET_END]); }
 for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
@@ -446,22 +449,23 @@ for (const [top, bottom] of SEGS) for (const side of [-1, 1]) {
     const isBodega = side > 0 && !BODEGA.set && Math.abs(zc + 267.6) <= bw / 2 + 0.01;
     if (isBodega) { BODEGA.set = true; BODEGA.z = zc; BODEGA.w = bw; h = Math.max(h, 9); }
     const slot = STORE_SLOTS.find((sl) => !sl.used && sl.side === side && Math.abs(zc - sl.z) <= bw / 2 + 0.01);
-    if (slot) { slot.used = true; FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(h, 10); hPar = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(hPar, 10); }
-    const stuccoPick = (wasBodega || slot) ? 0 : Math.floor(rnd() * STUCCO.length);
-    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[stuccoPick], true); // building
-    box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
-    if (rnd() > 0.35 && !slot && !wasBodega) { const awc = AWNINGS[Math.floor(rnd() * AWNINGS.length)]; if (!isBodega) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), awc, false, side * 0.18); } // storefront awning
+    if (slot && slot.fresh) { slot.used = true; const q = FRESH[slot.key], wM = Math.min(q[1] * q[0], bw - 0.3); h = wM / q[0]; FACADES.push({ key: slot.key, side, zc, bw, wM, hM: h }); }
+    else if (slot) { slot.used = true; FACADES.push({ key: slot.key, side, zc, bw }); h = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(h, 10); hPar = slot.key === 'taqueria' ? 5.2 : slot.key === 'recordstore' ? 7.6 : Math.max(hPar, 10); }
+    const stuccoPick = (wasBodega || (slot && !slot.fresh)) ? 0 : Math.floor(rnd() * STUCCO.length);
+    box(side * 13, h / 2, zc, 10, h, bw, isBodega ? BRICK : slot ? (slot.fresh ? FRESH[slot.key][2] : slot.key === 'taqueria' ? CREAM : SAND) : STUCCO[stuccoPick], true); // building
+    if (!(slot && slot.fresh)) box(side * 13, h + 0.2, zc, 10.3, 0.7, bw + 0.3, 0x8a6f4d, false); // parapet
+    if (rnd() > 0.35 && !(slot && !slot.fresh) && !wasBodega) { const awc = AWNINGS[Math.floor(rnd() * AWNINGS.length)]; if (!isBodega && !slot) box(side * 7.1, 3.0, zc, 1.6, 0.18, Math.min(bw - 1.5, 6), awc, false, side * 0.18); } // storefront awning
     // glass windows on the street-facing side
     wq.setFromEuler(new THREE.Euler(0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0));
     const cols = Math.floor((bw - 1.2) / 2.2), rows = Math.floor((hPar - 2) / 3), rowsAct = Math.floor((h - 2) / 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       if (rnd() > 0.7 || wCount >= MAX_WIN) continue;
-      const wcol = WIN_COLS[Math.floor(rnd() * WIN_COLS.length)]; if (r >= rowsAct) continue; // (the colour is rolled either way, so the rest of the street keeps its look)
+      const wcol = WIN_COLS[Math.floor(rnd() * WIN_COLS.length)]; if (r >= rowsAct || (slot && slot.fresh)) continue; // (the colour is rolled either way, so the rest of the street keeps its look)
       wm.compose(new THREE.Vector3(side * 7.97, 4.4 + r * 3, zc + bw / 2 - 1.4 - c * 2.2 - (bw - cols * 2.2) / 2 + 0.3), wq, new THREE.Vector3(1, 1, 1));
       windows.setMatrixAt(wCount, wm); windows.setColorAt(wCount, wc.setHex(wcol)); wCount++;
     }
-    if (rnd() > 0.55 && !wasBodega && !slot && zc < STREET_START - 14) { const sw = Math.floor(rnd() * 8), sy = Math.min(3.8 + rnd() * 1.4, h - 0.9); if (!isBodega) addSign(sw, side * 7.9, sy, zc, side); }
-    buildingDetail(side, zc, bw, h, !slot && !isBodega);
+    if (rnd() > 0.55 && !wasBodega && !(slot && !slot.fresh) && zc < STREET_START - 14) { const sw = Math.floor(rnd() * 8), sy = Math.min(3.8 + rnd() * 1.4, h - 0.9); if (!isBodega && !slot) addSign(sw, side * 7.9, sy, zc, side); }
+    buildingDetail(side, zc, bw, h, !(slot && !slot.fresh) && !isBodega, !!(slot && slot.fresh));
   }
 }
 { // string lights hung across the street (one cable mesh and one instanced mesh of bulbs)
@@ -490,11 +494,13 @@ addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X,
 const crnd = mulberry32(2024);
 const CAR_COLS = [0x3a8f8c, 0xb4452f, 0xd9a82e, 0x4a6a82];
 const CAR_ART = [{ key: 'car_a', h: 1.4, len: 4.9 }, { key: 'car_b', h: 1.8, len: 4.7 }, { key: 'car_c', h: 1.9, len: 3.9 }];
+const LOWRIDER = { key: 'car_d', h: 1.4, len: 5.4 }; let lrN = 0;
 for (let z = -22; z > STREET_END + 14; z -= 18 + crnd() * 10) {
   const side = crnd() > 0.5 ? 1 : -1, x = side * 3.9, near = (zz) => Math.abs(z - zz) < 7;
   if (GAPS.some((g) => Math.abs(z - g) < 7) || (side > 0 && near(-55))) continue; // keep cross streets clear
-  const car = CAR_ART[Math.floor(crnd() * CAR_ART.length)], col = CAR_COLS[Math.floor(crnd() * CAR_COLS.length)];
+  let car = CAR_ART[Math.floor(crnd() * CAR_ART.length)]; const col = CAR_COLS[Math.floor(crnd() * CAR_COLS.length)];
   if (side > 0 && near(BODEGA.z + 5)) continue; // and the curb in front of the bodega (the bread truck's spot)
+  if ((lrN === 0 && z < -120) || (lrN === 1 && z < -215)) { car = LOWRIDER; lrN++; } // a lowrider or two parked down the street
   cover(x, z, 1.9, car.len, 1.3, col, [[0, 1.55, -0.2, 1.7, 0.7, car.len - 2.2, 0xcfe0e8]], { key: car.key, h: car.h, facing: side > 0 ? Math.PI : 0, blob: true }); // parked facing the way traffic goes
 }
 for (const gz of GAPS) for (const sx of [-1, 1]) {
@@ -854,7 +860,7 @@ ART_JOBS.forEach((j) => {
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
   FACADES.forEach((f) => onSprite(f.key, (e) => {
     if (e.failed) return;
-    const wM = f.bw - 0.3, hM = wM * e.h / e.w;
+    const wM = f.wM || f.bw - 0.3, hM = f.hM || wM * e.h / e.w;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(f.side * 7.86, hM / 2, f.zc); m.rotation.y = f.side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
   }));

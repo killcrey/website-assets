@@ -32,6 +32,7 @@ SHEETS = {
     'car_a': ('Parked car A.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380, 0.33),
     'car_b': ('Parked car B.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380),
     'car_c': ('Parked car C.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380),
+    'car_d': ('lowrider.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 380, 0.25),
     'dumpster': ('Dumpster.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 340, 0.25),
     'cart': ('Street taco vendor cart.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 420),
     'bus': ('Bus shelter.jfif', 3, {0: 'front', 1: 'side', 2: 'back'}, 300, 0.54),
@@ -41,7 +42,8 @@ SHEETS = {
 }
 ITEMS = ('The collectibles set.jfif', ['card', 'scratcher', 'wire', 'vinyl', 'tape', 'basket'], 256)
 # single flat pieces: name: (source file, output width px)
-FLATS = {'bodega': ('bodega.jfif', 1024), 'recordstore': ('record store.jfif', 1024), 'taqueria': ('tacoshop.jfif', 1200)}
+FLATS = {'bodega': ('bodega.jfif', 1024), 'recordstore': ('record store.jfif', 1024), 'taqueria': ('tacoshop.jfif', 1200),
+         'bl_farol': ('el farol barrio logan.jfif', 900, 0.79), 'bl_row': ('tierra libre barrio logan.jfif', 900)}  # (the Chicano Park pavilion, chicanopark kiosk.jfif, is waiting for a cleaner re-generation: the backdrop has photo remnants)
 # several different items on one sheet, each saved on its own: (file, names left to right, 'h' or 'w', size px, name prefix, name suffix)
 SETS = [
     ('Small street props set.jfif', ['cans', 'mailbox', 'hydrant', 'bench', 'newsbox', 'cones'], 'h', 300, 'prop_', '_front'),
@@ -49,20 +51,30 @@ SETS = [
     ('Alley and wall.jfif', ['wall', 'gate', 'fence', 'ladder', 'appliances'], 'h', 340, 'alley_', '_front'),
     ('Street signs set.jfif', ['stop', 'oneway', 'noparking', 'fifth', 'ped'], 'h', 340, 'sign_', '_front'),
     ('Two more storefronts.jfif', ['coffee', 'panaderia'], 'w', 900, 'facade_', ''),
+    ('gaslamp buildings 1.jfif', ['spire', 'dark', 'grey'], 'h', 760, 'gl_', ''),
+    ('gaslamp brick buildings.jfif', ['seafood', 'orange'], 'h', 760, 'gl_', ''),
+    ('chicano park pillars.jfif', ['a', 'b'], 'h', 700, 'pillar_', ''),
 ]
+# buildings that touch each other: cut by fixed columns (fractions of the width): (file, [(name, left, right)], size px of the height, name prefix)
+MANUAL = [('gaslamp buildings 2.jfif', [('tower', 0.085, 0.275), ('red', 0.296, 0.634), ('cream', 0.634, 0.950)], 760, 'gl_')]
 WORK_W = 1376  # process at half size, it is plenty for 480px sprites
 
 
-def load(path, crop_top=0.0):
+def load(path, crop_top=0.0, crop_bottom=0.0):
     im = Image.open(path).convert('RGB')
     h = round(im.height * WORK_W / im.width)
     im = im.resize((WORK_W, h), Image.LANCZOS)
     if crop_top:
         im = im.crop((0, int(h * crop_top), WORK_W, h))
+    if crop_bottom:  # keep the top part and add a few rows of backdrop below it so the cut-out has a clean bottom edge
+        keep = im.crop((0, 0, WORK_W, int(h * crop_bottom)))
+        out = Image.new('RGB', (WORK_W, keep.height + 10), keep.getpixel((4, 4)))
+        out.paste(keep, (0, 0))
+        im = out
     return im
 
 
-def cutout(im, strip_lines=True):
+def cutout(im, strip_lines=True, largest=False):
     """Returns an RGBA image with the plain studio background removed and clean edges."""
     a = np.asarray(im).astype(np.float32)
     border = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
@@ -96,6 +108,8 @@ def cutout(im, strip_lines=True):
     if n2:
         sizes = ndi.sum(fg, lab2, range(1, n2 + 1))
         keep = [i + 1 for i, s in enumerate(sizes) if s > 250]
+        if largest:
+            keep = [int(np.argmax(sizes)) + 1]
         fg = np.isin(lab2, keep)
     fg = ndi.binary_fill_holes(fg)
     core = ndi.binary_erosion(fg, iterations=2)
@@ -140,6 +154,8 @@ def trim(rgba, x0, x1):
 
 
 def save(img, name, manifest):
+    if name.startswith('gl_'):  # drop the thin ground line the generator draws under each building
+        img = img.crop((0, 0, img.width, img.height - 5))
     path = os.path.join(OUT, name + '.webp')
     img.save(path, 'WEBP', quality=82, method=6)
     manifest[name] = {'w': img.width, 'h': img.height, 'kb': round(os.path.getsize(path) / 1024, 1)}
@@ -196,13 +212,26 @@ def main():
             sc = size / (img.height if mode == 'h' else img.width)
             save(img.resize((max(1, round(img.width * sc)), max(1, round(img.height * sc))), Image.LANCZOS), prefix + name + suffix, manifest)
         print('ok set', fname, names)
-    for name, (fname, out_w) in FLATS.items():
-        if not want(name):
+    for fname, boxes, size, prefix in MANUAL:
+        if not want(prefix.strip('_') + '2', fname):
             continue
         path = os.path.join(SRC, fname)
         if not os.path.exists(path):
             continue
-        rgba, fg = cutout(load(path), strip_lines=False)
+        rgba, fg = cutout(load(path), strip_lines=False)  # the buildings touch, so a row of them must not be mistaken for a ground line
+        for name, l, r in boxes:
+            img = trim(rgba, int(l * rgba.width), int(r * rgba.width))
+            sc = size / img.height
+            save(img.resize((max(1, round(img.width * sc)), max(1, round(img.height * sc))), Image.LANCZOS), prefix + name, manifest)
+        print('ok manual', fname, [b[0] for b in boxes])
+    for name, spec in FLATS.items():
+        if not want(name):
+            continue
+        fname, out_w = spec[0], spec[1]
+        path = os.path.join(SRC, fname)
+        if not os.path.exists(path):
+            continue
+        rgba, fg = cutout(load(path, 0.0, spec[2] if len(spec) > 2 else 0.0), strip_lines=False, largest=len(spec) > 3 and spec[3])
         bbox = rgba.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
         img = rgba.crop(bbox)
         save(img.resize((out_w, max(1, round(img.height * out_w / img.width))), Image.LANCZOS), name, manifest)
