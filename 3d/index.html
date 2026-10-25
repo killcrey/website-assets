@@ -171,7 +171,8 @@
 <div id="results" class="overlay" style="display:none; z-index: 25;">
   <div class="title vt" style="color:#7ff6ff;">ELEVATED</div>
   <div id="results-body" class="sub vt" style="max-width:340px;margin:12px 0 18px;line-height:1.5;color:#fff;text-shadow:none;"></div>
-  <button id="results-go" class="btn pink vt" type="button" style="font-size:1.3rem;padding:12px 28px;"></button>
+  <button id="results-go" class="btn pink vt" type="button" style="font-size:1.3rem;padding:12px 28px;">ELEVATE</button>
+  <button id="results-stay" class="btn vt" type="button" style="font-size:1.1rem;padding:8px 22px;margin-top:10px;">STAY HOME</button>
 </div>
 
 <div id="null-screen" class="overlay" style="display:none; z-index: 15;">
@@ -1199,7 +1200,8 @@ const PITCH0 = 0.17, PITCH_MIN = 0.08, PITCH_MAX = 0.32; // capped so you can ne
 let yaw = 0, pitch = PITCH0, started = false, locked = false, lookIdle = 99, mouseLowC = false, btnLowC = false, lowCLatch = false, pressBuf = 0;
 const IGNORE_START = ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'Tab', 'F5', 'F11', 'F12', 'Escape'];
 window.addEventListener('keydown', (e) => {
-  if (gamePaused) { if (e.code === 'Escape') closeBodega(); return; }
+  if (captured && performance.now() - capturedAt > 900 && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); $('null-btn').click(); return; }
+  if (gamePaused) { if (resultsOpen) { if (e.code === 'Enter' && resultsGo) resultsGo(); else if (e.code === 'Escape') stayHome(); } else if (e.code === 'Escape') closeBodega(); return; }
   keys[e.code] = true;
   if (!started && !IGNORE_START.includes(e.code) && $('start').style.display !== 'none') $('start-btn').click(); // any key starts the game on PC
   if (e.code === 'KeyE' || e.code === 'Enter') tryEnterPortal();
@@ -1382,7 +1384,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false, thugCueT = 0, runT = 0, cpZ = 6, statSuit = 0, statThug = 0, statCaught = 0;
+let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false, thugCueT = 0, runT = 0, cpZ = 6, statSuit = 0, statThug = 0, statCaught = 0, resultsOpen = false, resultsGo = null, elevateBlocked = false, capturedAt = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'refill') { lowC = Math.max(lowC, lowCMax() * 0.5); lowCLock = false; ammo = AMMO_MAX; laserAmmo = LASER_MAX; egoCharges = 2; showToast('GUN, LASER, EGO FILLED  •  LOW C HALF', '#9fd0ff'); }
@@ -1652,7 +1654,7 @@ function updateReinforce(dt, lvl) { // high heat brings more Suits, out of sight
 
 // ---- heat, damage and capture ----
 function capture(why) {
-  if (captured) return; captured = true; statCaught++; aura = 0; stick.x = stick.y = 0; mouseLowC = false; btnLowC = false; lowCLatch = false; setLowCAudio(false);
+  if (captured) return; captured = true; statCaught++; capturedAt = performance.now(); try { if (document.exitPointerLock) document.exitPointerLock(); } catch (err) { /* fine */ } aura = 0; stick.x = stick.y = 0; mouseLowC = false; btnLowC = false; lowCLatch = false; setLowCAudio(false);
   $('null-sub').textContent = why + ' The Agency kept half of what you were carrying. You restart at your last checkpoint.'; $('null-screen').style.display = 'flex'; sting(90, 60);
 }
 function restartRun() { // thrown back to the last checkpoint with half of what you carried
@@ -1668,7 +1670,7 @@ function restartRun() { // thrown back to the last checkpoint with half of what 
 }
 const cloakGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
 cloakGlow.scale.set(3.2, 3.8, 1); cloakGlow.position.y = 1.0; cloakGlow.visible = false; playerBill.group.add(cloakGlow);
-$('null-btn').addEventListener('click', restartRun);
+$('null-btn').addEventListener('click', () => { restartRun(); relock(); });
 updateLootHud(); // show CREW 0/3 from the start
 
 // ---- the bread truck ----
@@ -1796,8 +1798,13 @@ function killEnemy(e) {
   const pts = e.kind === 'thug' ? 800 : 500; loot.points += pts; suitKills++; killT = 0; bumpHeat(Math.min(1, 0.15 + 0.1 * suitKills)); poof(e.x, e.z, e.kind === 'thug' ? 0xff3b3b : 0xffb347, 2.6, 1.0, 0.55); poof(e.x + 0.3, e.z - 0.2, 0xfff0b0, 1.6, 1.4, 0.4); poof(e.x - 0.3, e.z + 0.2, 0xff5a3a, 1.6, 0.6, 0.45); shake = Math.max(shake, 0.35); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 70, t, 0.45, 0.24, 300); tone('square', 110, t + 0.03, 0.25, 0.14, 700); }
   showToast((e.kind === 'thug' ? 'THUG' : 'SUIT') + ' DOWN  +' + pts, '#ffd27a');
 }
+function emptySwitch() { // out of rounds: straight to Low C if there is any in the tank, otherwise to the other gun
+  const was = weapon; if (!((was === 'gun' && ammo <= 0) || (was === 'laser' && laserAmmo <= 0))) return;
+  const other = was === 'gun' ? (laserAmmo > 0 ? 'laser' : null) : (ammo > 0 ? 'gun' : null);
+  weapon = (lowC > 0.01 || !other) ? 'lowc' : other; lowCLatch = false; showToast((was === 'laser' ? 'LASER EMPTY' : 'OUT OF AMMO') + (weapon === 'lowc' ? '  •  LOW C' : ''), '#ff9a6a'); updateLootHud();
+}
 function updateGun(dt) {
-  fireCool = Math.max(0, fireCool - dt);
+  fireCool = Math.max(0, fireCool - dt); emptySwitch();
   const laser = weapon === 'laser';
   if (!(started && !captured && !inTruck && (weapon === 'gun' || laser)) || pressBuf <= 0 || fireCool > 0) return;
   const e = gunTarget(laser ? LASER_RANGE : GUN_RANGE); if (!e) return; // nothing in sight: no shot, no ammo spent
@@ -1813,7 +1820,7 @@ function updateGun(dt) {
     { const kx = e.x - p.x, kz = e.z - p.z, kd = Math.hypot(kx, kz) || 1; e.x += kx / kd * 0.45; e.z += kz / kd * 0.45; resolveCircle(e, 0.45); } // a hit knocks them back a step
     if (e.hp <= 0) killEnemy(e);
   }
-  if ((laser ? laserAmmo : ammo) <= 0) { weapon = laser ? (ammo > 0 ? 'gun' : 'lowc') : (laserAmmo > 0 ? 'laser' : 'lowc'); lowCLatch = false; showToast(laser ? 'LASER EMPTY' : 'OUT OF AMMO', '#ff9a6a'); }
+  emptySwitch();
   updateLootHud();
 }
 // ---- the sky and the countdown while the Tear is open ----
@@ -1923,7 +1930,8 @@ function breakSeal() {
   shake = Math.max(shake, 0.6); showToast('SEAL BROKEN  \u2022  GET IN!', '#7ff6ff'); if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 60, t, 0.6, 0.3, 300); tone('square', 880, t + 0.05, 0.3, 0.12, 4000); tone('square', 1320, t + 0.15, 0.4, 0.1, 4000); }
 }
 function updateTear(dt) {
-  { const el = $('elevate'), fx = $('elevate-fx'), here = tearOpen && !SEAL.active && !captured && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 4.5;
+  if (elevateBlocked && (!tearOpen || Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) > 7)) elevateBlocked = false;
+  { const el = $('elevate'), fx = $('elevate-fx'), here = tearOpen && !SEAL.active && !captured && !elevateBlocked && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 4.5;
     if (here) {
       const c0 = Math.ceil(elevateT); elevateT -= dt; if (Math.ceil(elevateT) !== c0 && elevateT > 0) blip(660 + (5 - Math.ceil(elevateT)) * 110);
       el.style.display = 'block'; el.textContent = 'ELEVATE IN: ' + Math.max(0, Math.ceil(elevateT)); fx.style.opacity = (Math.min(1, (5 - Math.max(0, elevateT)) / 5) * 0.75).toFixed(2);
@@ -1955,6 +1963,7 @@ function spawnTearMob() { // while the Tear is open the Agency puts more Suits o
 function clearTearMob() { for (const e of enemies) if (e.mob) e.dead = true; }
 
 // ---- the green circle at the bodega: 5 seconds standing on it pauses the game and opens the real shop ----
+function relock() { if (!isTouchDevice && hasLock && started) { try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* stays in drag-look mode */ } } } // after a button click the mouse goes back to aiming
 function resetInputs() { for (const k in keys) keys[k] = false; stick.id = null; stick.x = stick.y = 0; stick.raw = 0; stickEl.style.display = 'none'; look.id = null; lcBtnId = null; btnLowC = false; mouseLowC = false; lowCLatch = false; pressBuf = 0; setLowCAudio(false); }
 function openBodega() {
   if (gamePaused) return; gamePaused = true; resetInputs(); try { if (document.exitPointerLock) document.exitPointerLock(); } catch (err) { /* fine */ }
@@ -2082,14 +2091,16 @@ function updateHunt(dt) {
 // ---- start / portal ----
 $('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); ammo = START_AMMO; updateLootHud(); updateHint(true); });
 function tryEnterPortal() { /* walking into the Tear is automatic now: stand in it and the countdown starts */ }
-function elevateGo() { // up into the 2D game, after a short results card
+function elevateGo() { // the countdown ran out: a results card with a choice, ELEVATE to the 2D game or STAY HOME and keep playing
   const go = () => { if (window.__noNav) { window.__navigated = true; return; } location.href = '../'; };
-  gamePaused = true; resetInputs(); for (const id of ['elevate', 'elevate-fx']) $(id).style.display = 'none'; for (const id of ['toast', 'tip', 'speech']) $(id).style.opacity = 0;
+  gamePaused = true; resetInputs(); try { if (document.exitPointerLock) document.exitPointerLock(); } catch (err) { /* fine */ } for (const id of ['elevate', 'elevate-fx']) $(id).style.display = 'none'; for (const id of ['toast', 'tip', 'speech']) $(id).style.opacity = 0;
   const t = Math.floor(runT), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
   $('results-body').innerHTML = 'TIME <b>' + mm + ':' + ss + '</b><br>SUITS DOWN <b>' + statSuit + '</b><br>THUGS DOWN <b>' + statThug + '</b><br>TIMES CAUGHT <b>' + statCaught + '</b><br>SCORE <b>' + loot.points + '</b>';
-  $('results').style.display = 'flex'; let n = 6; const btn = $('results-go'); btn.textContent = 'ELEVATE (' + n + ')';
-  const iv = setInterval(() => { n--; btn.textContent = 'ELEVATE (' + Math.max(0, n) + ')'; if (n <= 0) { clearInterval(iv); go(); } }, 1000);
-  btn.onclick = () => { clearInterval(iv); go(); };
+  $('results').style.display = 'flex'; resultsOpen = true; resultsGo = go; $('results-go').onclick = go; $('results-stay').onclick = stayHome;
+}
+function stayHome() { // back into the game, a few steps from the Tear; the countdown only starts again once you've walked away and back
+  resultsOpen = false; resultsGo = null; $('results').style.display = 'none'; $('elevate-fx').style.display = ''; elevating = false; elevateT = 5; elevateBlocked = true;
+  player.position.set(0, 0, PORTAL.z + 8); vel.set(0, 0, 0); resetInputs(); gamePaused = false; relock();
 }
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
