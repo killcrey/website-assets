@@ -712,6 +712,11 @@ class Billboard {
       this.views[v] = e; this.mats[v] = new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
       if (v === 'front' && opts.onReady) opts.onReady();
     }));
+    this.walkIdx = -1; // >= 0: show walk-cycle frame <view>_w<idx> instead of the standing view (frames come from art/make_walk_frames.py)
+    if (opts.walk) for (const v of ['front', 'side', 'back']) for (let i = 0; i < 4; i++) onSprite(key + '_' + v + '_w' + i, (e) => {
+      if (e.failed) return;
+      this.views[v + '_w' + i] = e; this.mats[v + '_w' + i] = new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
+    });
     scene.add(this.group); billboards.push(this);
   }
   update(dt, cam, target) {
@@ -726,8 +731,9 @@ class Billboard {
     const cdot = (fx * dx + fz * dz) / d, sdot = (fx * dz - fz * dx) / d;
     let view = cdot > 0.5 ? 'front' : cdot < -0.5 ? 'back' : 'side';
     if (!this.views[view]) view = 'front';
-    const e = this.views[view], s = this.heightM / f.h, flip = view === 'side' && ((sdot > 0) !== this.sideFacesRight);
-    this.mesh.material = this.mats[view]; this.mesh.visible = true;
+    const wk = this.walkIdx >= 0 && this.views[view + '_w' + this.walkIdx] ? view + '_w' + this.walkIdx : view;
+    const e = this.views[wk], s = this.heightM / f.h, flip = view === 'side' && ((sdot > 0) !== this.sideFacesRight);
+    this.mesh.material = this.mats[wk]; this.mesh.visible = true;
     this.mesh.scale.set(e.w * s * (flip ? -1 : 1), e.h * s * (1 + this.breath), 1);
     let tilt = 0; // front/back art only: turn the flat sprite up to ~30 degrees toward where it's heading
     if (!this.static && view !== 'side') { const base = view === 'back' ? Math.atan2(-dx, -dz) : Math.atan2(dx, dz), dv = Math.atan2(Math.sin(this.facing - base), Math.cos(this.facing - base)); tilt = Math.max(-0.5, Math.min(0.5, dv * 0.5)) * (view === 'back' ? TILT_B : TILT_F); }
@@ -826,7 +832,7 @@ function updateBillboards(dt) {
 }
 
 // the player: the astronaut sheet (the old capsule stays as a fallback until the art loads)
-const playerBill = new Billboard('player', 1.8, { onReady: () => { for (const m of [body, outline, eyeW, eyeP]) m.visible = false; } });
+const playerBill = new Billboard('player', 1.8, { walk: true, onReady: () => { for (const m of [body, outline, eyeW, eyeP]) m.visible = false; } });
 
 // story characters and Agency vehicles. Facing 0 = looking down the street toward the player.
 const NPCS = [];
@@ -2180,11 +2186,13 @@ function update(dt) {
   const spd = Math.hypot(vel.x, vel.z);
   if (mvSpd > 1.0) { const iv = Math.hypot(vel.x, vel.z) > 0.5 ? Math.atan2(vel.x, vel.z) : mvDir, dvv = Math.atan2(Math.sin(mvDir - iv), Math.cos(mvDir - iv)), target = Math.abs(dvv) < 1.4 ? mvDir : iv; let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
   player.rotation.y = faceAngle;
-  const mk = Math.min(1, spd / SPEED), dS = (spd - prevSpd) / (dt || 1); gait += dt * spd * 1.65; dSpdK += (Math.max(-1, Math.min(1, dS / 60)) - dSpdK) * (1 - Math.exp(-14 * dt)); puffCool -= dt;
-  body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(gait)) * (0.05 + 0.05 * runNow) * Math.min(1, spd / 3);
+  const mk = Math.min(1, spd / SPEED), dS = (spd - prevSpd) / (dt || 1); gait += dt * spd * 1.65;
+  { const on = playerBill.walkIdx >= 0; const moving = on ? spd > 0.5 : spd > 1.2; playerBill.walkIdx = moving ? Math.floor((((gait % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 2)) % 4 : -1; } // contact, passing, contact, passing
+  const wkK = playerBill.walkIdx >= 0 ? 0.35 : 1; // the drawn frames already carry the bob and sway, so the code motion shrinks to a hint dSpdK += (Math.max(-1, Math.min(1, dS / 60)) - dSpdK) * (1 - Math.exp(-14 * dt)); puffCool -= dt;
+  body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(gait)) * (0.05 + 0.05 * runNow) * Math.min(1, spd / 3) * wkK;
   { const crx = Math.cos(yaw + leanYaw), crz = -Math.sin(yaw + leanYaw), lat = (vel.x * crx + vel.z * crz) / SPEED; // lean toward the way you are sliding across the screen
-    pRoll += (Math.max(-0.2, Math.min(0.2, -lat * 0.13)) + Math.sin(gait) * 0.055 * mk * (spd > 1.5 ? 1 : 0) - pRoll) * (1 - Math.exp(-16 * dt));
-    pStretch += ((Math.abs(Math.sin(gait)) - 0.6) * 0.03 * mk + dSpdK * 0.05 - pStretch) * (1 - Math.exp(-18 * dt)); }
+    pRoll += (Math.max(-0.2, Math.min(0.2, -lat * 0.13)) + Math.sin(gait) * 0.055 * mk * (spd > 1.5 ? 1 : 0) * wkK - pRoll) * (1 - Math.exp(-16 * dt));
+    pStretch += ((Math.abs(Math.sin(gait)) - 0.6) * 0.03 * mk * wkK + dSpdK * 0.05 - pStretch) * (1 - Math.exp(-18 * dt)); }
   if (prevSpd < 1.5 && spd > 1.5 && puffCool <= 0) { puffCool = 0.25; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.5, p.z + (Math.random() - 0.5) * 0.5, -vel.x * 0.08, -vel.z * 0.08, 0.45); } // push-off
   else if (prevSpd > 5 && dS < -40 && puffCool <= 0) { puffCool = 0.3; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5) * 0.6, vel.x * 0.1, vel.z * 0.1, 0.55); } // skid
   prevSpd = spd;
