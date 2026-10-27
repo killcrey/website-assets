@@ -239,7 +239,7 @@ function paintSky(k) {
 }
 paintSky(0);
 scene.fog = new THREE.FogExp2(0xd6e8f2, 0.0095);
-const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 400); let baseFov = 62, fovKick = 0; // fovKick: a small widening while sprinting
 
 let composer, bloom;
 function buildComposer() {
@@ -266,7 +266,7 @@ function resize() {
   composer.setPixelRatio(renderer.getPixelRatio());
   composer.setSize(w, h);
   camera.aspect = w / h;
-  camera.fov = camera.aspect < 0.8 ? 80 : camera.aspect < 1 ? 74 : 62;
+  baseFov = camera.aspect < 0.8 ? 80 : camera.aspect < 1 ? 74 : 62; camera.fov = baseFov + fovKick;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
@@ -810,11 +810,19 @@ function makeStatic(key, heightM, x, z, facing, views, opts) {
   need.forEach((v) => onSprite(key + '_' + v, (e) => { ent[v] = e.failed ? null : e; if (--pending === 0) build(); }));
   return g;
 }
+// ---- player animation: roll/stretch are set each frame by update(), applied to the sprite after the billboard pass; dust puffs kick up at the feet
+let pRoll = 0, pStretch = 0;
+const dustTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), g = x.createRadialGradient(16, 16, 2, 16, 16, 15); g.addColorStop(0, 'rgba(236,222,196,0.9)'); g.addColorStop(1, 'rgba(236,222,196,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
+const dust = Array.from({ length: 8 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, transparent: true, depthWrite: false, opacity: 0 })); s.visible = false; s.userData = { t: 0, life: 1, vx: 0, vz: 0, size: 0.5 }; scene.add(s); return s; });
+let dustI = 0;
+function puff(x, z, vx, vz, size) { const s = dust[dustI++ % dust.length]; s.position.set(x, 0.12, z); s.userData = { t: 0, life: 0.45, vx, vz, size }; s.scale.set(size, size, 1); s.material.opacity = 0.55; s.visible = true; }
+function updateDust(dt) { for (const s of dust) { if (!s.visible) continue; const u = s.userData; u.t += dt; if (u.t >= u.life) { s.visible = false; continue; } const k = u.t / u.life, sz = u.size * (0.6 + k * 1.2); s.position.x += u.vx * dt; s.position.z += u.vz * dt; s.position.y = 0.12 + k * 0.35; s.scale.set(sz, sz, 1); s.material.opacity = 0.55 * (1 - k); } }
 function updateBillboards(dt) {
   for (const sg of STATIC_GROUPS) sg.g.visible = Math.hypot(camera.position.x - sg.x, camera.position.z - sg.z) < CULL_DIST;
   playerBill.group.position.set(player.position.x, 0, player.position.z); playerBill.facing = faceAngle;
   playerBill.bob = body.position.y - 0.95;
-  for (const b of billboards) { if (!b.static) b.breath = Math.sin(tAccum * 1.7 + b.group.position.z) * 0.008; b.update(dt, camera.position, player.position); }
+  for (const b of billboards) { if (!b.static) b.breath = Math.sin(tAccum * 1.7 + b.group.position.z) * 0.008; if (b === playerBill) b.breath += pStretch; b.update(dt, camera.position, player.position); }
+  if (playerBill.views.front) { playerBill.mesh.rotation.z = pRoll; playerBill.mesh.scale.x *= 1 - pStretch * 0.7; } // lean into turns + foot-to-foot rock; squash keeps its volume
 }
 
 // the player: the astronaut sheet (the old capsule stays as a fallback until the art loads)
@@ -2108,6 +2116,7 @@ $('enter-btn').addEventListener('click', tryEnterPortal);
 const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', leanYaw = 0, alignT = 0, mvSpd = 0, mvDir = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
 const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(); let camDist = 6.4;
 const SPEED = 7.2;
+let gait = 0, lastStep = 0, prevSpd = 0, dSpdK = 0, runNow = 0, puffCool = 0, runShown = 0; // gait: distance-driven step phase (one step per PI)
 function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main street and in the alleys, 'x' in a cross street
   const ax = Math.abs(p.x);
   if (ax > 18.4) return 'z';
@@ -2136,15 +2145,15 @@ function update(dt) {
   { const zax = zoneAxis(player.position), wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix, h = Math.hypot(wx, wz);
     if (zax && h > 0.3) { if (zax === 'z' && Math.abs(wz) > 0.6 * h) wantYaw = wz > 0 ? Math.PI : 0; else if (zax === 'x' && Math.abs(wx) > 0.6 * h) wantYaw = wx > 0 ? -Math.PI / 2 : Math.PI / 2; } }
   const yawGap = wantYaw === null ? 0 : Math.abs(Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)));
-  alignT = (started && !captured && !inTruck && yawGap > 0.3) ? alignT + dt : 0;
-  if (!frameLocked && alignT > 0.15 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  alignT = (started && !captured && !inTruck && yawGap > 0.45) ? alignT + dt : 0;
+  if (!frameLocked && alignT > 0.32 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
   if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25 && wantYaw !== null) {
-    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-8 * dt)); swinging = Math.abs(d) > 0.12;
+    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-6 * dt)); swinging = Math.abs(d) > 0.12;
   } else swinging = false;
   { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
-  const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.35)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1);
+  const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.15)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
-  const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-12 * dt);
+  const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-((tx * tx + tz * tz > 0.04) ? 20 : 10) * dt); // quick to get going, a short slide when you let go
   vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
   const p = player.position, px0 = p.x, pz0 = p.z; p.x += vel.x * dt; p.z += vel.z * dt;
   p.x = Math.max(-WORLD_X, Math.min(WORLD_X, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
@@ -2165,14 +2174,25 @@ function update(dt) {
       if (l || r) { const sg = l ? 1 : -1; p.x += qx * sg * 3.6 * dt; p.z += qz * sg * 3.6 * dt; }
     }
   }
+  { const wantV = Math.hypot(vel.x, vel.z), gotV = Math.hypot(p.x - px0, p.z - pz0) / (dt || 1); if (wantV > 2 && gotV < wantV * 0.8) { vel.x = (p.x - px0) / (dt || 1); vel.z = (p.z - pz0) / (dt || 1); } }
   { const mvd = Math.hypot(p.x - px0, p.z - pz0); mvSpd = mvd / (dt || 1); if (mvd > 1e-4) mvDir = Math.atan2(p.x - px0, p.z - pz0); }
   updatePickups(dt); updateLowC(dt); updateHunt(dt);
   const spd = Math.hypot(vel.x, vel.z);
   if (mvSpd > 1.0) { const iv = Math.hypot(vel.x, vel.z) > 0.5 ? Math.atan2(vel.x, vel.z) : mvDir, dvv = Math.atan2(Math.sin(mvDir - iv), Math.cos(mvDir - iv)), target = Math.abs(dvv) < 1.4 ? mvDir : iv; let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
   player.rotation.y = faceAngle;
-  body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(tAccum * 12)) * 0.07 * Math.min(1, spd / SPEED);
+  const mk = Math.min(1, spd / SPEED), dS = (spd - prevSpd) / (dt || 1); gait += dt * spd * 1.65; dSpdK += (Math.max(-1, Math.min(1, dS / 60)) - dSpdK) * (1 - Math.exp(-14 * dt)); puffCool -= dt;
+  body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(gait)) * (0.05 + 0.05 * runNow) * Math.min(1, spd / 3);
+  { const crx = Math.cos(yaw + leanYaw), crz = -Math.sin(yaw + leanYaw), lat = (vel.x * crx + vel.z * crz) / SPEED; // lean toward the way you are sliding across the screen
+    pRoll += (Math.max(-0.2, Math.min(0.2, -lat * 0.13)) + Math.sin(gait) * 0.055 * mk * (spd > 1.5 ? 1 : 0) - pRoll) * (1 - Math.exp(-16 * dt));
+    pStretch += ((Math.abs(Math.sin(gait)) - 0.6) * 0.03 * mk + dSpdK * 0.05 - pStretch) * (1 - Math.exp(-18 * dt)); }
+  if (prevSpd < 1.5 && spd > 1.5 && puffCool <= 0) { puffCool = 0.25; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.5, p.z + (Math.random() - 0.5) * 0.5, -vel.x * 0.08, -vel.z * 0.08, 0.45); } // push-off
+  else if (prevSpd > 5 && dS < -40 && puffCool <= 0) { puffCool = 0.3; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5) * 0.6, vel.x * 0.1, vel.z * 0.1, 0.55); } // skid
+  prevSpd = spd;
+  fovKick += ((runNow && spd > SPEED * 1.1 ? 3.5 : 0) - fovKick) * (1 - Math.exp(-5 * dt)); // a small widening while sprinting
+  { const wf = baseFov + fovKick; if (Math.abs(camera.fov - wf) > 0.01) { camera.fov = wf; camera.updateProjectionMatrix(); } }
+  if (runNow !== runShown) { runShown = runNow; knobEl.style.boxShadow = runNow ? '0 0 16px 5px rgba(255,210,74,.85)' : ''; } // the stick glows gold once you are running
   body.rotation.x = outline.rotation.x = Math.min(0.25, spd / SPEED * 0.25);
-  if (spd > 2) { stepTimer -= dt; if (stepTimer <= 0) { blip(spd > 5 ? 220 : 196); stepTimer = 0.32; } }
+  { const si = Math.floor(gait / Math.PI); if (si !== lastStep) { lastStep = si; if (spd > 2) { blip(si % 2 ? 220 : 196); if (runNow && puffCool <= 0) puff(p.x - vel.x * 0.04, p.z - vel.z * 0.04, -vel.x * 0.1 + (Math.random() - 0.5) * 0.6, -vel.z * 0.1 + (Math.random() - 0.5) * 0.6, 0.35); } } } // a step lands once per half cycle, in time with the bob
 
   // camera: orbit behind the player, zoom in when turned, and pull in whenever a building would get between it and the character
   lookIdle += dt;
@@ -2203,7 +2223,7 @@ function update(dt) {
     const vx = PORTAL.x - p.x, vz = PORTAL.z - p.z, fwd = vx * -Math.sin(yaw) + vz * -Math.cos(yaw), rgt = vx * Math.cos(yaw) + vz * -Math.sin(yaw);
     $('compass-arrow').style.transform = 'rotate(' + (Math.atan2(rgt, fwd) * 180 / Math.PI).toFixed(1) + 'deg)';
   }
-  updateBillboards(dt); updateSpeech(dt);
+  updateBillboards(dt); updateDust(dt); updateSpeech(dt);
 
   ring2.scale.setScalar(0.72 + Math.sin(tAccum * 2.4) * 0.05); disc.material.opacity = 0.7 + Math.sin(tAccum * 3) * 0.2; portal.scale.setScalar(1.3 * (1 + Math.sin(tAccum * 2.2) * 0.025));
   const dist = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.z);

@@ -215,3 +215,13 @@ Gaslamp street (the current prototype) -> Barrio Logan / Chicano Park under the 
 - Capture penalty size (lose carried loot only vs. also a % of score vs. a life).
 - Carry-until-exit vs. bank at safe houses (suggest: both).
 - Player identity: a new astronaut ("You", flagged CULTIVATE) vs. Christopher.
+
+## Movement feel + player animation pass (2026-10-27)
+
+Owner rated movement C+ (complaints: camera swinging on its own, sticking on corners, running). Changes, all in `update()` / `updateBillboards()`:
+- **Snappier**: velocity ramp 12 -> 20 /s when pushing, 10 /s when letting go (time to 90% walking speed 0.20 s -> 0.12 s; slide after release ~0.5 -> 0.66 m, a touch more glide on purpose).
+- **Running**: stick threshold `raw > 1.15` (was 1.35); the stick knob glows gold while running; sprint widens the FOV by 3.5 (`fovKick`, `baseFov` is set in `resize()`).
+- **Camera auto-turn is softer, not removed** (phones have no manual look, so it has to exist): needs a 0.45 rad gap held for 0.32 s (was 0.3 / 0.15) and turns at rate 6 (was 8). Tune these three numbers if it still swings.
+- **Corners / walls**: when collisions eat more than 20% of the move, `vel` is replaced by the sliding velocity, so you never push against a wall with stored speed (wall-reverse delay 0.12 s -> 0.03 s).
+- **Player animation** (procedural, sprite stays 3 still views): step phase `gait` advances with distance (not time) so bob, footstep blips and dust stay in sync; the sprite rocks foot to foot and leans toward the way it slides across the screen (`pRoll`), squashes/stretches on starts, stops and each step (`pStretch`); 8 pooled dust sprites on push-off, skids and running steps. Real walk frames can slot in later via `Billboard.views`.
+- Verified with `__g` A/B against the previous file plus a 5-minute random-input soak (all values finite, no console errors). NOT verified on a real phone.
