@@ -1146,7 +1146,7 @@ function updateLootHud() {
   if (lureT > 0) lines.push('<b style="color:#ff6b5e">TRACKED  ' + Math.ceil(lureT) + 's</b>');
   { const sb = $('swap-btn'), list = weaponList(), nx = list[(list.indexOf(weapon) + 1) % list.length], lb = $('lowc-btn'); sb.style.display = (started && isTouchDevice && list.length > 1) ? 'flex' : 'none'; sb.innerHTML = nx === 'lowc' ? 'LOW C' : nx === 'gun' ? 'GUN<br>' + ammo : 'LASER<br>' + laserAmmo; lb.innerHTML = weapon === 'lowc' ? 'LOW C' : weapon === 'laser' ? 'LASER<br>' + laserAmmo : 'FIRE<br>' + ammo; lb.classList.toggle('gunmode', weapon === 'gun'); lb.classList.toggle('lasermode', weapon === 'laser'); }
   { const eb = $('ego-btn'); eb.style.display = (started && isTouchDevice && egoCharges > 0 && ego <= 0) ? 'flex' : 'none'; eb.innerHTML = 'EGO<br>BLAST' + (egoCharges > 1 ? ' \u00D7' + egoCharges : ''); }
-  if (cloak > 0) lines.push('ANALOG STATIC ' + Math.ceil(cloak) + 's  \u2022  THEY CAN\u2019T SEE STRAIGHT');
+  if (cloak > 0) lines.push('ANALOG STATIC ' + Math.ceil(cloak) + 's  \u2022  THEY CAN\u2019T SEE OR TRACK YOU');
   if (lowCBoost > 0) lines.push('LOW C +' + lowCBoost);
   $('hud-status').innerHTML = lines.join('<br>');
 }
@@ -1397,7 +1397,7 @@ function updateLowC(dt) {
 let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct = -1, captured = false, aura = 0;
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
-const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.6, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
+const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.25, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
 let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false, thugCueT = 0, runT = 0, cpZ = 6, statSuit = 0, statThug = 0, statCaught = 0, resultsOpen = false, resultsGo = null, elevateBlocked = false, capturedAt = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
@@ -1511,7 +1511,7 @@ function goTo(e, tx, tz, speed, dt) { // straight when it can see the spot, othe
 }
 function pickPatrolNode(e) { const c = NAV.filter((n) => Math.abs(n.x) < 12.5 && n.z <= e.zone[0] && n.z >= e.zone[1]); return c[Math.floor(Math.random() * c.length)] || NAV[0]; }
 function visionRange(e) { // how far this enemy can notice you right now
-  if (invis > 0 || inTruck) return 0;
+  if (invis > 0 || inTruck || cloak > 0) return 0; // (the analog static blinds them completely)
   let r = e.spec.range * (heatLevel() >= 1 ? 1.12 : 1);
   if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.25; if (cloak > 0) r = Math.min(r, 1.6);
   return r;
@@ -1592,7 +1592,7 @@ function updateEnemy(e, dt) {
   if (frozen) { e.seeing = 0; e.aware = Math.max(0, e.aware - dt * 0.6); e.b.group.position.set(e.x, 0, e.z); e.b.facing = e.facing; e.mark.visible = false; e.cone.visible = false; return; }
   const range = visionRange(e), s = sightOf(e, range, e.spec.fov); e.seeing = s;
   if (e.kind === 'suit') {
-    if (e.lureT > 0) { e.lureT -= dt; e.lx = p.x; e.lz = p.z; if (e.state === 'PATROL' || e.state === 'SEARCH') { e.state = 'INVESTIGATE'; e.path.length = 0; } } // a bugged basket: they home in on you
+    if (e.lureT > 0) { e.lureT -= dt; if (cloak <= 0) { e.lx = p.x; e.lz = p.z; if (e.state === 'PATROL' || e.state === 'SEARCH') { e.state = 'INVESTIGATE'; e.path.length = 0; } } } // a bugged basket: they home in on you
     if (s > 0) { e.aware = Math.min(1.2, e.aware + dt * (0.9 + 2.2 * s)); if (e.lost > 0) e.lost = 0; if (e.state === 'CHASE') { e.lx = p.x; e.lz = p.z; } }
     else e.aware = Math.max(0, e.aware - dt * 0.5);
     if (e.aware >= 1) {
@@ -1630,7 +1630,7 @@ function updateEnemy(e, dt) {
     if (!captured && invis <= 0 && !inTruck && d < 1.2 && lowC <= 0.01) capture('A Suit got a hand on you and you had nothing left.');
   } else { // thug: always hunting while heat is high; hits take big chunks of Low C
     e.cd = Math.max(0, e.cd - dt);
-    if (s > 0 || lureT > 0) { e.lx = p.x; e.lz = p.z; e.lost = 0; } else e.lost += dt; if (s > 0 && !e.sawYou && thugCueT <= 0) { e.sawYou = true; thugCueT = 3; thugCue(); } else if (s <= 0 && e.lost > 5) e.sawYou = false; // they hunt what they saw, or you if you're bugged: never your real position otherwise
+    if (s > 0 || (lureT > 0 && cloak <= 0)) { e.lx = p.x; e.lz = p.z; e.lost = 0; } else e.lost += dt; if (s > 0 && !e.sawYou && thugCueT <= 0) { e.sawYou = true; thugCueT = 3; thugCue(); } else if (s <= 0 && e.lost > 5) e.sawYou = false; // they hunt what they saw, or you if you're bugged: never your real position otherwise
     const chaseSpeed = e.spec.chase * (1 + 0.04 * wire);
     if (e.guard && e.lost > 3) { e.lx = e.guard.x; e.lz = e.guard.z; e.lost = 3; if (Math.hypot(e.guard.x - e.x, e.guard.z - e.z) < 0.6) e.facing += Math.atan2(Math.sin(-e.facing), Math.cos(-e.facing)) * (1 - Math.exp(-3 * dt)); } // a guard that lost you goes back to its post
     if (!e.guard && e.lost > 0 && Math.hypot(e.lx - e.x, e.lz - e.z) < 2) { // reached the last known spot and found nothing: sweep the street
@@ -2004,7 +2004,7 @@ const TIPS = {
   ammo: 'AMMO|You start with 10 rounds. A new circle swaps between the gun and Low C (scroll wheel on PC). It aims for you, but you pick every shot: one tap, one round.',
   scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
   vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
-  tape: 'ANALOG TAPE|30 seconds of static: enemies can’t see straight.',
+  tape: 'ANALOG TAPE|30 seconds of static: enemies are blind to you and can’t track you.',
   basket: 'GIFT BASKET|A real gift (+Low C), or a bug that sends the Suits after you. Luz can tell which.',
   kid: 'THE KID|He turns baseball cards into Low C. Follow the red arrow.',
   pancho: 'PANCHO|He turns copper into ammo. He walks to the crew and back: follow the gold arrow.',
@@ -2151,10 +2151,10 @@ function update(dt) {
   { const zax = zoneAxis(player.position), wx = -Math.sin(inYaw) * iy + Math.cos(inYaw) * ix, wz = -Math.cos(inYaw) * iy - Math.sin(inYaw) * ix, h = Math.hypot(wx, wz);
     if (zax && h > 0.3) { if (zax === 'z' && Math.abs(wz) > 0.6 * h) wantYaw = wz > 0 ? Math.PI : 0; else if (zax === 'x' && Math.abs(wx) > 0.6 * h) wantYaw = wx > 0 ? -Math.PI / 2 : Math.PI / 2; } }
   const yawGap = wantYaw === null ? 0 : Math.abs(Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)));
-  alignT = (started && !captured && !inTruck && yawGap > 0.45) ? alignT + dt : 0;
-  if (!frameLocked && alignT > 0.32 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  alignT = (started && !captured && !inTruck && yawGap > 0.3) ? alignT + dt : 0;
+  if (!frameLocked && alignT > 0.1 && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
   if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25 && wantYaw !== null) {
-    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-6 * dt)); swinging = Math.abs(d) > 0.12;
+    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-11 * dt)); swinging = Math.abs(d) > 0.12;
   } else swinging = false;
   { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
   const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.15)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
