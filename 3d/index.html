@@ -434,8 +434,8 @@ const BODEGA = { set: false, z: -267.6, w: 10 }; // moved to Barrio Logan: it re
 const OLD_BODEGA = { set: false }; // the old corner store spot (z -60): kept only so the random look of every other building stays exactly as it was
 // storefronts drawn from the Gemini art, placed on whichever building covers these spots (Barrio Logan's record store is past z = -185)
 // round-3 art dropped onto buildings: key: [width / height of the picture, tallest it may be in meters, colour of the wall behind it]. Every random roll the plain building would have made is still made, so the rest of the street keeps its look.
-const FRESH = { taqueria: [2.495, 99, CREAM], gl_tower: [0.371, 18, 0xd9b88f], gl_red: [0.656, 16, 0xa8482f], gl_cream: [0.652, 14, 0xe0d2b4], gl_spire: [0.608, 17, 0xd8a877], gl_dark: [0.507, 18, 0x7a3a2e], gl_grey: [0.65, 15, 0xc9c3b6], gl_seafood: [1.07, 12, 0x7a2e26], gl_orange: [0.911, 14, 0xa4472e], pillar_a: [0.783, 9, 0x9a9a94], pillar_b: [0.789, 9, 0x9a9a94], bl_farol: [2.004, 6, 0x8a8a3a], bl_row: [1.664, 7, 0xd8c8a0] };
-const FRESH_SLOTS = [[-1, -34, 'gl_tower'], [-1, -54, 'gl_red'], [-1, -76, 'gl_cream'], [-1, -102, 'gl_spire'], [-1, -128, 'gl_grey'], [1, -44, 'gl_seafood'], [1, -66, 'gl_orange'], [1, -100, 'gl_dark'], [-1, -218, 'bl_row'], [-1, -240, 'bl_farol'], [1, -183, 'taqueria'], [-1, -277, 'pillar_a'], [1, -278, 'pillar_b']].map(([side, z, key]) => ({ side, z, key, fresh: true }));
+const FRESH = { taqueria: [2.495, 99, CREAM], gl_tower: [0.371, 18, 0xd9b88f], gl_red: [0.656, 16, 0xa8482f], gl_cream: [0.652, 14, 0xe0d2b4], gl_spire: [0.608, 17, 0xd8a877], gl_dark: [0.507, 18, 0x7a3a2e], gl_grey: [0.65, 15, 0xc9c3b6], gl_seafood: [1.07, 12, 0x7a2e26], gl_orange: [0.911, 14, 0xa4472e], bl_farol: [2.004, 6, 0x8a8a3a], bl_row: [1.664, 7, 0xd8c8a0] };
+const FRESH_SLOTS = [[-1, -34, 'gl_tower'], [-1, -54, 'gl_red'], [-1, -76, 'gl_cream'], [-1, -102, 'gl_spire'], [-1, -128, 'gl_grey'], [1, -44, 'gl_seafood'], [1, -66, 'gl_orange'], [1, -100, 'gl_dark'], [-1, -218, 'bl_row'], [-1, -240, 'bl_farol'], [1, -183, 'taqueria']].map(([side, z, key]) => ({ side, z, key, fresh: true }));
 const STORE_SLOTS = [{ side: 1, z: -20, key: 'facade_coffee' }, { side: -1, z: -112, key: 'facade_panaderia' }, { side: 1, z: -112, key: 'taqueria_old', ghost: true }, { side: 1, z: -232, key: 'recordstore' }, ...FRESH_SLOTS];
 const FACADES = [];
 const SEGS = []; { let top = STREET_START; for (const g of GAPS) { SEGS.push([top, g + GAP_W / 2]); top = g - GAP_W / 2; } SEGS.push([top, STREET_END]); }
@@ -496,7 +496,7 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
   const spots = [];
   for (const sx of [-1, 1]) for (let tries = 0; tries < 200 && spots.filter((q) => q.sx === sx).length < 11; tries++) {
     const x = sx * (10.5 + pr() * 16), z = -275 - pr() * 26;
-    if (spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4.2)) continue;
+    if (spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4.2) || (Math.abs(x) < 19.5 && z < -286)) continue; // (keep the view of the mural pillars clear)
     spots.push({ sx, x, z, s: 0.8 + pr() * 0.6, c: pr() });
   }
   const trunkT = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.34, 3.4, 7).translate(0, 1.7, 0), lam(0x6b4a2e), spots.length);
@@ -507,7 +507,7 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
     o.scale.set(q.s, q.s * 0.85, q.s); o.position.set(q.x, 3.9 * q.s, q.z); o.updateMatrix(); crownT.setMatrixAt(i, o.matrix); crownT.setColorAt(i, cc.copy(g1).lerp(g2, q.c));
   });
   scene.add(trunkT, crownT);
-  const palms = []; for (const sx of [-1, 1]) for (const z of [-279, -288, -297]) palms.push([sx * (8.8 + pr() * 2), z + pr() * 2]);
+  const palms = []; for (const sx of [-1, 1]) { for (const z of [-277, -284]) palms.push([sx * (8.8 + pr() * 2), z + pr() * 2]); palms.push([sx * 21.5, -298]); }
   const trunkP = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7).translate(0, 3.3, 0), lam(0x8a6a45), palms.length);
   const frondP = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).translate(0, 0, 1.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), palms.length * 9);
   let fi = 0; palms.forEach(([px, pz], i) => {
@@ -516,21 +516,22 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
   });
   scene.add(trunkP, frondP);
 }
-// freeway overpasses crossing high above the pavilion and the park, like the ones over the real Chicano Park: three concrete decks at different heights and angles
+// freeway overpasses crossing high above the pavilion and the park, like the ones over the real Chicano Park. Each deck runs 520 m so its ends are always lost in the haze
+// (nothing looks cut off); the low one rests on the two mural pillars beside the pavilion, the others on plain columns placed outside the street
 {
   const conc = lam(0xb9b4a8), under = lam(0x9a958a), rail = lam(0xddd8cb);
-  const deck = (cx, cy, cz, len, wid, rot) => {
-    const g = new THREE.Group(); g.position.set(cx, cy, cz); g.rotation.y = rot;
+  const deck = (cx, cy, cz, wid, rot, cols) => {
+    const g = new THREE.Group(); g.position.set(cx, cy, cz); g.rotation.y = rot; const len = 520;
     const add = (sx, sy, sz, x, y, z, m) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); q.position.set(x, y, z); g.add(q); };
-    add(len, 1.7, wid, 0, 0, 0, conc);                                         // the road slab
-    for (let i = -2; i <= 2; i++) add(len, 1.1, 0.7, 0, -1.35, i * (wid / 5), under); // the girders under it
+    add(len, 1.7, wid, 0, 0, 0, conc);                                                 // the road slab
+    for (let i = -2; i <= 2; i++) add(len, 1.1, 0.7, 0, -1.35, i * (wid / 5), under);   // the girders under it
     for (const sd of [-1, 1]) add(len, 0.9, 0.45, 0, 1.3, sd * (wid / 2 - 0.25), rail); // the barriers on both edges
-    for (const sd of [-1, 1]) { const colH = cy - 0.9, cxl = sd * (len * 0.30); add(2.0, colH, 2.4, cxl, -0.85 - colH / 2, 0, conc); add(3.2, 0.7, 3.6, cxl, -1.7, 0, under); } // two columns each, with a cap
-    scene.add(g); return g;
+    for (const cxl of cols) { const colH = cy - 1.9; add(2.0, colH, 2.4, cxl, -1.9 - colH / 2, 0, conc); add(3.2, 0.7, 3.6, cxl, -2.25, 0, under); } // columns, each with a cap under the girders
+    scene.add(g);
   };
-  deck(0, 13, -296, 74, 9, 0);                   // the low one, right behind the pavilion
-  deck(-4, 17.5, -310, 86, 10.5, 0.06);          // a higher one beyond it, a little off square
-  deck(6, 22, -303, 96, 8.5, -0.42);             // a high one crossing at an angle, like an interchange
+  deck(0, 13, -296, 9, 0, [-48, 48, -95, 95]);                  // the low one: the mural pillars hold it up beside the pavilion (the pillar_a / pillar_b pictures at x -12.6 and 12.6), more columns further out
+  deck(-4, 17.5, -310, 10.5, 0.06, [-30, 30, -75, 75]);         // a higher one beyond it, a little off square
+  deck(6, 22, -303, 8.5, -0.42, [-26, 34, -80, 90]);            // a high one crossing at an angle, like an interchange
 }
 // the street ends in walls
 addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X, WORLD_X, STREET_START, STREET_START + 8, false);
@@ -918,6 +919,11 @@ ART_JOBS.forEach((j) => {
   }
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
   for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25], ['prop_bench2', 0.8, -7.2, -243, 0.5]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
+  for (const [key, x] of [['pillar_a', -12.6], ['pillar_b', 12.6]]) onSprite(key, (e) => { // the Chicano Park mural pillars hold up the low overpass beside the pavilion
+    if (e.failed) return;
+    const hM = 12.3, wM = hM * e.w / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
+    m.position.set(x, hM / 2, -296); scene.add(m); // its painted top runs up behind the deck's girders, so the deck sits on it
+  });
   onSprite('stadium', (e) => { // the ballpark looms behind the start of the street: the other centrepiece, opposite the pavilion
     if (e.failed) return;
     const wM = 38, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
