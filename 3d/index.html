@@ -1263,10 +1263,10 @@ document.addEventListener('mousemove', (e) => {
   yaw -= e.movementX * 0.0026; pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch + e.movementY * 0.0022)); lookIdle = 0;
 });
 window.addEventListener('pointerdown', (e) => {
-  if (!started || gamePaused || (e.target.closest && e.target.closest('button,a'))) return;
+  if (!started || gamePaused || captured || (e.target.closest && e.target.closest('button,a'))) return; // (caught or on a card: the mouse stays free for the buttons)
   startAudio();
   if (e.pointerType === 'mouse' && hasLock) {
-    if (!locked) { try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* stays in drag-look mode */ } return; }
+    if (!locked) { if (e.target !== canvasEl) return; try { const r = canvasEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* stays in drag-look mode */ } return; }
     if (e.button === 0) { mouseLowC = true; pressBuf = 0.15; }
     return;
   }
@@ -1972,7 +1972,7 @@ function updateTear(dt) {
       const c0 = Math.ceil(elevateT); elevateT -= dt; if (Math.ceil(elevateT) !== c0 && elevateT > 0) blip(660 + (5 - Math.ceil(elevateT)) * 110);
       el.style.display = 'block'; el.textContent = 'ELEVATE IN: ' + Math.max(0, Math.ceil(elevateT)); fx.style.opacity = (Math.min(1, (5 - Math.max(0, elevateT)) / 5) * 0.75).toFixed(2);
       if (elevateT <= 0 && !elevating) { elevating = true; elevateGo(); }
-    } else { elevateT = 5; elevating = false; if (el.style.display !== 'none') { el.style.display = 'none'; fx.style.opacity = 0; } }
+    } else { elevateT = 5; elevating = false; if (el.style.display !== 'none') el.style.display = 'none'; if (fx.style.opacity !== '0') fx.style.opacity = 0; } // (the white-out always clears, whatever hid the countdown)
   }
   { const sb = $('sealbar'), on = SEAL.active && tearOpen;
     if (on) { if (sb.style.display !== 'block') sb.style.display = 'block'; sb.firstElementChild.style.width = (100 * SEAL.hp / SEAL.max).toFixed(1) + '%'; sb.lastElementChild.textContent = 'AGENCY SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  •  GUN, LOW C, EGO BLAST'; if (SEAL.hp < sealShown - 0.001) sb.classList.add('hit'); else if (tAccum - SEAL.lastHit > 0.12) sb.classList.remove('hit'); }
@@ -2135,7 +2135,7 @@ function elevateGo() { // the countdown ran out: a results card with a choice, E
   $('results').style.display = 'flex'; resultsOpen = true; resultsGo = go; $('results-go').onclick = go; $('results-stay').onclick = stayHome;
 }
 function stayHome() { // back into the game, a few steps from the Tear; the countdown only starts again once you've walked away and back
-  resultsOpen = false; resultsGo = null; $('results').style.display = 'none'; $('elevate-fx').style.display = ''; elevating = false; elevateT = 5; elevateBlocked = true;
+  resultsOpen = false; resultsGo = null; $('results').style.display = 'none'; $('elevate-fx').style.display = ''; $('elevate-fx').style.opacity = 0; $('elevate').style.display = 'none'; elevating = false; elevateT = 5; elevateBlocked = true;
   player.position.set(0, 0, PORTAL.z + 8); vel.set(0, 0, 0); resetInputs(); gamePaused = false; relock();
 }
 $('enter-btn').addEventListener('click', tryEnterPortal);
