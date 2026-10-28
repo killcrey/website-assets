@@ -159,7 +159,7 @@
   <div class="how vt">
     <div><img src="art/sprites/player_front.webp" alt=""><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right to freeze enemies. Fill it to <b>100%</b> and the <b>TEAR</b> opens.</span></div>
   </div>
-  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C (hold) / FIRE (tap), scroll wheel or R = swap weapon, Shift run, F = EGO BLAST.</div>
+  <div class="small vt" style="margin-top:8px">PC: WASD move, Space or left click = LOW C (hold) / FIRE (tap), scroll wheel or R = swap weapon, you run by default, hold Shift to walk, F = EGO BLAST.</div>
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
 </div>
 
@@ -515,6 +515,22 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
     for (let f = 0; f < 9; f++) { o.position.set(px, 6.5, pz); o.rotation.set(0.5, (f / 9) * Math.PI * 2, 0); o.updateMatrix(); frondP.setMatrixAt(fi, o.matrix); frondP.setColorAt(fi, cc.set(f % 2 ? 0x5f9244 : 0x4f7d3a)); fi++; }
   });
   scene.add(trunkP, frondP);
+}
+// freeway overpasses crossing high above the pavilion and the park, like the ones over the real Chicano Park: three concrete decks at different heights and angles
+{
+  const conc = lam(0xb9b4a8), under = lam(0x9a958a), rail = lam(0xddd8cb);
+  const deck = (cx, cy, cz, len, wid, rot) => {
+    const g = new THREE.Group(); g.position.set(cx, cy, cz); g.rotation.y = rot;
+    const add = (sx, sy, sz, x, y, z, m) => { const q = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); q.position.set(x, y, z); g.add(q); };
+    add(len, 1.7, wid, 0, 0, 0, conc);                                         // the road slab
+    for (let i = -2; i <= 2; i++) add(len, 1.1, 0.7, 0, -1.35, i * (wid / 5), under); // the girders under it
+    for (const sd of [-1, 1]) add(len, 0.9, 0.45, 0, 1.3, sd * (wid / 2 - 0.25), rail); // the barriers on both edges
+    for (const sd of [-1, 1]) { const colH = cy - 0.9, cxl = sd * (len * 0.30); add(2.0, colH, 2.4, cxl, -0.85 - colH / 2, 0, conc); add(3.2, 0.7, 3.6, cxl, -1.7, 0, under); } // two columns each, with a cap
+    scene.add(g); return g;
+  };
+  deck(0, 13, -296, 74, 9, 0);                   // the low one, right behind the pavilion
+  deck(-4, 17.5, -310, 86, 10.5, 0.06);          // a higher one beyond it, a little off square
+  deck(6, 22, -303, 96, 8.5, -0.42);             // a high one crossing at an angle, like an interchange
 }
 // the street ends in walls
 addWall(-WORLD_X, WORLD_X, STREET_END - 8, STREET_END, false); addWall(-WORLD_X, WORLD_X, STREET_START, STREET_START + 8, false);
@@ -1036,7 +1052,7 @@ function updateSpeech(dt) {
 
 // ---- collectibles (carried loot; the plan is you lose it if you're caught) ----
 const loot = { points: 0, cards: 0, scratchers: 0, wire: 0, vinyl: 0, tape: 0 };
-const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 30;
+const CARD_SET = 8, CARD_VALUE = 300, CARD_SET_BONUS = 5000, VINYL_VALUE = 1000, WIRE_VALUE = 50, TAPE_VALUE = 200, CLOAK_SECONDS = 25;
 let curArea = 'GASLAMP QUARTER', hidden = false, stillFor = 0, heat = 0, heatTimer = 0, speedBoost = 0, cloak = 0, toastTimer = 0, lowCBoost = 0, inTruck = false, cardsHeld = 0, ego = 0;
 const HEAT_NAMES = ['CLEAR', 'WATCH', 'CULTIVATE', 'CONTAIN'];
 const pickups = [];
@@ -1175,7 +1191,7 @@ function collect(p) {
   } else if (p.kind === 'vinyl') {
     loot.vinyl++; loot.points += VINYL_VALUE; egoCharges = Math.min(2, egoCharges + 1); showToast('EGO BLAST EQUIPPED  \u2022  ' + (isTouchDevice ? 'TAP THE BUTTON' : 'PRESS F'), '#ff5a5a');
   } else if (p.kind === 'tape') {
-    loot.tape++; loot.points += TAPE_VALUE; cloak = Math.min(60, cloak + CLOAK_SECONDS); showToast('+' + TAPE_VALUE + '  TAPE  \u2022  ANALOG STATIC 30s: THEIR VISION IS SCRAMBLED', '#7ff6ff');
+    loot.tape++; loot.points += TAPE_VALUE; cloak = CLOAK_SECONDS; showToast('+' + TAPE_VALUE + '  TAPE  \u2022  ANALOG STATIC 25s: THEIR VISION IS SCRAMBLED', '#7ff6ff');
   } else if (p.kind === 'laser') {
     const first = laserAmmo <= 0; laserAmmo = Math.min(LASER_MAX, laserAmmo + LASER_PER_PICKUP); showToast('LASER GUN  +' + LASER_PER_PICKUP + ' ROUNDS', '#66f0ff'); if (first) { weapon = 'laser'; lowCLatch = false; }
   } else if (p.bugged) { // a basket: nobody can tell which ones are bugged (until Luz's hum)
@@ -1232,7 +1248,7 @@ const stick = { x: 0, y: 0, raw: 0, id: null, ox: 0, oy: 0 }, look = { id: null,
 const stickEl = $('stick'), knobEl = $('knob'), STICK_R = 62;
 function updateHint(flash) {
   const h = $('hint');
-  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD FOR LOW C, TAP TO FIRE THE GUN' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  SCROLL / R: SWAP WEAPON  |  F: EGO BLAST  |  SHIFT RUN  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C (HOLD) / FIRE (TAP)  |  SCROLL: SWAP WEAPON  |  F: EGO BLAST');
+  h.textContent = isTouchDevice ? 'LEFT THUMB: MOVE (PUSH TO THE RIM TO RUN)  |  RIGHT THUMB: HOLD FOR LOW C, TAP TO FIRE THE GUN' : (locked ? 'W A S D MOVE  |  MOUSE AIM  |  HOLD LEFT CLICK / SPACE: LOW C  |  SCROLL / R: SWAP WEAPON  |  F: EGO BLAST  |  SHIFT: WALK  |  ESC: FREE MOUSE' : 'CLICK THE GAME TO AIM WITH THE MOUSE  |  W A S D MOVE  |  SPACE: LOW C (HOLD) / FIRE (TAP)  |  SCROLL: SWAP WEAPON  |  F: EGO BLAST');
   if (flash) { h.style.opacity = 1; clearTimeout(updateHint.t); updateHint.t = setTimeout(() => { h.style.opacity = 0; }, isTouchDevice ? 6000 : 9000); }
 }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvasEl; if (!locked) mouseLowC = false; if (started) updateHint(true); });
@@ -2004,7 +2020,7 @@ const TIPS = {
   ammo: 'AMMO|You start with 10 rounds. A new circle swaps between the gun and Low C (scroll wheel on PC). It aims for you, but you pick every shot: one tap, one round.',
   scratcher: 'SCRATCHER|Grab it when you’re spotted: it cools your heat.',
   vinyl: 'RECORD|Ego Blast: freezes every enemy and shuts their eyes for 12 seconds. Use the button.',
-  tape: 'ANALOG TAPE|30 seconds of static: enemies are blind to you and can’t track you.',
+  tape: 'ANALOG TAPE|25 seconds of static: enemies are blind to you and can’t track you.',
   basket: 'GIFT BASKET|A real gift (+Low C), or a bug that sends the Suits after you. Luz can tell which.',
   kid: 'THE KID|He turns baseball cards into Low C. Follow the red arrow.',
   pancho: 'PANCHO|He turns copper into ammo. He walks to the crew and back: follow the gold arrow.',
@@ -2157,7 +2173,8 @@ function update(dt) {
     const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-11 * dt)); swinging = Math.abs(d) > 0.12;
   } else swinging = false;
   { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
-  const run = (keys.ShiftLeft || keys.ShiftRight || (stick.id !== null && stick.raw > 1.15)) ? 1.45 : 1, speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
+  const run = stick.id !== null ? (stick.raw > 1.15 ? 1.45 : 1) : (keys.ShiftLeft || keys.ShiftRight) ? 1 : 1.45, // (on a phone you run by pushing the stick past the rim; on a keyboard you run unless you hold Shift)
+   speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
   const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-((tx * tx + tz * tz > 0.04) ? 20 : 10) * dt); // quick to get going, a short slide when you let go
   vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
