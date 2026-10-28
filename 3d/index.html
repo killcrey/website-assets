@@ -496,7 +496,7 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
   const spots = [];
   for (const sx of [-1, 1]) for (let tries = 0; tries < 200 && spots.filter((q) => q.sx === sx).length < 11; tries++) {
     const x = sx * (10.5 + pr() * 16), z = -275 - pr() * 26;
-    if (spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4.2) || (Math.abs(x) < 19.5 && z < -286)) continue; // (keep the view of the mural pillars clear)
+    if (spots.some((q) => Math.hypot(q.x - x, q.z - z) < 4.2) || z < -281 || Math.abs(x) < 21) continue; // (trees only out at the front edges, so the mural pillars stay in clear view)
     spots.push({ sx, x, z, s: 0.8 + pr() * 0.6, c: pr() });
   }
   const trunkT = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.34, 3.4, 7).translate(0, 1.7, 0), lam(0x6b4a2e), spots.length);
@@ -507,7 +507,7 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
     o.scale.set(q.s, q.s * 0.85, q.s); o.position.set(q.x, 3.9 * q.s, q.z); o.updateMatrix(); crownT.setMatrixAt(i, o.matrix); crownT.setColorAt(i, cc.copy(g1).lerp(g2, q.c));
   });
   scene.add(trunkT, crownT);
-  const palms = []; for (const sx of [-1, 1]) { for (const z of [-277, -284]) palms.push([sx * (8.8 + pr() * 2), z + pr() * 2]); palms.push([sx * 21.5, -298]); }
+  const palms = []; for (const sx of [-1, 1]) { palms.push([sx * 19.8, -301], [sx * 35, -299]); } // palms behind and between the pillars
   const trunkP = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.34, 6.6, 7).translate(0, 3.3, 0), lam(0x8a6a45), palms.length);
   const frondP = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.06, 3.2).translate(0, 0, 1.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), palms.length * 9);
   let fi = 0; palms.forEach(([px, pz], i) => {
@@ -529,7 +529,7 @@ windows.count = wCount; windows.instanceMatrix.needsUpdate = true; if (windows.i
     for (const cxl of cols) { const colH = cy - 1.9; add(2.0, colH, 2.4, cxl, -1.9 - colH / 2, 0, conc); add(3.2, 0.7, 3.6, cxl, -2.25, 0, under); } // columns, each with a cap under the girders
     scene.add(g);
   };
-  deck(0, 13, -296, 9, 0, [-48, 48, -95, 95]);                  // the low one: the mural pillars hold it up beside the pavilion (the pillar_a / pillar_b pictures at x -12.6 and 12.6), more columns further out
+  deck(0, 13, -296, 9, 0, [-52, 52, -95, 95]);                  // the low one: four mural pillars hold it up (pillar_c, a, d, b at x -27, -12.6, 12.6, 27), more columns further out
   deck(-4, 17.5, -310, 10.5, 0.06, [-30, 30, -75, 75]);         // a higher one beyond it, a little off square
   deck(6, 22, -303, 8.5, -0.42, [-26, 34, -80, 90]);            // a high one crossing at an angle, like an interchange
 }
@@ -919,7 +919,7 @@ ART_JOBS.forEach((j) => {
   }
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
   for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25], ['prop_bench2', 0.8, -7.2, -243, 0.5]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
-  for (const [key, x] of [['pillar_a', -12.6], ['pillar_b', 12.6]]) onSprite(key, (e) => { // the Chicano Park mural pillars hold up the low overpass beside the pavilion
+  for (const [key, x] of [['pillar_c', -27], ['pillar_a', -12.6], ['pillar_d', 12.6], ['pillar_b', 27]]) onSprite(key, (e) => { // four Aztec mural pillars hold up the low overpass: the two warriors beside the pavilion, the UFO boy and the serpent further out
     if (e.failed) return;
     const hM = 12.3, wM = hM * e.w / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(x, hM / 2, -296); scene.add(m); // its painted top runs up behind the deck's girders, so the deck sits on it

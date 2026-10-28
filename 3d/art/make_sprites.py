@@ -54,6 +54,7 @@ SETS = [
     ('gaslamp buildings 1.jfif', ['spire', 'dark', 'grey'], 'h', 760, 'gl_', ''),
     ('gaslamp brick buildings.jfif', ['seafood', 'orange'], 'h', 760, 'gl_', ''),
     ('chicano park pillars.jfif', ['a', 'b'], 'h', 700, 'pillar_', ''),
+    ('chicano park pillars2.jfif', ['c', 'd'], 'h', 700, 'pillar_', ''),
 ]
 # buildings that touch each other: cut by fixed columns (fractions of the width): (file, [(name, left, right)], size px of the height, name prefix)
 MANUAL = [('gaslamp buildings 2.jfif', [('tower', 0.085, 0.275), ('red', 0.296, 0.634), ('cream', 0.634, 0.950)], 760, 'gl_')]
