@@ -69,6 +69,8 @@
   #bodega-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); border-bottom: 1px solid rgba(70,255,122,.5); }
   #bodega-bar .t { flex: 1; color: #7dff9a; letter-spacing: 2px; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #bodega-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+  .thanks { font-size: 1.15rem; letter-spacing: 3px; color: #ffe08a; text-shadow: 0 0 10px rgba(255,200,80,.7); margin: -10px 0 12px; max-width: 360px; line-height: 1.1; text-align: center; }
+  #intro-fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 6; background: radial-gradient(ellipse at center, rgba(255,255,255,.98) 0%, rgba(150,250,255,.7) 40%, rgba(0,255,249,.2) 100%); }
   #tip { position: fixed; left: 50%; top: 33%; transform: translateX(-50%); width: min(86vw, 440px); text-align: center; font-size: 1.15rem; line-height: 1.15; color: #fff; padding: 5px 12px; background: rgba(0,0,0,.38); border-radius: 6px; text-shadow: 0 1px 3px #000; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #tip b { display: block; color: #ffe08a; font-size: .9rem; letter-spacing: 2px; }
   #start { overflow-y: auto; justify-content: flex-start; }
@@ -136,6 +138,7 @@
 <button id="ego-btn" class="btn vt" type="button">EGO<br>BLAST</button>
 <button id="swap-btn" class="btn vt" type="button">GUN</button>
 <div id="elevate-fx"></div>
+<div id="intro-fx"></div>
 <div id="elevate" class="vt"></div>
 <div id="void" class="vt"><i></i><span></span></div>
 <div id="sealbar" class="vt"><i></i><span></span></div>
@@ -155,6 +158,7 @@
 <div id="start" class="overlay">
   <div class="title vt">LAYERS</div>
   <div class="sub vt">SAN DIEGO &mdash; EARLY PROTOTYPE</div>
+  <div class="thanks vt">THANK YOU FOR HELPING TEST OUR GAME</div>
   <button id="start-btn" class="btn pink vt" type="button" style="font-size:1.4rem;padding:12px 30px;">TAP TO START</button>
   <div class="how vt">
     <div><img src="art/sprites/player_front.webp" alt=""><span><b>MOVE</b> with your left thumb. <b>HOLD LOW C</b> with your right to freeze enemies. Fill it to <b>100%</b> and the <b>TEAR</b> opens.</span></div>
@@ -1420,7 +1424,7 @@ let invis = 0, crewFound = 0, heatF = 0, unseenT = 0, lastLevel = 0, lastHeatPct
 const heatLevel = () => Math.min(3, Math.floor(heatF + 1e-6));
 function bumpHeat(a) { heatF = Math.min(3, heatF + a); }
 const CARDS_TO_FILL = 7, WIRES_TO_FILL = 3, CREW_COOLDOWN = 40, EGO_SECONDS = 12, BUG_LURE = 15, BASKET_FILL = 0.25, HUM_SECONDS = 20, DAD_FILL_SECONDS = 4, DAD_HEAT_PER_SEC = 0.4;
-let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false, thugCueT = 0, runT = 0, cpZ = 6, statSuit = 0, statThug = 0, statCaught = 0, resultsOpen = false, resultsGo = null, elevateBlocked = false, capturedAt = 0;
+let laserAmmo = 0, laserT = 0, elevateT = 5, elevating = false, supplyT = 0, sealShown = 10, vanWatchT = 0, vanWarned = false, reinfT = 0, reinfCalm = 0, suitKills = 0, killT = 0, shake = 0, ammo = 0, weapon = 'lowc', fireCool = 0, tearTotal = 0, skyK = 0, skyShown = 0, luzCool = 0, humT = 0, dadOn = false, dadPct = -1, kidCool = 0, panCool = 0, wiresHeld = 0, egoCharges = 0, tearOpen = false, tearT = 0, tearCool = 0, repelCool = 0, lureT = 0, tearArmed = true, wireT = 0, bodegaT = 0, bodegaUsed = false, behindK = 0, behindShown = -1, leftK = 0, rightK = 0, leftShown = -1, rightShown = -1, gamePaused = false, thugCueT = 0, runT = 0, cpZ = 6, statSuit = 0, statThug = 0, statCaught = 0, resultsOpen = false, resultsGo = null, elevateBlocked = false, capturedAt = 0, introT = 0;
 function applyBoon(id) {
   if (id === 'invisible') { invis = 20; showToast('INVISIBLE TO THE AGENCY: 20s', '#7ff6ff'); }
   else if (id === 'refill') { lowC = Math.max(lowC, lowCMax() * 0.5); lowCLock = false; ammo = AMMO_MAX; laserAmmo = LASER_MAX; egoCharges = 2; showToast('GUN, LASER, EGO FILLED  •  LOW C HALF', '#9fd0ff'); }
@@ -1533,7 +1537,7 @@ function goTo(e, tx, tz, speed, dt) { // straight when it can see the spot, othe
 }
 function pickPatrolNode(e) { const c = NAV.filter((n) => Math.abs(n.x) < 12.5 && n.z <= e.zone[0] && n.z >= e.zone[1]); return c[Math.floor(Math.random() * c.length)] || NAV[0]; }
 function visionRange(e) { // how far this enemy can notice you right now
-  if (invis > 0 || inTruck || cloak > 0) return 0; // (the analog static blinds them completely)
+  if (invis > 0 || inTruck || cloak > 0 || introT > 0) return 0; // (the analog static blinds them completely)
   let r = e.spec.range * (heatLevel() >= 1 ? 1.12 : 1);
   if (hidden) r *= 0.35; if (Math.hypot(vel.x, vel.z) > 8.5) r *= 1.25; if (cloak > 0) r = Math.min(r, 1.6);
   return r;
@@ -2080,6 +2084,41 @@ function scanTips(dt) {
   if (tearOpen) tip('tear'); else if (tAccum > 14 && lowC < lowCMax() * 0.9) tip('closed');
 }
 
+// ---- the arrival: when you start, a tear opens in the void and the character steps out of it in an explosion of light ----
+const INTRO_T = 2.1, intro = { grp: null, fill: null, edge: null, glow: null, ring: null, burst: false };
+function startIntro() {
+  introT = INTRO_T; intro.burst = false; playerBill.group.visible = false; playerBill.group.scale.setScalar(0.3);
+  if (!intro.grp) {
+    const g = new THREE.Group();
+    intro.fill = new THREE.Mesh(new THREE.ShapeGeometry(tearShape), new THREE.MeshBasicMaterial({ color: 0x120a2e, side: THREE.DoubleSide, fog: false })); g.add(intro.fill);
+    intro.edge = new THREE.LineLoop(outlineGeo, new THREE.LineBasicMaterial({ color: 0xeafffe, fog: false })); g.add(intro.edge);
+    intro.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 })); intro.glow.scale.set(12, 16, 1); intro.glow.position.z = -0.05; g.add(intro.glow);
+    intro.ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1.0, 64), new THREE.MeshBasicMaterial({ color: 0x9ff6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); intro.ring.rotation.x = -Math.PI / 2; scene.add(intro.ring);
+    intro.grp = g; scene.add(g);
+  }
+  const p = player.position; intro.grp.position.set(p.x, 1.85, p.z - 0.4); intro.grp.scale.set(0.01, 0.01, 1); intro.grp.visible = true; intro.ring.position.set(p.x, 0.14, p.z); intro.ring.material.opacity = 0;
+  if (ac && ac.state === 'running' && !muted) { const t = ac.currentTime; tone('sawtooth', 70, t, 0.6, 0.14, 260); tone('sine', 140, t + 0.1, 0.5, 0.1, 700); }
+}
+function updateIntro(dt) {
+  if (introT <= 0) return;
+  introT = Math.max(0, introT - dt); const t = INTRO_T - introT, p = player.position, fx = $('intro-fx');
+  const open = Math.min(1, t / 0.55), ease = 1 - Math.pow(1 - open, 3), close = t < 0.85 ? 0 : Math.min(1, (t - 0.85) / 0.5), s = 0.34 * ease * (1 - close * close);
+  intro.grp.scale.set(Math.max(0.01, s * 1.6), Math.max(0.01, s), 1); intro.glow.material.opacity = 0.9 * ease * (1 - close);
+  intro.edge.material.color.setHex(t > 0.55 && t < 0.72 ? 0xffffff : 0xeafffe);
+  if (t < 0.55) fx.style.opacity = (0.18 * ease).toFixed(2);
+  if (t >= 0.55 && !intro.burst) { // the burst: flash, sparks, a shockwave on the ground and the character appears
+    intro.burst = true; shake = Math.max(shake, 0.7); playerBill.group.visible = true; showToast('WELCOME TO EARTH', '#7ff6ff');
+    for (let i = 0; i < 22; i++) { const a = (i / 22) * 6.283 + Math.random() * 0.4, r = 0.9 + Math.random() * 2.6; poof(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r * 0.8, i % 3 === 0 ? 0xffffff : i % 3 === 1 ? 0x7ff6ff : 0xffd27a, 0.35 + Math.random() * 0.5, 0.3 + Math.random() * 2.4, 0.45 + Math.random() * 0.4); }
+    if (ac && ac.state === 'running' && !muted) { const ct = ac.currentTime; tone('sawtooth', 55, ct, 0.7, 0.3, 300); tone('square', 110, ct + 0.02, 0.4, 0.15, 900); tone('triangle', 880, ct + 0.05, 0.6, 0.1, 5000); tone('triangle', 1320, ct + 0.12, 0.5, 0.08, 5000); }
+  }
+  if (intro.burst) {
+    const b = t - 0.55, u = Math.min(1, b / 0.45), k = Math.min(1, b / 0.9);
+    fx.style.opacity = Math.max(0, 0.95 - b * 1.9).toFixed(2);
+    playerBill.group.scale.setScalar(u < 1 ? 0.3 + 0.7 * (1 - Math.pow(1 - u, 3)) + 0.12 * Math.sin(u * Math.PI) : 1);
+    intro.ring.scale.setScalar(1 + 16 * k); intro.ring.material.opacity = 0.9 * (1 - k);
+  }
+  if (introT === 0) { fx.style.opacity = 0; intro.grp.visible = false; intro.ring.material.opacity = 0; playerBill.group.scale.setScalar(1); playerBill.group.visible = !inTruck; }
+}
 const camDir = new THREE.Vector3();
 function updateHunt(dt) {
   if (started && !captured) { runT += dt; thugCueT = Math.max(0, thugCueT - dt); for (const z of [-90, -180, -260]) if (player.position.z < z && cpZ > z) { cpZ = z; showToast('CHECKPOINT', '#9fe8a0'); } }
@@ -2090,7 +2129,7 @@ function updateHunt(dt) {
   aura = Math.max(0, aura - dt * 3);
   killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateReticle(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
+  updateIntro(dt); updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateReticle(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
@@ -2125,7 +2164,7 @@ function updateHunt(dt) {
 }
 
 // ---- start / portal ----
-$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); ammo = START_AMMO; updateLootHud(); updateHint(true); });
+$('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); ammo = START_AMMO; updateLootHud(); updateHint(true); startIntro(); });
 function tryEnterPortal() { /* walking into the Tear is automatic now: stand in it and the countdown starts */ }
 function elevateGo() { // the countdown ran out: a results card with a choice, ELEVATE to the 2D game or STAY HOME and keep playing
   const go = () => { if (window.__noNav) { window.__navigated = true; return; } location.href = '../'; };
@@ -2160,6 +2199,7 @@ function update(dt) {
     if (keys.KeyW || keys.ArrowUp) iy += 1; if (keys.KeyS || keys.ArrowDown) iy -= 1;
     if (keys.KeyQ) { yaw += dt * 1.8; lookIdle = 0; } if (keys.KeyZ) { yaw -= dt * 1.8; lookIdle = 0; }
   } else { ix = iy = 0; }
+  if (introT > 0) ix = iy = 0;
   const m = Math.hypot(ix, iy); if (m > 1) { ix /= m; iy /= m; }
   if (inTruck) { if (m > 0.25) leaveTruck(); else ix = iy = 0; }
   // Precise controls: the stick is always relative to the camera. The camera only turns on its own at one moment: when you head along the street, an alley or a cross
