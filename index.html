@@ -297,7 +297,7 @@
             <div id="death-email-capture" class="flex flex-col items-center hidden w-full max-w-xs mt-1">
                 <p class="text-sm text-cyan-300 font-vt323 tracking-widest uppercase text-center leading-tight">ENTER YOUR EMAIL TO CLAIM YOUR RANK</p>
                 <div class="flex flex-col gap-1 w-full mt-1">
-                    <input type="email" id="death-email-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-base w-full text-center focus:outline-none focus:border-yellow-400">
+                    <input type="email" id="death-email-input" placeholder="your email" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-base w-full text-center focus:outline-none focus:border-yellow-400">
                     <button id="death-email-submit-btn" class="btn w-full !py-1">TRANSMIT</button>
                 </div>
                 <p id="death-email-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
@@ -330,9 +330,9 @@
         <div id="elite8-capture-screen" class="ui-layer hidden">
             <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
                 <h2 class="glitch" data-text="YOU MADE THE ELITE 8" style="color:#facc15; font-size:2rem;">YOU MADE THE ELITE 8</h2>
-                <p class="text-sm md:text-base text-yellow-200 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency to lock your name on the board.</p>
+                <p class="text-sm md:text-base text-yellow-200 font-vt323 tracking-wide mt-1 mb-3 text-center">Add your email to lock your name on the board.</p>
                 <div class="flex flex-col gap-2 w-full max-w-xs">
-                    <input type="email" id="elite8-email-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
+                    <input type="email" id="elite8-email-input" placeholder="your email" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
                     <input type="text" id="elite8-tag-input" maxlength="6" placeholder="TAG123" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-xl w-full text-center uppercase focus:outline-none focus:border-yellow-400" title="1 to 3 letters, followed by 0 to 3 numbers.">
                     <button id="elite8-submit-btn" class="btn w-full">LOCK IT IN</button>
                 </div>
@@ -355,9 +355,9 @@
         <div id="email-capture-screen" class="ui-layer hidden">
             <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
                 <h2 class="glitch" data-text="THE SOURCE REMEMBERS YOU" style="color:#e879f9; font-size:2rem;">THE SOURCE REMEMBERS YOU</h2>
-                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3 text-center">Leave your frequency. We'll send word when new transmissions drop.</p>
+                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3 text-center">Add your email. We'll send word when new transmissions drop.</p>
                 <div class="flex flex-col gap-2 w-full max-w-xs">
-                    <input type="email" id="email-capture-input" placeholder="your frequency" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
+                    <input type="email" id="email-capture-input" placeholder="your email" class="bg-black border border-cyan-500 text-cyan-300 font-vt323 text-lg w-full text-center focus:outline-none focus:border-yellow-400">
                     <button id="email-capture-submit-btn" class="btn w-full">TRANSMIT</button>
                 </div>
                 <p id="email-capture-status" class="text-sm font-vt323 text-yellow-400 mt-1 h-4 text-center"></p>
@@ -1246,7 +1246,7 @@
         document.getElementById('death-email-submit-btn').addEventListener('click', async () => {
             const email = document.getElementById('death-email-input').value.trim();
             const statusText = document.getElementById('death-email-status');
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "That doesn't look like a valid frequency."; return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "That doesn't look like a valid email."; return; }
             document.getElementById('death-email-submit-btn').disabled = true;
             statusText.innerText = "Locking signal...";
             try {
@@ -1278,7 +1278,7 @@
             const statusText = document.getElementById('elite8-status');
             const submitBtn = document.getElementById('elite8-submit-btn');
             const tagRegex = /^[A-Z]{1,3}[0-9]{0,3}$/;
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "ENTER A VALID FREQUENCY."; return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { statusText.innerText = "ENTER A VALID EMAIL."; return; }
             if (!tagRegex.test(tag)) { statusText.innerText = "FORMAT ERROR: 1-3 LETTERS THEN 0-3 NUMBERS."; return; }
             submitBtn.disabled = true; statusText.innerText = "LOCKING IN...";
             try {
@@ -1317,7 +1317,7 @@
         async function submitEmailSignup() {
             const email = emailCaptureInput.value.trim();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                emailCaptureStatus.innerText = "That doesn't look like a valid frequency.";
+                emailCaptureStatus.innerText = "That doesn't look like a valid email.";
                 return;
             }
             emailCaptureSubmitBtn.disabled = true;
