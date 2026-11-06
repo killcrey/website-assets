@@ -256,10 +256,17 @@
 
                 <p id="loading-status" class="text-xs md:text-sm text-cyan-300 font-vt323 tracking-widest uppercase mt-2 animate-pulse">LOADING ASSETS... 0%</p>
                 <div class="flex flex-col md:flex-row items-center justify-center md:items-start gap-0 md:gap-4 w-full flex-shrink-0">
-                    <button id="continue-btn" class="btn w-full max-w-xs flex-shrink-0 hidden" style="border-color:#facc15; color:#facc15;" disabled>CONTINUE YOUR RUN<span style="display:block; font-size:0.62em; letter-spacing:2px; line-height:1.1; margin-top:1px;">FULL LIVES + 111,111 BONUS</span></button>
                     <button id="start-btn" class="btn w-full max-w-xs flex-shrink-0 hidden" disabled>INITIATE LAUNCH</button>
                     <a id="earth-btn" class="btn btn-earth w-full max-w-xs flex-shrink-0" href="./3d/">START ON EARTH<span class="earth-beta">(BETA TEST)</span></a>
                 </div>
+            </div>
+        </div>
+
+        <div id="return-screen" class="ui-layer hidden" style="background: rgba(0,0,0,0.88); z-index: 30;">
+            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto; cursor: pointer;">
+                <h2 class="glitch" data-text="RETURNING TO SHIP" style="color:#facc15;">RETURNING TO SHIP</h2>
+                <p id="return-count" class="font-vt323" style="font-size: clamp(4rem, 18vw, 8rem); line-height: 1; color: #fff; text-shadow: 0 0 24px #facc15;">5</p>
+                <p class="text-sm md:text-base text-cyan-300 font-vt323 tracking-wide mt-1">FULL LIVES + 111,111 BONUS &nbsp;&bull;&nbsp; TAP TO GO NOW</p>
             </div>
         </div>
 
@@ -596,7 +603,7 @@
             buildGlowCache();
             if (loadingStatus) loadingStatus.classList.add('hidden');
             if (startBtn) { startBtn.classList.remove('hidden'); startBtn.disabled = false; }
-            if (resumeSave) { const cb = document.getElementById('continue-btn'); cb.classList.remove('hidden'); cb.disabled = false; }
+            if (resumeSave) startReturnCountdown();
             fitAllOverlays(); // swapping the loading line for the start button changes the height
         }
         function markSpriteLoaded() {
@@ -674,6 +681,14 @@
             } catch (e) { return null; }
         }
         let resumeSave = readRunSave();
+        if (resumeSave) startScreen.classList.add('hidden'); // coming back through the Tear: no launch screen at all, just the countdown below
+        function startReturnCountdown() {
+            const scr = document.getElementById('return-screen'), num = document.getElementById('return-count'); let n = 5, timer = null;
+            const go = () => { clearInterval(timer); scr.classList.add('hidden'); continueSavedRun(); };
+            num.textContent = n; scr.classList.remove('hidden'); fitOverlay(scr.querySelector('.flex.flex-col'));
+            timer = setInterval(() => { n--; if (n <= 0) go(); else num.textContent = n; }, 1000);
+            scr.addEventListener('click', go, { once: true }); // a tap skips the wait (and counts as the gesture that unlocks audio)
+        }
         function continueSavedRun() {
             const sv = resumeSave; if (!sv) return; resumeSave = null;
             try { localStorage.removeItem(RUN_SAVE_KEY); history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
@@ -1853,7 +1868,7 @@
                 ship.targetX = cx; ship.targetY = cy; 
             };
             document.addEventListener('mousemove', handleInput); document.addEventListener('touchmove', handleInput, { passive: false });
-            startBtn.onclick = startGame; restartBtn.onclick = startGame; document.getElementById('continue-btn').onclick = continueSavedRun;
+            startBtn.onclick = startGame; restartBtn.onclick = startGame;
             emailCaptureSubmitBtn.onclick = submitEmailSignup;
             document.getElementById('email-capture-skip-btn').onclick = dismissEmailCapture;
             requestAnimationFrame(gameLoop);
