@@ -710,16 +710,35 @@ player.position.set(0, 0, 6);
 const SPRITE_DIR = './art/sprites/';
 const texLoader = new THREE.TextureLoader();
 const spriteCache = {};
-function getSprite(name) {
-  let e = spriteCache[name]; if (e) return e;
-  e = spriteCache[name] = { tex: null, w: 1, h: 1, ok: false, failed: false, cbs: [] };
-  texLoader.load(SPRITE_DIR + name + '.webp', (t) => {
+// Art is fetched when the player gets near it instead of all 120 files up front (about 2.5 MB). getSprite(name, false) only registers the entry; startSprite(e) fetches it.
+// Things placed at a known spot on the street pass its z to onSprite (streamSprites loads them once you are within SPRITE_LOAD_DIST of it); characters and props that move are
+// requested by Billboard.update the same way, by distance to the camera. Anything with no position hint loads straight away, as before.
+const SPRITE_LOAD_DIST = 170; // metres; the fog has all but swallowed art farther away than this, so it never shows up late
+const lazySprites = []; // entries waiting for the player to come near: { e, zs }
+function startSprite(e) {
+  if (e.started) return; e.started = true;
+  texLoader.load(SPRITE_DIR + e.name + '.webp', (t) => {
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
     e.tex = t; e.w = t.image.width; e.h = t.image.height; e.ok = true; e.cbs.splice(0).forEach((f) => f(e));
   }, undefined, () => { e.failed = true; e.cbs.splice(0).forEach((f) => f(e)); });
+}
+function getSprite(name, start = true) {
+  let e = spriteCache[name]; if (!e) e = spriteCache[name] = { name, tex: null, w: 1, h: 1, ok: false, failed: false, started: false, cbs: [] };
+  if (start) startSprite(e);
   return e;
 }
-function onSprite(name, fn) { const e = getSprite(name); if (e.ok || e.failed) fn(e); else e.cbs.push(fn); }
+function onSprite(name, fn, z) {
+  const e = getSprite(name, z === undefined);
+  if (z !== undefined && !e.started) { let l = lazySprites.find((q) => q.e === e); if (!l) lazySprites.push(l = { e, zs: [] }); l.zs.push(z); }
+  if (e.ok || e.failed) fn(e); else e.cbs.push(fn);
+}
+function onSpriteLazy(name, fn, list) { const e = getSprite(name, false); list.push(e); if (e.ok || e.failed) fn(e); else e.cbs.push(fn); } // the caller decides when to startSprite
+function streamSprites(pz) {
+  for (let i = lazySprites.length - 1; i >= 0; i--) {
+    const l = lazySprites[i]; if (l.e.started) { lazySprites.splice(i, 1); continue; }
+    if (l.zs.some((z) => Math.abs(z - pz) < SPRITE_LOAD_DIST || (tearOpen && z < -200))) { startSprite(l.e); lazySprites.splice(i, 1); } // (once the Tear opens the far end is what you run for)
+  }
+}
 const billboards = [], STATIC_BLOBS = [], STATIC_GROUPS = [], CULL_DIST = 100; // far-off props are hidden (the fog has swallowed them anyway)
 const blobGeo = new THREE.CircleGeometry(1, 20), blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false });
 const TILT_B = -1, TILT_F = 1; // signs worked out from the geometry: the flat sprite turns toward the way it is heading
@@ -733,19 +752,21 @@ class Billboard {
     this.static = !!opts.static; this.tint = false; this.jitter = 0; this._tinted = false; this.tintHex = 0x8ff8ff; this._hex = 0x8ff8ff;
     if (!opts.noBlob && opts.static) STATIC_BLOBS.push({ b: this, rx: opts.blobX || 0.6, rz: opts.blobZ || 0.6 }); // merged into one draw call later
     else if (!opts.noBlob) { const blob = new THREE.Mesh(blobGeo, blobMat); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.09; blob.scale.set(opts.blobX || 0.6, opts.blobZ || 0.6, 1); this.group.add(blob); }
-    (opts.views || ['front', 'side', 'back']).forEach((v) => onSprite(key + '_' + v, (e) => {
+    this.entries = []; this.requested = false;
+    (opts.views || ['front', 'side', 'back']).forEach((v) => onSpriteLazy(key + '_' + v, (e) => {
       if (e.failed) { if (v === 'front' && opts.onFail) opts.onFail(); return; }
       this.views[v] = e; this.mats[v] = new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
       if (v === 'front' && opts.onReady) opts.onReady();
-    }));
+    }, this.entries));
     this.walkIdx = -1; // >= 0: show walk-cycle frame <view>_w<idx> instead of the standing view (frames come from art/make_walk_frames.py)
-    if (opts.walk) for (const v of ['front', 'side', 'back']) for (let i = 0; i < 4; i++) onSprite(key + '_' + v + '_w' + i, (e) => {
+    if (opts.walk) for (const v of ['front', 'side', 'back']) for (let i = 0; i < 4; i++) onSpriteLazy(key + '_' + v + '_w' + i, (e) => {
       if (e.failed) return;
       this.views[v + '_w' + i] = e; this.mats[v + '_w' + i] = new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide });
-    });
+    }, this.entries);
     scene.add(this.group); billboards.push(this);
   }
   update(dt, cam, target) {
+    if (!this.requested) { const q = this.group.position; if (Math.hypot(cam.x - q.x, cam.z - q.z) < SPRITE_LOAD_DIST) { this.requested = true; this.entries.forEach(startSprite); } } // fetch its art once it is near
     const f = this.views.front; if (!f) return;
     const g = this.group.position, dx = cam.x - g.x, dz = cam.z - g.z, d = Math.hypot(dx, dz) || 1;
     if (this.static && d > CULL_DIST) { this.mesh.visible = false; return; }
@@ -839,7 +860,7 @@ function makeStatic(key, heightM, x, z, facing, views, opts) {
     const m = new THREE.Mesh(hull.geo, hull.mat); m.rotation.y = th; g.add(m);
     if (opts.blob) { const fx = Math.sin(th), fz = Math.cos(th), rx = Math.cos(th), rz = -Math.sin(th); STATIC_BLOBS.push({ b: { group: g }, rx: Math.max(Math.abs(fx) * hull.sl, Math.abs(rx) * hull.fw) / 2 * 1.15, rz: Math.max(Math.abs(fz) * hull.sl, Math.abs(rz) * hull.fw) / 2 * 1.15 }); }
   };
-  need.forEach((v) => onSprite(key + '_' + v, (e) => { ent[v] = e.failed ? null : e; if (--pending === 0) build(); }));
+  need.forEach((v) => onSprite(key + '_' + v, (e) => { ent[v] = e.failed ? null : e; if (--pending === 0) build(); }, z));
   return g;
 }
 // ---- player animation: roll/stretch are set each frame by update(), applied to the sprite after the billboard pass; dust puffs kick up at the feet
@@ -932,23 +953,23 @@ ART_JOBS.forEach((j) => {
     if (e.failed) return;
     const hM = 12.3, wM = hM * e.w / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(x, hM / 2, -296); scene.add(m); // its painted top runs up behind the deck's girders, so the deck sits on it
-  });
+  }, -296);
   onSprite('stadium', (e) => { // the ballpark looms behind the start of the street: the other centrepiece, opposite the pavilion
     if (e.failed) return;
     const wM = 38, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(0, hM / 2, STREET_START + 1.4); m.rotation.y = Math.PI; scene.add(m); // turned round: its face looks down the street, not away from it
-  });
+  }, STREET_START + 1.4);
   onSprite('kiosk', (e) => { // the Chicano Park pavilion, at the very end of the street behind the Tear
     if (e.failed) return;
     const wM = 15.4, hM = wM * e.h / e.w, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(0, hM / 2, -291); scene.add(m);
-  });
+  }, -291);
   FACADES.forEach((f) => onSprite(f.key, (e) => {
     if (e.failed) return;
     const wM = f.wM || f.bw - 0.3, hM = f.hM || wM * e.h / e.w;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
     m.position.set(f.side * 7.86, hM / 2, f.zc); m.rotation.y = f.side > 0 ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
-  }));
+  }, f.zc));
 }
 
 { // all the static shadows (cars, dumpsters, carts...) in one draw call
@@ -1037,7 +1058,7 @@ onSprite('bodega', (e) => {
   const wM = BODEGA.w - 0.3, hM = wM * e.h / e.w;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
   m.position.set(7.86, hM / 2, BZ); m.rotation.y = -Math.PI / 2; scene.add(m);
-});
+}, BZ);
 
 // the green circle in front of the bodega: stand on it for 5 seconds and the real shop opens over the game
 const BODEGA_SPOT = { x: 6.2, z: BZ, r: 1.2, T: 5 };
@@ -2362,7 +2383,7 @@ function update(dt) {
     const vx = PORTAL.x - p.x, vz = PORTAL.z - p.z, fwd = vx * -Math.sin(yaw) + vz * -Math.cos(yaw), rgt = vx * Math.cos(yaw) + vz * -Math.sin(yaw);
     $('compass-arrow').style.transform = 'rotate(' + (Math.atan2(rgt, fwd) * 180 / Math.PI).toFixed(1) + 'deg)';
   }
-  updateBillboards(dt); updateDust(dt); updateSpeech(dt);
+  streamSprites(p.z); updateBillboards(dt); updateDust(dt); updateSpeech(dt);
 
   ring2.scale.setScalar(0.72 + Math.sin(tAccum * 2.4) * 0.05); disc.material.opacity = 0.7 + Math.sin(tAccum * 3) * 0.2; portal.scale.setScalar(1.3 * (1 + Math.sin(tAccum * 2.2) * 0.025));
   const dist = Math.hypot(p.x - PORTAL.x, p.z - PORTAL.z);
