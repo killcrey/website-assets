@@ -321,13 +321,13 @@ const HEMI_A = new THREE.Color(0xcfe4ff), HEMI_B = new THREE.Color(0xff8f86), SU
 const walls = [];
 function addWall(x0, x1, z0, z1, cover) { const w = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), z0: Math.min(z0, z1), z1: Math.max(z0, z1), cover: !!cover }; walls.push(w); return w; }
 // first time (0..1) the segment a->b enters any wall; 1 = clear. skipCover ignores low cover (used by the camera).
-function firstHit(ax, az, bx, bz, skipCover) {
+function firstHit(ax, az, bx, bz, skipCover, pad = 0) { // pad fattens every wall (the camera asks for a little breathing room)
   const dx = bx - ax, dz = bz - az; let best = 1;
   for (const w of walls) {
     if (skipCover && w.cover) continue;
     let t0 = 0, t1 = 1, ok = true;
-    if (Math.abs(dx) < 1e-9) { if (ax < w.x0 || ax > w.x1) ok = false; } else { let a = (w.x0 - ax) / dx, b = (w.x1 - ax) / dx; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; }
-    if (ok) { if (Math.abs(dz) < 1e-9) { if (az < w.z0 || az > w.z1) ok = false; } else { let a = (w.z0 - az) / dz, b = (w.z1 - az) / dz; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; } }
+    if (Math.abs(dx) < 1e-9) { if (ax < w.x0 - pad || ax > w.x1 + pad) ok = false; } else { let a = (w.x0 - pad - ax) / dx, b = (w.x1 + pad - ax) / dx; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; }
+    if (ok) { if (Math.abs(dz) < 1e-9) { if (az < w.z0 - pad || az > w.z1 + pad) ok = false; } else { let a = (w.z0 - pad - az) / dz, b = (w.z1 + pad - az) / dz; if (a > b) { const s = a; a = b; b = s; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) ok = false; } }
     if (ok && t0 < best) best = t0;
   }
   return best;
@@ -1720,7 +1720,7 @@ function restartRun() { // thrown back to the last checkpoint with half of what 
   for (const def of SUIT_DEFS) if ((!def.e || def.e.dead) && (!def.after || def.born)) makeSuitFromDef(def);
   enemies.filter((e) => e.kind === 'suit').forEach((e) => { e.x = e.sx; e.z = e.sz; e.state = 'PATROL'; e.aware = 0; e.path.length = 0; e.target = null; e.spoke = false; e.lureT = 0; e.flee = 0; });
   van.z = -30; van.dir = -1; van.stop = 1; van.unload = 0;
-  player.position.set(0, 0, cpZ); vel.set(0, 0, 0); cardsHeld = keep.cards; wiresHeld = keep.wires; ammo = keep.ammo; laserAmmo = keep.laser; loot.points = keep.points; invis = 5; respawnPickups('laser', 4); updateLootHud();
+  player.position.set(0, 0, cpZ); snapCam = true; vel.set(0, 0, 0); cardsHeld = keep.cards; wiresHeld = keep.wires; ammo = keep.ammo; laserAmmo = keep.laser; loot.points = keep.points; invis = 5; respawnPickups('laser', 4); updateLootHud();
 }
 const cloakGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x7ff6ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 }));
 cloakGlow.scale.set(3.2, 3.8, 1); cloakGlow.position.y = 1.0; cloakGlow.visible = false; playerBill.group.add(cloakGlow);
@@ -2192,13 +2192,24 @@ function elevateGo() { // the countdown ran out: a results card with a choice, E
 }
 function stayHome() { // back into the game, a few steps from the Tear; the countdown only starts again once you've walked away and back
   resultsOpen = false; resultsGo = null; $('results').style.display = 'none'; $('elevate-fx').style.display = ''; $('elevate-fx').style.opacity = 0; $('elevate').style.display = 'none'; elevating = false; elevateT = 5; elevateBlocked = true;
-  player.position.set(0, 0, PORTAL.z + 8); vel.set(0, 0, 0); resetInputs(); gamePaused = false; relock();
+  player.position.set(0, 0, PORTAL.z + 8); snapCam = true; vel.set(0, 0, 0); resetInputs(); gamePaused = false; relock();
 }
 $('enter-btn').addEventListener('click', tryEnterPortal);
 
 // ---- game loop ----
 const vel = new THREE.Vector3(); let faceAngle = Math.PI, stepTimer = 0, tAccum = 0, ghostShown = '', leanYaw = 0, alignT = 0, mvSpd = 0, mvDir = 0, inYaw = 0, frameLocked = false, swinging = false, swingYaw = 0, lockX = 0, lockY = 0;
-const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(); let camDist = 6.4;
+const camTarget = new THREE.Vector3(), lookTarget = new THREE.Vector3(), shakeOff = new THREE.Vector3(); let camDist = 6.4, snapCam = false; // snapCam: the player was just moved somewhere else, so the camera jumps instead of flying over
+const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+// how far along the line a->b (0..1) the lens can go before a wall or a lamp/palm gets in the way (walls and cover, plus the round props, which the camera used to pass straight through)
+function camClipT(ax, az, bx, bz) {
+  let t = firstHit(ax, az, bx, bz, false, 0.3); const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz;
+  if (len2 > 1e-6) for (const c of colliders) {
+    const ex = c.x - ax, ez = c.z - az; if (ex * ex + ez * ez > (Math.sqrt(len2) + c.r + 1) * (Math.sqrt(len2) + c.r + 1)) continue;
+    const u = Math.max(0, Math.min(1, (ex * dx + ez * dz) / len2)), qx = c.x - (ax + dx * u), qz = c.z - (az + dz * u), d2 = qx * qx + qz * qz, rr = c.r + 0.35;
+    if (d2 < rr * rr) { const t0 = Math.max(0, u - Math.sqrt((rr * rr - d2) / len2)); if (t0 < t) t = t0; }
+  }
+  return t;
+}
 const SPEED = 7.2;
 let gait = 0, lastStep = 0, prevSpd = 0, dSpdK = 0, runNow = 0, puffCool = 0, runShown = 0; // gait: distance-driven step phase (one step per PI)
 function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main street and in the alleys, 'x' in a cross street
@@ -2320,14 +2331,22 @@ function update(dt) {
   let fox = laX, foz = laZ;
   { const fl2 = Math.hypot(fox, foz); if (fl2 > 0.01) { const ht = firstHit(p.x, p.z, p.x + fox, p.z + foz, false); if (ht < 1) { const s2 = Math.max(0, ht - 0.35 / fl2); fox *= s2; foz *= s2; } } }
   const fcx = p.x + fox, fcz = p.z + foz; // the point the camera frames
-  let hitT = firstHit(fcx, fcz, fcx + ox, fcz + oz, false); // cover counts too, so a dumpster can't block your view
+  let hitT = camClipT(fcx, fcz, fcx + ox, fcz + oz); // cover counts too, so a dumpster can't block your view
   { const fl = Math.hypot(ox, oz) || 1, qx = -oz / fl * 0.7, qz = ox / fl * 0.7; // two more rays to either side of the lens so a corner can't slice the picture
     hitT = Math.min(hitT, firstHit(fcx, fcz, fcx + ox + qx, fcz + oz + qz, false), firstHit(fcx, fcz, fcx + ox - qx, fcz + oz - qz, false)); }
   if (hitT < 1) { const full = Math.hypot(ox, oz) || 1, use = Math.max(1.1, hitT * full - 0.75); ox *= use / full; oz *= use / full; }
   camTarget.set(fcx + ox, 1.7 + Math.sin(pitch) * camDist, fcz + oz);
-  camera.position.lerp(camTarget, 1 - Math.exp(-12 * dt));
-  if (lowCActive) { camera.position.x += (Math.random() - 0.5) * 0.06; camera.position.y += (Math.random() - 0.5) * 0.06; }
-  if (shake > 0) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake * 0.7; shake = Math.max(0, shake - dt * 1.4); }
+  camera.position.sub(shakeOff); // take last frame's shake back out so it never feeds into the follow
+  if (snapCam) { camera.position.copy(camTarget); snapCam = false; laX = laZ = 0; } else camera.position.lerp(camTarget, 1 - Math.exp(-12 * dt));
+  { // the follow eases in and out, but a blocked view is corrected at once: if the eased lens ended up behind a wall or prop, pull it in to just in front of it
+    const cx = camera.position.x - fcx, cz = camera.position.z - fcz, cl = Math.hypot(cx, cz);
+    if (cl > 0.01) { const t = camClipT(fcx, fcz, camera.position.x, camera.position.z); if (t < 1) { const nl = Math.max(1.1, t * cl - 0.5); if (nl < cl) { camera.position.x = fcx + cx / cl * nl; camera.position.z = fcz + cz / cl * nl; } } }
+  }
+  { // shake: smooth noise on a decaying amplitude (it used to be a fresh random number every frame, which buzzed and changed with frame rate)
+    const amp = (shake + (lowCActive ? 0.06 : 0)) * (reduceMotion ? 0.3 : 1);
+    if (amp > 0) shakeOff.set((Math.sin(tAccum * 37.1) * 0.6 + Math.sin(tAccum * 23.7 + 1.3) * 0.4) * amp * 0.75, (Math.sin(tAccum * 31.3 + 2.1) * 0.6 + Math.sin(tAccum * 19.9) * 0.4) * amp * 0.5, 0); else shakeOff.set(0, 0, 0);
+    camera.position.add(shakeOff); if (shake > 0) shake = Math.max(0, shake - dt * 1.4);
+  }
   lookTarget.set(fcx, 1.6, fcz); camera.lookAt(lookTarget);
   // hiding: stand still next to cover for a second
   stillFor = Math.hypot(vel.x, vel.z) < 0.7 ? stillFor + dt : 0;

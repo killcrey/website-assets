@@ -999,7 +999,12 @@
         }
 
         function createParticle(x, y, type) { particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: type === 'thrust' ? Math.random() * 4 + 2 : (Math.random() - 0.5) * 5, life: 1, decay: Math.random() * 0.03 + 0.02, type: type }); }
-        function resize() { WIDTH = window.innerWidth; HEIGHT = window.innerHeight; canvas.width = WIDTH; canvas.height = HEIGHT; if(ship) ship.init(); trenchGap = WIDTH; fitAllOverlays(); }
+        // A resize mid-run (address bar, rotation, keyboard) keeps the ship where it was, only pulled back inside the new edges; re-centring it threw the player.
+        function keepShipInBounds() {
+            const hx = ship.width / 2, hy = ship.height / 2, cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+            ship.x = cl(ship.x, hx, WIDTH - hx); ship.y = cl(ship.y, hy, HEIGHT - hy); ship.targetX = cl(ship.targetX, hx, WIDTH - hx); ship.targetY = cl(ship.targetY, hy, HEIGHT - hy);
+        }
+        function resize() { WIDTH = window.innerWidth; HEIGHT = window.innerHeight; canvas.width = WIDTH; canvas.height = HEIGHT; if (ship) { if (gameRunning) keepShipInBounds(); else ship.init(); } trenchGap = WIDTH; fitAllOverlays(); }
 
         // ==========================================
         // FIT-TO-VIEWPORT
@@ -1864,10 +1869,13 @@
             window.addEventListener('resize', resize);
             const handleInput = (e) => {
                 if (!gameRunning) return; e.preventDefault(); let cx, cy;
-                if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY - 100; } else { cx = e.clientX; cy = e.clientY; }
+                // the ship rides above the fingertip so the finger doesn't hide it; the gap shrinks on short (landscape) screens so the bottom of the screen stays reachable
+                if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY - Math.min(100, HEIGHT * 0.12); } else { cx = e.clientX; cy = e.clientY; }
                 ship.targetX = cx; ship.targetY = cy; 
             };
             document.addEventListener('mousemove', handleInput); document.addEventListener('touchmove', handleInput, { passive: false });
+            // the ship starts following on the first touch, not only once the finger moves (taps on the on-screen buttons are left alone so they still click)
+            document.addEventListener('touchstart', (e) => { if (e.target.closest && e.target.closest('button, a, #audio-controls')) return; handleInput(e); }, { passive: false });
             startBtn.onclick = startGame; restartBtn.onclick = startGame;
             emailCaptureSubmitBtn.onclick = submitEmailSignup;
             document.getElementById('email-capture-skip-btn').onclick = dismissEmailCapture;
