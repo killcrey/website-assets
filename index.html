@@ -256,6 +256,7 @@
 
                 <p id="loading-status" class="text-xs md:text-sm text-cyan-300 font-vt323 tracking-widest uppercase mt-2 animate-pulse">LOADING ASSETS... 0%</p>
                 <div class="flex flex-col md:flex-row items-center justify-center md:items-start gap-0 md:gap-4 w-full flex-shrink-0">
+                    <button id="continue-btn" class="btn w-full max-w-xs flex-shrink-0 hidden" style="border-color:#facc15; color:#facc15;" disabled>CONTINUE YOUR RUN<span style="display:block; font-size:0.62em; letter-spacing:2px; line-height:1.1; margin-top:1px;">FULL LIVES + 111,111 BONUS</span></button>
                     <button id="start-btn" class="btn w-full max-w-xs flex-shrink-0 hidden" disabled>INITIATE LAUNCH</button>
                     <a id="earth-btn" class="btn btn-earth w-full max-w-xs flex-shrink-0" href="./3d/">START ON EARTH<span class="earth-beta">(BETA TEST)</span></a>
                 </div>
@@ -341,17 +342,6 @@
             </div>
         </div>
 
-        <div id="source-choice-screen" class="ui-layer hidden">
-            <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
-                <img src="./egolossboss.png" class="w-28 md:w-40 mx-auto mb-2" alt="The Source">
-                <h2 class="glitch" data-text="THE SOURCE" style="color:#e879f9;">THE SOURCE</h2>
-                <p class="text-sm md:text-base text-purple-300 font-vt323 tracking-wide mt-1 mb-3">Remember the way back. Refuse it for now. Or dissolve into everything.</p>
-                <button id="remember-btn" class="btn w-full max-w-xs">REMEMBER HOME</button>
-                <button id="not-ready-btn" class="btn w-full max-w-xs" style="margin-top:12px;">I'M NOT READY</button>
-                <button id="dissolve-btn" class="btn w-full max-w-xs" style="margin-top:12px;">DISSOLVE INTO THE SOURCE</button>
-            </div>
-        </div>
-
         <div id="email-capture-screen" class="ui-layer hidden">
             <div class="flex flex-col items-center justify-center max-w-md w-full px-4" style="pointer-events: auto;">
                 <h2 class="glitch" data-text="THE SOURCE REMEMBERS YOU" style="color:#e879f9; font-size:2rem;">THE SOURCE REMEMBERS YOU</h2>
@@ -388,7 +378,6 @@
         const finalHighScoreEl = document.getElementById('final-highscore'); const newRecordEl = document.getElementById('new-record');
         const epilogueLineEl = document.getElementById('epilogue-line');
         const gameOverHeading = document.getElementById('game-over-heading');
-        const sourceChoiceScreen = document.getElementById('source-choice-screen');
         const emailCaptureScreen = document.getElementById('email-capture-screen');
         const emailCaptureInput = document.getElementById('email-capture-input');
         const emailCaptureSubmitBtn = document.getElementById('email-capture-submit-btn');
@@ -607,6 +596,7 @@
             buildGlowCache();
             if (loadingStatus) loadingStatus.classList.add('hidden');
             if (startBtn) { startBtn.classList.remove('hidden'); startBtn.disabled = false; }
+            if (resumeSave) { const cb = document.getElementById('continue-btn'); cb.classList.remove('hidden'); cb.disabled = false; }
             fitAllOverlays(); // swapping the loading line for the start button changes the height
         }
         function markSpriteLoaded() {
@@ -662,7 +652,40 @@
         // THE SOURCE: rare boss, Dissolve/Remember Home choice, memory-flight bonus mode
         // ==========================================
         let sourceCooldown = 0; const SOURCE_COOLDOWN_FRAMES = 5400; const SOURCE_MIN_SCORE = 30000; // 90s cooldown, rare-but-recurring
-        const NOT_READY_GODMODE_FRAMES = 1320; // "I'm Not Ready" grants an extended God Mode burst instead of ending the run
+        const NOT_READY_GODMODE_FRAMES = 1320; // (unused since the Source choice screen was removed)
+
+        // ==========================================
+        // RUN HAND-OFF TO THE 3D GAME AND BACK
+        // Catching the logo in the sky level saves the run here and goes to ./3d/. Making it through the Tear at the far end of the street comes back
+        // to ./?resume=1, where the start screen offers CONTINUE YOUR RUN: the saved run, full lives and a bonus. One use: the save is deleted when it's taken.
+        // ==========================================
+        const RUN_SAVE_KEY = 'layers_2d_save', RUN_SAVE_MAX_AGE_MS = 12 * 3600 * 1000, RETURN_BONUS = 111111, RETURN_LIVES = 3;
+        function saveRunForReturn() {
+            try {
+                localStorage.setItem(RUN_SAVE_KEY, JSON.stringify({ v: 1, t: Date.now(), distance: distanceTraveled, bonus: bonusPoints, dim: currentDimension, nextDim: nextDimThreshold,
+                    speed: gameSpeed, mult: globalSpeedMultiplier, blue: collectedBlue, green: collectedGreen, sourceCd: sourceCooldown, cobraCd: cobraCooldown, egoCd: superEgoCooldown, rocketCd: rocket3Cooldown }));
+            } catch (e) { /* private mode: the 3D game just can't offer a way back */ }
+        }
+        function readRunSave() { // only offered when you arrive with ?resume=1 (through the Tear), and only while it's fresh
+            try {
+                if (!new URLSearchParams(location.search).has('resume')) return null;
+                const sv = JSON.parse(localStorage.getItem(RUN_SAVE_KEY));
+                return sv && sv.v === 1 && Date.now() - sv.t < RUN_SAVE_MAX_AGE_MS ? sv : null;
+            } catch (e) { return null; }
+        }
+        let resumeSave = readRunSave();
+        function continueSavedRun() {
+            const sv = resumeSave; if (!sv) return; resumeSave = null;
+            try { localStorage.removeItem(RUN_SAVE_KEY); history.replaceState(null, '', location.pathname); } catch (e) { /* fine */ }
+            startGame();
+            distanceTraveled = sv.distance; bonusPoints = sv.bonus; gameSpeed = sv.speed; globalSpeedMultiplier = sv.mult; currentDimension = sv.dim;
+            collectedBlue = sv.blue; collectedGreen = sv.green; sourceCooldown = sv.sourceCd; cobraCooldown = sv.cobraCd; superEgoCooldown = sv.egoCd; rocket3Cooldown = sv.rocketCd;
+            const before = Math.floor(distanceTraveled) + bonusPoints;
+            bonusPoints += RETURN_BONUS; playerLives = RETURN_LIVES; invulnerableTimer = 120;
+            nextDimThreshold = Math.floor(distanceTraveled) + bonusPoints + Math.max(0, sv.nextDim - before); // the reward is points, not difficulty: the next dimension is the same distance away as it was
+            hudDimension.innerText = `DIMENSION: ${currentDimension}`; updateCounters();
+            showPanchoPower(`WELCOME BACK<br><span style="color:#facc15">FULL LIVES &nbsp;+${RETURN_BONUS.toLocaleString('en-US')}</span>`);
+        }
 
         // ==========================================
         // ANOMALY CAPSTONE BOSSES: Cobra (toxic) and Super Ego (enemy zone)
@@ -992,7 +1015,6 @@
         function fitAllOverlays() {
             fitOverlay(document.querySelector('#start-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#game-over-screen > .flex.flex-col'));
-            fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#email-capture-screen > .flex.flex-col'));
             fitOverlay(document.querySelector('#elite8-capture-screen > .flex.flex-col'));
         }
@@ -1147,7 +1169,7 @@
             entities = []; particles = []; projectiles = []; enemyProjectiles = [];
             powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
             sourceCooldown = 0; choiceModalActive = false; memoryFlightActive = false; memoryFlightTimer = 0;
-            memoryLogoSpawned = false; memoryLogoCaught = false; sourceChoiceScreen.classList.add('hidden');
+            memoryLogoSpawned = false; memoryLogoCaught = false;
             cobraCooldown = 0; cobraEligibleThisAnomaly = false; cobraSpawned = false;
             superEgoCooldown = 0; superEgoEligibleThisAnomaly = false; superEgoSpawned = false;
 
@@ -1350,9 +1372,10 @@
             for (let i = 0; i < 25; i++) createParticle(ent.x, ent.y, 'explosion');
             bonusPoints += 3000;
             sourceCooldown = SOURCE_COOLDOWN_FRAMES;
-            choiceModalActive = true;
-            sourceChoiceScreen.classList.remove('hidden');
-            fitOverlay(document.querySelector('#source-choice-screen > .flex.flex-col'));
+            // no choice and no email: a quick white flash, and under it the run drops straight into the blue-sky level
+            flashOverlay.style.backgroundColor = 'white'; flashOverlay.style.opacity = '1';
+            setTimeout(() => { if (gameRunning && !memoryFlightActive) startMemoryFlight(); }, 100);
+            setTimeout(() => { flashOverlay.style.opacity = '0'; }, 220);
         }
 
         function announceCobraEncounter() {
@@ -1399,31 +1422,6 @@
                 bonusPoints += 10000;
                 showPanchoPower("ENEMY ZONE PURGED<br><span style='color:#f43f5e'>+10000</span>");
             }
-        }
-
-        function chooseDissolve() {
-            sourceChoiceScreen.classList.add('hidden');
-            choiceModalActive = false;
-            gameOver(true);
-        }
-
-        function chooseRememberHome() {
-            sourceChoiceScreen.classList.add('hidden');
-            if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { choiceModalActive = false; startMemoryFlight(); }
-            else { showSourceEmailCapture(startMemoryFlight); } // game stays paused (choiceModalActive still true) until this resolves
-        }
-
-        function chooseNotReady() {
-            sourceChoiceScreen.classList.add('hidden');
-            const applyNotReady = () => {
-                sfxPowerBig(); vibrate([20, 30, 20]);
-                rocket3Active = true; rocket3Timer = NOT_READY_GODMODE_FRAMES;
-                powerUpActive = false; sideShotActive = false; doubleShipActive = false;
-                bonusPoints += 2000;
-                showPanchoPower("NOT YET<br><span style='color:#facc15'>GOD MODE ENGAGED</span>");
-            };
-            if (localStorage.getItem(EMAIL_SUBMITTED_KEY)) { choiceModalActive = false; applyNotReady(); }
-            else { showSourceEmailCapture(applyNotReady); }
         }
 
         function startMemoryFlight() {
@@ -1559,12 +1557,10 @@
                     else if (ent.type === 'source_logo') {
                         sfxComboTierUp(); vibrate([30,20,30,20,80]); bonusPoints += 5000; memoryLogoCaught = true; ent.markedForDeletion = true;
                         for(let i=0; i<20; i++) createParticle(ent.x, ent.y, 'thrust');
-                        if (LOCKED_TRACKS.length > 0) {
-                            const track = LOCKED_TRACKS.shift();
-                            PLAYLIST.push(track);
-                            playTrack(PLAYLIST.length - 1);
-                            showPanchoPower(`FREQUENCY UNLOCKED<br><span style="color:#60a5fa">${track.title}</span>`);
-                        }
+                        // straight into the 3D game: white flash, freeze the run, and the 3D page auto-starts on its portal flash (?go=1 skips its start screen)
+                        choiceModalActive = true; saveRunForReturn();
+                        flashOverlay.style.backgroundColor = 'white'; flashOverlay.style.opacity = '1';
+                        setTimeout(() => { location.href = './3d/?go=1'; }, 250);
                     }
                 } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
                     // Near-miss: passed close without touching. Reward risky flying, once per entity.
@@ -1857,10 +1853,7 @@
                 ship.targetX = cx; ship.targetY = cy; 
             };
             document.addEventListener('mousemove', handleInput); document.addEventListener('touchmove', handleInput, { passive: false });
-            startBtn.onclick = startGame; restartBtn.onclick = startGame;
-            document.getElementById('dissolve-btn').onclick = chooseDissolve;
-            document.getElementById('remember-btn').onclick = chooseRememberHome;
-            document.getElementById('not-ready-btn').onclick = chooseNotReady;
+            startBtn.onclick = startGame; restartBtn.onclick = startGame; document.getElementById('continue-btn').onclick = continueSavedRun;
             emailCaptureSubmitBtn.onclick = submitEmailSignup;
             document.getElementById('email-capture-skip-btn').onclick = dismissEmailCapture;
             requestAnimationFrame(gameLoop);

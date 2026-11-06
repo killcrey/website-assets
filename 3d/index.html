@@ -167,6 +167,11 @@
   <a class="btn" href="https://theinvisiblepanchos.com/" target="_blank" rel="noopener" style="margin-top:18px;font-size:.85rem;">theinvisiblepanchos.com</a>
 </div>
 
+<script>
+/* arriving from the 2D game's sky level (?go=1): no start screen. A white curtain carries over the 2D flash and fades as the portal intro begins. */
+if (/[?&]go(=|&|$)/.test(location.search)) { document.getElementById('start').style.display = 'none'; var c = document.createElement('div'); c.id = 'go-curtain'; c.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:60;opacity:1;pointer-events:none;transition:opacity .6s ease-out'; document.body.appendChild(c); }
+</script>
+
 <div id="bodega-modal" role="dialog" aria-label="Panchos Bodega">
   <div id="bodega-bar"><span class="t vt">PANCHOS BODEGA</span><a class="btn" id="bodega-open" href="https://bodega.theinvisiblepanchos.com/" target="_blank" rel="noopener" style="font-size:.8rem;padding:4px 10px;">OPEN FULL SITE</a><button class="btn pink" id="bodega-close" type="button" style="font-size:.8rem;padding:4px 12px;">BACK TO GAME</button></div>
   <iframe id="bodega-frame" title="Panchos Bodega" allow="payment"></iframe>
@@ -2167,10 +2172,11 @@ function updateHunt(dt) {
 $('start-btn').addEventListener('click', () => { if (started) return; started = true; $('start').style.display = 'none'; startAudio(); startMusic(); respawnPickups('laser', 4); ammo = START_AMMO; updateLootHud(); updateHint(true); startIntro(); });
 function tryEnterPortal() { /* walking into the Tear is automatic now: stand in it and the countdown starts */ }
 function elevateGo() { // the countdown ran out: a results card with a choice, ELEVATE to the 2D game or STAY HOME and keep playing
-  const go = () => { if (window.__noNav) { window.__navigated = true; return; } location.href = '../'; };
+  const go = () => { if (window.__noNav) { window.__navigated = true; return; } location.href = '../?resume=1'; }; // ?resume=1: the 2D game offers to continue the run saved before the trip here (it ignores it when there is none)
   gamePaused = true; resetInputs(); try { if (document.exitPointerLock) document.exitPointerLock(); } catch (err) { /* fine */ } for (const id of ['elevate', 'elevate-fx']) $(id).style.display = 'none'; for (const id of ['toast', 'tip', 'speech']) $(id).style.opacity = 0;
   const t = Math.floor(runT), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
   $('results-body').innerHTML = 'TIME <b>' + mm + ':' + ss + '</b><br>SUITS DOWN <b>' + statSuit + '</b><br>THUGS DOWN <b>' + statThug + '</b><br>TIMES CAUGHT <b>' + statCaught + '</b><br>SCORE <b>' + loot.points + '</b>';
+  try { const sv = JSON.parse(localStorage.getItem('layers_2d_save')); if (sv && sv.v === 1 && Date.now() - sv.t < 12 * 3600 * 1000) $('results-body').innerHTML += '<br><br><span style="color:#ffd24a">YOUR RUN IS WAITING<br>FULL LIVES + 111,111 BONUS</span>'; } catch (err) { /* no saved run */ }
   $('results').style.display = 'flex'; resultsOpen = true; resultsGo = go; $('results-go').onclick = go; $('results-stay').onclick = stayHome;
 }
 function stayHome() { // back into the game, a few steps from the Tear; the countdown only starts again once you've walked away and back
@@ -2351,6 +2357,7 @@ function frame(now) {
 camera.position.set(0, 5, 17); applyTier();
 window.__g = { keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
 requestAnimationFrame(frame);
+if (params.has('go')) { $('start-btn').click(); const gc = $('go-curtain'); if (gc) { requestAnimationFrame(() => { gc.style.opacity = '0'; setTimeout(() => gc.remove(), 800); }); } } // from the 2D game's sky level: straight into the portal intro
 </script>
 </body>
 </html>
