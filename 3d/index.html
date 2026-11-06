@@ -2190,6 +2190,24 @@ function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main
   if (ax > 7.6) return GAPS.some((g) => Math.abs(p.z - g) < GAP_W / 2 + 0.3) ? 'x' : null;
   return 'z';
 }
+const MOVE_STEP = 1 / 120, SPRINT_RATE = 6, PLAYER_R = 0.45; // movement substep (s); how fast the final push up to sprint speed builds (1/s); body radius
+const LOOK_AHEAD = 0.15, LOOK_AHEAD_MAX = 1.6; // seconds of travel the view leads by (metres, capped)
+let laX = 0, laZ = 0; // camera look-ahead, eased
+function pushOutOfSolids(p) { // slide out of buildings, cover and props. Repeats until nothing overlaps: in an inside corner, leaving one wall can land you in the next
+  const R = PLAYER_R;
+  for (let pass = 0; pass < 8; pass++) {
+    let pushed = false;
+    for (const w of walls) {
+      const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)), dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
+      if (d2 >= R * R) continue;
+      if (d2 > 1e-8) { const d = Math.sqrt(d2); p.x = cx + (dx / d) * R; p.z = cz + (dz / d) * R; }
+      else { const pl = p.x - w.x0, pr = w.x1 - p.x, pt = p.z - w.z0, pb = w.z1 - p.z, mn = Math.min(pl, pr, pt, pb); if (mn === pl) p.x = w.x0 - R; else if (mn === pr) p.x = w.x1 + R; else if (mn === pt) p.z = w.z0 - R; else p.z = w.z1 + R; }
+      pushed = true;
+    }
+    for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + R; if (d < min && d > 0.0001) { p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; pushed = true; } }
+    if (!pushed) break;
+  }
+}
 function update(dt) {
   tAccum += dt;
   let ix = stick.x, iy = stick.y;
@@ -2222,28 +2240,32 @@ function update(dt) {
   const run = stick.id !== null ? (stick.raw > 1.15 ? 1.45 : 1) : (keys.ShiftLeft || keys.ShiftRight) ? 1 : 1.45, // (on a phone you run by pushing the stick past the rim; on a keyboard you run unless you hold Shift)
    speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
   const fx = -Math.sin(inYaw), fz = -Math.cos(inYaw), rx = Math.cos(inYaw), rz = -Math.sin(inYaw);
-  const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, k = 1 - Math.exp(-((tx * tx + tz * tz > 0.04) ? 20 : 10) * dt); // quick to get going, a short slide when you let go
-  vel.x += (tx - vel.x) * k; vel.z += (tz - vel.z) * k;
-  const p = player.position, px0 = p.x, pz0 = p.z; p.x += vel.x * dt; p.z += vel.z * dt;
-  p.x = Math.max(-WORLD_X, Math.min(WORLD_X, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
-  const R = 0.45;
-  for (const w of walls) { // slide along buildings and cover
-    const cx = Math.max(w.x0, Math.min(w.x1, p.x)), cz = Math.max(w.z0, Math.min(w.z1, p.z)), dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
-    if (d2 >= R * R) continue;
-    if (d2 > 1e-8) { const d = Math.sqrt(d2); p.x = cx + (dx / d) * R; p.z = cz + (dz / d) * R; }
-    else { const pl = p.x - w.x0, pr = w.x1 - p.x, pt = p.z - w.z0, pb = w.z1 - p.z, mn = Math.min(pl, pr, pt, pb); if (mn === pl) p.x = w.x0 - R; else if (mn === pr) p.x = w.x1 + R; else if (mn === pt) p.z = w.z0 - R; else p.z = w.z1 + R; }
-  }
-  for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + 0.45; if (d < min && d > 0.0001) { p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; } }
-  { // corner assist: walking straight into the front of a car or cart slides you around the nearer open side instead of stopping dead
-    const want = Math.hypot(vel.x, vel.z), moved = Math.hypot(p.x - px0, p.z - pz0) / (dt || 1);
-    if (want > 3 && moved < want * 0.35) {
-      const dx = vel.x / want, dz = vel.z / want, qx = -dz, qz = dx;
-      const open = (sg) => { const x = p.x + dx * 0.3 + qx * 2.1 * sg, z = p.z + dz * 0.3 + qz * 2.1 * sg; return !insideAnyWall(x, z, 0.5) && !colliders.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + 0.5) && Math.abs(x) < WORLD_X - 1; };
-      const l = open(1), r = open(-1);
-      if (l || r) { const sg = l ? 1 : -1; p.x += qx * sg * 3.6 * dt; p.z += qz * sg * 3.6 * dt; }
+  const tx = (fx * iy + rx * ix) * speedNow, tz = (fz * iy + rz * ix) * speedNow, tLen = Math.hypot(tx, tz), hasInput = tLen * tLen > 0.04;
+  // Movement runs in fixed 1/120 s substeps however long the frame was, so a slow frame can't skip a thin wall and the same input covers the same ground on any device.
+  // Only this block is substepped; everything else in update() still takes the whole frame's dt.
+  const p = player.position, px0 = p.x, pz0 = p.z, nSub = Math.max(1, Math.ceil(dt / MOVE_STEP - 1e-6)), sdt = dt / nSub;
+  for (let si = 0; si < nSub; si++) {
+    const sx0 = p.x, sz0 = p.z;
+    // quick to get going, a short slide when you let go; but the last stretch up to sprint speed builds more slowly, so a sprint is something you commit to
+    const along = hasInput ? (vel.x * tx + vel.z * tz) / tLen : 0, sprinting = tLen > SPEED * 1.05 && along > SPEED * 0.9;
+    if (hasInput) { // only the speed along your heading eases slowly; sideways correction stays quick so a turn still turns at once
+      const ux = tx / tLen, uz = tz / tLen, ex = tx - vel.x, ez = tz - vel.z, ea = ex * ux + ez * uz, kA = 1 - Math.exp(-(sprinting ? SPRINT_RATE : 20) * sdt), kP = 1 - Math.exp(-20 * sdt);
+      vel.x += ux * ea * kA + (ex - ux * ea) * kP; vel.z += uz * ea * kA + (ez - uz * ea) * kP;
+    } else { const k = 1 - Math.exp(-10 * sdt); vel.x -= vel.x * k; vel.z -= vel.z * k; }
+    p.x += vel.x * sdt; p.z += vel.z * sdt;
+    p.x = Math.max(-WORLD_X, Math.min(WORLD_X, p.x)); p.z = Math.max(STREET_END + 1, Math.min(STREET_START, p.z));
+    pushOutOfSolids(p);
+    { // corner assist: walking straight into the front of a car or cart slides you around the nearer open side instead of stopping dead
+      const want = Math.hypot(vel.x, vel.z), moved = Math.hypot(p.x - sx0, p.z - sz0) / (sdt || 1);
+      if (want > 3 && moved < want * 0.35) {
+        const dx = vel.x / want, dz = vel.z / want, qx = -dz, qz = dx;
+        const open = (sg) => { const x = p.x + dx * 0.3 + qx * 2.1 * sg, z = p.z + dz * 0.3 + qz * 2.1 * sg; return !insideAnyWall(x, z, 0.5) && !colliders.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + 0.5) && Math.abs(x) < WORLD_X - 1; };
+        const l = open(1), r = open(-1);
+        if (l || r) { const sg = l ? 1 : -1; p.x += qx * sg * 3.6 * sdt; p.z += qz * sg * 3.6 * sdt; pushOutOfSolids(p); }
+      }
     }
+    { const wantV = Math.hypot(vel.x, vel.z), gotV = Math.hypot(p.x - sx0, p.z - sz0) / (sdt || 1); if (wantV > 2 && gotV < wantV * 0.8) { vel.x = (p.x - sx0) / (sdt || 1); vel.z = (p.z - sz0) / (sdt || 1); } }
   }
-  { const wantV = Math.hypot(vel.x, vel.z), gotV = Math.hypot(p.x - px0, p.z - pz0) / (dt || 1); if (wantV > 2 && gotV < wantV * 0.8) { vel.x = (p.x - px0) / (dt || 1); vel.z = (p.z - pz0) / (dt || 1); } }
   { const mvd = Math.hypot(p.x - px0, p.z - pz0); mvSpd = mvd / (dt || 1); if (mvd > 1e-4) mvDir = Math.atan2(p.x - px0, p.z - pz0); }
   updatePickups(dt); updateLowC(dt); updateHunt(dt);
   const spd = Math.hypot(vel.x, vel.z);
@@ -2275,15 +2297,21 @@ function update(dt) {
   const baseD = camera.aspect < 1 ? 6.6 : 6.0, wantD = baseD, cp = Math.cos(pitch); // steady distance: turning no longer zooms, only a wall in the way pulls it in
   camDist += (wantD - camDist) * (1 - Math.exp(-6 * dt));
   const yc = yaw + leanYaw; let ox = Math.sin(yc) * cp * camDist, oz = Math.cos(yc) * cp * camDist;
-  let hitT = firstHit(p.x, p.z, p.x + ox, p.z + oz, false); // cover counts too, so a dumpster can't block your view
+  // look-ahead: the view is centred a little in front of you in the direction you are moving, so at a sprint you see more of what's coming. Eased in and out, and never through a wall.
+  { const lx = (p.x - px0) / (dt || 1) * LOOK_AHEAD, lz = (p.z - pz0) / (dt || 1) * LOOK_AHEAD, ll = Math.hypot(lx, lz), cap = ll > LOOK_AHEAD_MAX ? LOOK_AHEAD_MAX / ll : 1, a = 1 - Math.exp(-4 * dt);
+    laX += (lx * cap - laX) * a; laZ += (lz * cap - laZ) * a; }
+  let fox = laX, foz = laZ;
+  { const fl2 = Math.hypot(fox, foz); if (fl2 > 0.01) { const ht = firstHit(p.x, p.z, p.x + fox, p.z + foz, false); if (ht < 1) { const s2 = Math.max(0, ht - 0.35 / fl2); fox *= s2; foz *= s2; } } }
+  const fcx = p.x + fox, fcz = p.z + foz; // the point the camera frames
+  let hitT = firstHit(fcx, fcz, fcx + ox, fcz + oz, false); // cover counts too, so a dumpster can't block your view
   { const fl = Math.hypot(ox, oz) || 1, qx = -oz / fl * 0.7, qz = ox / fl * 0.7; // two more rays to either side of the lens so a corner can't slice the picture
-    hitT = Math.min(hitT, firstHit(p.x, p.z, p.x + ox + qx, p.z + oz + qz, false), firstHit(p.x, p.z, p.x + ox - qx, p.z + oz - qz, false)); }
+    hitT = Math.min(hitT, firstHit(fcx, fcz, fcx + ox + qx, fcz + oz + qz, false), firstHit(fcx, fcz, fcx + ox - qx, fcz + oz - qz, false)); }
   if (hitT < 1) { const full = Math.hypot(ox, oz) || 1, use = Math.max(1.1, hitT * full - 0.75); ox *= use / full; oz *= use / full; }
-  camTarget.set(p.x + ox, 1.7 + Math.sin(pitch) * camDist, p.z + oz);
+  camTarget.set(fcx + ox, 1.7 + Math.sin(pitch) * camDist, fcz + oz);
   camera.position.lerp(camTarget, 1 - Math.exp(-12 * dt));
   if (lowCActive) { camera.position.x += (Math.random() - 0.5) * 0.06; camera.position.y += (Math.random() - 0.5) * 0.06; }
   if (shake > 0) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake * 0.7; shake = Math.max(0, shake - dt * 1.4); }
-  lookTarget.set(p.x, 1.6, p.z); camera.lookAt(lookTarget);
+  lookTarget.set(fcx, 1.6, fcz); camera.lookAt(lookTarget);
   // hiding: stand still next to cover for a second
   stillFor = Math.hypot(vel.x, vel.z) < 0.7 ? stillFor + dt : 0;
   let nearCover = false;
@@ -2321,7 +2349,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
+window.__g = { keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
 requestAnimationFrame(frame);
 </script>
 </body>
