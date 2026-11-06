@@ -393,7 +393,9 @@
         // ==========================================
         // UI VARIABLES
         // ==========================================
-        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+        const canvas = document.getElementById('gameCanvas'); const realCtx = canvas.getContext('2d');
+        // `ctx` is what the game draws with. While the loop catches up after a slow frame it points at a do-nothing context, so the extra logic steps cost almost nothing and only the last one is painted.
+        const nullCtx = new Proxy({}, { get: () => () => {}, set: () => true }); let ctx = realCtx;
         const startScreen = document.getElementById('start-screen'); const gameOverScreen = document.getElementById('game-over-screen');
         const hudScore = document.getElementById('hud-score'); const hudTotalScore = document.getElementById('hud-total-score');
         const hudCombo = document.getElementById('hud-combo');
@@ -752,7 +754,10 @@
         let quoteTimer = null, levelUpMsgTimer = null; let currentTrackIndex = 0, isMuted = false;
         let lastQuoteFrame = -999999; const QUOTE_COOLDOWN_FRAMES = 600; // ~10s at 60fps, keeps quotes from flashing back-to-back
         let panchoPowerTimer = null, hudLivesFlashTimer = null, playerHitFlashTimer = null;
-        let lastTime = 0; const fpsInterval = 1000 / 60;
+        // The game's logic advances in fixed 1/60 s steps (everything in it is per step: speeds, spawns, timers). It used to take one step per painted frame, so a phone drawing 30
+        // fps (Low Power Mode, a hot phone) ran the whole game at half speed. Now each frame runs as many steps as real time calls for (at most MAX_CATCHUP_STEPS, so a slow device
+        // slows down instead of spiralling) and paints once.
+        let lastTime = 0, frameAcc = 0; const STEP_MS = 1000 / 60, MAX_CATCHUP_STEPS = 3;
 
         function playTrack(index) {
             if (index >= PLAYLIST.length) index = 0; if (index < 0) index = PLAYLIST.length - 1;
@@ -1674,10 +1679,17 @@
         }
 
         function gameLoop(timestamp) {
-            requestAnimationFrame(gameLoop); const elapsed = timestamp - lastTime;
+            requestAnimationFrame(gameLoop);
+            if (!lastTime) lastTime = timestamp;
+            frameAcc = Math.min(frameAcc + (timestamp - lastTime), STEP_MS * (MAX_CATCHUP_STEPS + 1)); lastTime = timestamp; // (a backgrounded tab can't bank minutes of steps)
+            let steps = 0; while (frameAcc >= STEP_MS - 1 && steps < MAX_CATCHUP_STEPS) { frameAcc -= STEP_MS; steps++; } // (1 ms of slack: a 60 Hz screen's 16.6 ms frames must still count as a step)
+            if (steps === 0) return; // between steps (a screen faster than 60 Hz): nothing to do, nothing to paint
+            if (frameAcc > STEP_MS) frameAcc = STEP_MS; // beyond the cap the backlog is dropped
+            try { for (let i = 0; i < steps; i++) { ctx = i === steps - 1 ? realCtx : nullCtx; runFrame(); } } finally { ctx = realCtx; }
+        }
 
-            if (elapsed > fpsInterval) {
-                lastTime = timestamp - (elapsed % fpsInterval);
+        function runFrame() {
+            {
                 
                 if (analyser && gameRunning) { analyser.getByteFrequencyData(dataArray); let sum = 0; for(let i = 0; i < 8; i++) { sum += dataArray[i]; } currentBassIntensity = (sum / 8) / 255; } else { currentBassIntensity = 0; }
 
