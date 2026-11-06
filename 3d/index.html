@@ -1048,6 +1048,15 @@ const BODEGA_SPOT = { x: 6.2, z: BZ, r: 1.2, T: 5 };
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x46ff7a, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.4 })); glow.scale.set(3.6, 2.2, 1); glow.position.set(BODEGA_SPOT.x, 0.7, BZ); scene.add(glow);
   BODEGA_SPOT.disc = disc; BODEGA_SPOT.glow = glow; BODEGA_SPOT.ring = ring;
 }
+// the blue circle under the Tear: it only shows while the Tear is open, and standing in it starts the ELEVATE countdown (like the green one for the bodega)
+const TEAR_SPOT = { x: PORTAL.x, z: PORTAL.z, r: 1.5 };
+{
+  const mat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(TEAR_SPOT.r - 0.16, TEAR_SPOT.r, 48), mat(0x4aa8ff, 0.95)), disc = new THREE.Mesh(new THREE.CircleGeometry(TEAR_SPOT.r, 48), mat(0x4aa8ff, 0.2));
+  ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.set(TEAR_SPOT.x, 0.14, TEAR_SPOT.z); disc.position.set(TEAR_SPOT.x, 0.13, TEAR_SPOT.z); scene.add(ring, disc);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x4aa8ff, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.4 })); glow.scale.set(4.4, 2.6, 1); glow.position.set(TEAR_SPOT.x, 0.8, TEAR_SPOT.z); scene.add(glow);
+  ring.visible = disc.visible = glow.visible = false; TEAR_SPOT.ring = ring; TEAR_SPOT.disc = disc; TEAR_SPOT.glow = glow;
+}
 
 // what people say when you walk up to them (lines are from the script)
 let speechTimer = 0;
@@ -1976,7 +1985,9 @@ function breakSeal() {
 }
 function updateTear(dt) {
   if (elevateBlocked && (!tearOpen || Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) > 7)) elevateBlocked = false;
-  { const el = $('elevate'), fx = $('elevate-fx'), here = tearOpen && !SEAL.active && !captured && !elevateBlocked && Math.hypot(player.position.x - PORTAL.x, player.position.z - PORTAL.z) < 4.5;
+  { const T = TEAR_SPOT, pulse = 0.5 + 0.5 * Math.sin(tAccum * 3), inCircle = Math.hypot(player.position.x - T.x, player.position.z - T.z) < T.r;
+    T.ring.visible = T.disc.visible = T.glow.visible = tearOpen; T.disc.material.opacity = 0.16 + 0.12 * pulse + (inCircle ? 0.2 : 0); T.glow.material.opacity = 0.32 + 0.25 * pulse; }
+  { const el = $('elevate'), fx = $('elevate-fx'), here = tearOpen && !SEAL.active && !captured && !elevateBlocked && Math.hypot(player.position.x - TEAR_SPOT.x, player.position.z - TEAR_SPOT.z) < TEAR_SPOT.r;
     if (here) {
       const c0 = Math.ceil(elevateT); elevateT -= dt; if (Math.ceil(elevateT) !== c0 && elevateT > 0) blip(660 + (5 - Math.ceil(elevateT)) * 110);
       el.style.display = 'block'; el.textContent = 'ELEVATE IN: ' + Math.max(0, Math.ceil(elevateT)); fx.style.opacity = (Math.min(1, (5 - Math.max(0, elevateT)) / 5) * 0.75).toFixed(2);
@@ -2051,7 +2062,7 @@ const TIPS = {
   truck: 'BREAD TRUCK|Stand still on its street side to hide inside. It drives off now and then.',
   heat: 'HEAT|Rises while they can see you. Break line of sight, or find Eduardo.',
   lowc: 'LOW C|Hold it to shove enemies back, then freeze them. It burns fast, so use bursts. It clears bad vibes and never adds heat.',
-  tear: 'THE TEAR|It’s open. Run for it, then stand in it for 5 seconds to elevate.',
+  tear: 'THE TEAR|It’s open. Run for it, then step into the blue circle under it and stand there for 5 seconds to elevate.',
   seal: 'THE SEAL|The Agency sealed the Tear. A bullet does 2, an ego blast 6, Low C breaks it in about 5 seconds but burns your tank 3x as fast. Then stand in the Tear for 5 seconds.',
   closed: 'THE TEAR|Fill your Low C to 100% and it opens, for a short time.'
 };
@@ -2335,7 +2346,7 @@ function update(dt) {
   $('compass-dist').textContent = Math.round(dist) + 'm';
   const area = p.z < -185 ? 'BARRIO LOGAN' : 'GASLAMP QUARTER'; // far end of the street is Barrio Logan
   if (area !== curArea) { curArea = area; $('hud-loc').textContent = 'SAN DIEGO // ' + area; showToast(area, '#ffffff'); }
-  $('hud-obj').textContent = tearOpen && SEAL.active ? 'BREAK THE SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  \u25B8  ' + Math.ceil(tearT) + 's' : tearOpen ? (dist < 5 ? 'TEAR OPEN  •  STAND IN IT' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'; $('compass').style.display = tearOpen ? 'block' : 'none';
+  $('hud-obj').textContent = tearOpen && SEAL.active ? 'BREAK THE SEAL  ' + Math.ceil(SEAL.hp) + '/' + SEAL.max + '  \u25B8  ' + Math.ceil(tearT) + 's' : tearOpen ? (dist < 5 ? 'TEAR OPEN  •  STEP IN THE BLUE CIRCLE' : 'TEAR OPEN  ▸  ' + Math.round(dist) + 'm  ' + Math.ceil(tearT) + 's') : 'TEAR CLOSED  •  LOW C ' + Math.round(100 * lowC / lowCMax()) + '%'; $('compass').style.display = tearOpen ? 'block' : 'none';
   $('enter-btn').style.display = 'none';
 }
 function render() { if (tier === 0) renderer.render(scene, camera); else composer.render(); }
@@ -2355,7 +2366,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
+window.__g = { TEAR_SPOT, keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
 requestAnimationFrame(frame);
 if (params.has('go')) { $('start-btn').click(); const gc = $('go-curtain'); if (gc) { requestAnimationFrame(() => { gc.style.opacity = '0'; setTimeout(() => gc.remove(), 800); }); } } // from the 2D game's sky level: straight into the portal intro
 </script>
