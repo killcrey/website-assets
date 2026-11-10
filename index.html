@@ -633,6 +633,7 @@
             if (startBtn) { startBtn.classList.remove('hidden'); startBtn.disabled = false; }
             if (resumeSave) startReturnCountdown(); else if (startBtn) startBtn.focus({ preventScroll: true });
             fitAllOverlays(); // swapping the loading line for the start button changes the height
+            setTimeout(loadFx, 1200); // the effect sheets, after the launch screen has had its moment
         }
         function markSpriteLoaded() {
             spritesLoadedCount++; updateLoadingUI();
@@ -1031,6 +1032,22 @@
         }
 
         function createParticle(x, y, type) { particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: type === 'thrust' ? Math.random() * 4 + 2 : (Math.random() - 0.5) * 5, life: 1, decay: Math.random() * 0.03 + 0.02, type: type }); }
+        // ===== pixelfx sprite-sheet effects (./fx/, MIT, see fx/README.txt): pre-rendered, loaded a moment after the launch screen, never block the game. spawnFx() does nothing until its sheet is in. =====
+        const FX = { defs: {}, list: [], started: false };
+        const PICKUP_FX = { orb: 'burst-gold', powerup: 'burst-cyan', alien: 'burst-green', astronaut: 'burst-gold', rocket3_item: 'burst-gold', cloud: 'burst-cyan', cloud2: 'burst-cyan' };
+        function loadFx() {
+            if (FX.started) return; FX.started = true;
+            fetch('./fx/manifest.json').then(r => r.json()).then(man => { for (const k in man) { const img = new Image(); img.onload = () => { FX.defs[k] = { ...man[k], img }; }; img.src = './fx/' + man[k].image; } }).catch(() => { /* no effects, the game plays the same */ });
+        }
+        function spawnFx(name, x, y, o = {}) { const d = FX.defs[name]; if (!d || FX.list.length >= 24) return; FX.list.push({ d, x, y, t: 0, scale: o.scale || 1, angle: o.angle || 0 }); }
+        function stepFx() { // one logic step: advance, and draw (the draw is a no-op on skipped catch-up steps)
+            for (let i = FX.list.length - 1; i >= 0; i--) {
+                const f = FX.list[i], d = f.d; f.t += 1000 / 60; const fi = Math.floor(f.t / d.ms);
+                if (fi >= d.frames) { FX.list.splice(i, 1); continue; }
+                ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(f.x, f.y); if (f.angle) ctx.rotate(f.angle); ctx.scale(f.scale, f.scale);
+                ctx.drawImage(d.img, (fi % d.cols) * d.w, Math.floor(fi / d.cols) * d.h, d.w, d.h, -d.ax, -d.ay, d.w, d.h); ctx.restore();
+            }
+        }
         // A resize mid-run (address bar, rotation, keyboard) keeps the ship where it was, only pulled back inside the new edges; re-centring it threw the player.
         function keepShipInBounds() {
             const hx = ship.width / 2, hy = ship.height / 2, cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1219,7 +1236,7 @@
             collectedBlue = 0; collectedGreen = 0; anomalyActive = false; anomalyTimer = 0; anomalyType = 'normal';
             killStreak = 0; comboMultiplier = 1; hudCombo.classList.remove('combo-active');
             currentDimension = 1; nextDimThreshold = 45000;
-            entities = []; particles = []; projectiles = []; enemyProjectiles = [];
+            entities = []; particles = []; projectiles = []; enemyProjectiles = []; FX.list.length = 0;
             powerUpActive = false; sideShotActive = false; doubleShipActive = false; rocket3Active = false;
             sourceCooldown = 0; choiceModalActive = false; memoryFlightActive = false; memoryFlightTimer = 0;
             memoryLogoSpawned = false; memoryLogoCaught = false;
@@ -1444,7 +1461,7 @@
 
         function triggerCobraDefeat(ent) {
             sfxBigExplosion(); vibrate([100, 50, 100, 50, 200]);
-            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion');
+            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion'); spawnFx('boom', ent.x, ent.y, { scale: 2 });
             registerKill(); bonusPoints += Math.round(3000 * comboMultiplier);
             cobraCooldown = COBRA_COOLDOWN_FRAMES;
             if (anomalyActive && anomalyType === 'green') {
@@ -1467,7 +1484,7 @@
 
         function triggerSuperEgoDefeat(ent) {
             sfxBigExplosion(); vibrate([100, 50, 100, 50, 200]);
-            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion');
+            for (let i = 0; i < 20; i++) createParticle(ent.x, ent.y, 'explosion'); spawnFx('boom', ent.x, ent.y, { scale: 2 });
             registerKill(); bonusPoints += Math.round(3000 * comboMultiplier);
             superEgoCooldown = SUPER_EGO_COOLDOWN_FRAMES;
             if (anomalyActive && anomalyType === 'enemy') {
@@ -1582,7 +1599,7 @@
                     if (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo') {
                         if (rocket3Active || powerUpActive || sideShotActive || doubleShipActive) {
                             if (ent.type === 'octo') { sfxBigExplosion(); maybeShowTutorialTip('octo'); } else sfxHit();
-                            createParticle(ent.x, ent.y, 'explosion'); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier);
+                            createParticle(ent.x, ent.y, 'explosion'); spawnFx('boom', ent.x, ent.y, { scale: 0.5 }); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier);
                             if(ent.type === 'octo') bonusPoints += Math.round(2000 * comboMultiplier);
                             
                             // SHATTER SHIELD LOGIC
@@ -1615,6 +1632,7 @@
                         flashOverlay.style.backgroundColor = 'white'; flashOverlay.style.opacity = '1';
                         setTimeout(() => { location.href = './3d/?go=1'; }, 250);
                     }
+                    if (ent.markedForDeletion && PICKUP_FX[ent.type]) spawnFx(PICKUP_FX[ent.type], ent.x, ent.y);
                 } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
                     // Near-miss: passed close without touching. Reward risky flying, once per entity.
                     const grazeScale = hitBoxScale * 1.8;
@@ -1654,23 +1672,23 @@
                             proj.markedForDeletion = true;
                             if (ent.type === 'octo') {
                                 maybeShowTutorialTip('octo');
-                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
-                                if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(2000 * comboMultiplier); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); }
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion'); spawnFx('spark', proj.x, proj.y, { angle: -Math.PI / 2 });
+                                if (ent.hp <= 0) { sfxBigExplosion(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(2000 * comboMultiplier); for(let i=0; i<15; i++) createParticle(ent.x, ent.y, 'explosion'); spawnFx('boom', ent.x, ent.y); }
                                 else sfxHit();
                             } else if (ent.type === 'source') {
-                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion'); spawnFx('spark', proj.x, proj.y, { angle: -Math.PI / 2 });
                                 if (ent.hp <= 0) { ent.markedForDeletion = true; triggerSourceDefeat(ent); }
                                 else sfxHit();
                             } else if (ent.type === 'cobra') {
-                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion'); spawnFx('spark', proj.x, proj.y, { angle: -Math.PI / 2 });
                                 if (ent.hp <= 0) { ent.markedForDeletion = true; triggerCobraDefeat(ent); }
                                 else sfxHit();
                             } else if (ent.type === 'superego') {
-                                ent.hp--; createParticle(proj.x, proj.y, 'explosion');
+                                ent.hp--; createParticle(proj.x, proj.y, 'explosion'); spawnFx('spark', proj.x, proj.y, { angle: -Math.PI / 2 });
                                 if (ent.hp <= 0) { ent.markedForDeletion = true; triggerSuperEgoDefeat(ent); }
                                 else sfxHit();
                             } else {
-                                sfxHit(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion');
+                                sfxHit(); ent.markedForDeletion = true; registerKill(); bonusPoints += Math.round(250 * comboMultiplier); for(let i=0; i<5; i++) createParticle(ent.x, ent.y, 'explosion'); spawnFx('boom', ent.x, ent.y, { scale: 0.5 });
                             }
                         }
                     }
@@ -1901,6 +1919,7 @@
                     if (p.type === 'thrust' && rocket3Active) ctx.fillStyle = `rgba(255, 255, 255, ${p.life})`; else if (p.type === 'thrust' && sideShotActive) ctx.fillStyle = `rgba(16, 185, 129, ${p.life})`; else if (p.type === 'thrust') ctx.fillStyle = `rgba(0, 255, 249, ${p.life})`; else if (p.type === 'explosion') ctx.fillStyle = `rgba(255, 0, 85, ${p.life})`; else if (p.type === 'orb') ctx.fillStyle = `rgba(246, 224, 94, ${p.life})`;
                     ctx.beginPath(); ctx.arc(p.x, p.y, particleRadius, 0, Math.PI * 2); ctx.fill();
                 }
+                stepFx();
             }
         }
 
