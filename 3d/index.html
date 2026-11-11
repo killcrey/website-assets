@@ -1639,7 +1639,21 @@ const van = { x: 1.6, z: -30, dir: -1, speed: 7, stop: 1, facing: Math.PI, vb: n
   const blob = new THREE.Mesh(blobGeo, blobMat); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.09; blob.scale.set(1.15, 2.6, 1); g.add(blob);
   van.vb = { group: g, sg, tint: false, jitter: 0, tintHex: 0x8ff8ff }; van.cone = makeCone(16, 0.28, 0xfff2a8);
 }
-function vanLook() { const hm = HULLS['van@2.3']; if (hm) hm.mat.color.setHex(van.vb.tint ? van.vb.tintHex : 0xffffff); van.vb.group.position.x = van.x + (van.vb.jitter ? (Math.random() - 0.5) * van.vb.jitter : 0); }
+function vanLook() {
+  const hm = HULLS['van@2.3'], tc = van.vb.tint ? van.vb.tintHex : 0xffffff; if (hm) hm.mat.color.setHex(tc);
+  if (van.model) { if (hm && !van.model.hullHidden) { const hull = van.vb.group.children.find((c) => c.geometry === hm.geo); if (hull) { hull.visible = false; van.model.hullHidden = true; } } for (const m of van.model.mats) m.color.setHex(tc); }
+  van.vb.group.position.x = van.x + (van.vb.jitter ? (Math.random() - 0.5) * van.vb.jitter : 0);
+}
+// The van as a real model (art/models/VH_Van.glb, built in Blender from its own three sprite views: measured silhouette + the painting projected and baked, 1.8k triangles, one 1024 texture). The sprite hull shows until it loads (and stays if it can't).
+{
+  (async () => {
+    try {
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), gltf = await new GLTFLoader().loadAsync('art/models/VH_Van.glb'), mats = [];
+      gltf.scene.traverse((o) => { if (!o.isMesh) return; const map = o.material.map; if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; } o.material = new THREE.MeshBasicMaterial({ map }); mats.push(o.material); });
+      van.vb.group.add(gltf.scene); van.model = { root: gltf.scene, mats, hullHidden: false }; vanLook();
+    } catch (err) { console.warn('van model failed, keeping the sprite van', err); }
+  })();
+}
 function updateVan(dt) {
   const frozenV = ego > 0 || (lowCActive && !captured && Math.hypot(player.position.x - van.x, player.position.z - van.z) < 12); // the Low C stalls the van too
   van.vb.tint = frozenV; van.vb.tintHex = ego > 0 ? 0xff8f8f : 0x8ff8ff; van.vb.jitter = frozenV ? 0.08 : 0; vanLook();
