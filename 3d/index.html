@@ -851,6 +851,18 @@ function buildHull(ent, heightM) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   return { geo, mat: new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide }), fw: fwM, sl: slM, boxes: boxes.length };
 }
+// Parked vehicles as real models (art/models/<key>.glb), each built in Blender from its own three sprite views at the height listed here (measured silhouette + the painting projected and baked; see docs/NOTES-ARCHIVE.md).
+// They remove the sprite hull's stair-stepped roof and hood at grazing angles. The hull still builds and shows until a model loads (and stays if it can't). ?novm turns them off.
+const VEHICLE_MODELS = { truck: 2.9, car_b: 1.8, car_a: 1.4, car_c: 1.9 }, VEHICLE_CACHE = {};
+function loadVehicleModel(key) {
+  return VEHICLE_CACHE[key] || (VEHICLE_CACHE[key] = (async () => {
+    try {
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), gltf = await new GLTFLoader().loadAsync('art/models/' + key + '.glb');
+      gltf.scene.traverse((o) => { if (!o.isMesh) return; const map = o.material.map; if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; } o.material = new THREE.MeshBasicMaterial({ map }); });
+      return gltf.scene;
+    } catch (err) { console.warn('vehicle model failed, keeping the sprite hull', key, err); return null; }
+  })());
+}
 function makeStatic(key, heightM, x, z, facing, views, opts) {
   opts = opts || {};
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); STATIC_GROUPS.push({ g, x, z });
@@ -864,6 +876,7 @@ function makeStatic(key, heightM, x, z, facing, views, opts) {
     }
     const hk = key + '@' + heightM; let hull = HULLS[hk]; if (!hull) hull = HULLS[hk] = buildHull(ent, heightM);
     const m = new THREE.Mesh(hull.geo, hull.mat); m.rotation.y = th; g.add(m);
+    if (VEHICLE_MODELS[key] === heightM && !params.has('novm')) loadVehicleModel(key).then((tpl) => { if (!tpl) return; const inst = tpl.clone(true); inst.rotation.y = th; g.add(inst); m.visible = false; });
     if (opts.blob) { const fx = Math.sin(th), fz = Math.cos(th), rx = Math.cos(th), rz = -Math.sin(th); STATIC_BLOBS.push({ b: { group: g }, rx: Math.max(Math.abs(fx) * hull.sl, Math.abs(rx) * hull.fw) / 2 * 1.15, rz: Math.max(Math.abs(fz) * hull.sl, Math.abs(rz) * hull.fw) / 2 * 1.15 }); }
   };
   need.forEach((v) => onSprite(key + '_' + v, (e) => { ent[v] = e.failed ? null : e; if (--pending === 0) build(); }, z));
