@@ -1411,6 +1411,7 @@ function startAudio() {
     try { ac = new AC(); } catch (e) { return; }
     master = ac.createGain(); master.gain.value = muted ? 0 : SFX_VOL; master.connect(ac.destination);
     nextStep = ac.currentTime + 0.1; setInterval(scheduleMusic, 60);
+    startAmbience();
   }
   if (ac.state !== 'running') ac.resume && ac.resume();
 }
@@ -1459,6 +1460,79 @@ function updateMusic(dt) { // quiet the album while the Low C, the gun or the eg
   musicRetryT -= dt; if (musicRetryT <= 0 && !muted && musicEl.paused && started && !document.hidden) { musicRetryT = 1.5; const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {}); } // a blocked autoplay starts on the next tap
   if (!musicGain || muted) return;
   const loud = lowCActive || ego > 0 || (weapon === 'gun' && fireCool > 0), target = loud ? MUSIC_DUCK : MUSIC_VOL; musicGain.gain.value += (target - musicGain.gain.value) * (1 - Math.exp(-6 * dt));
+}
+// ---- street ambience: a quiet bed, sounds that sit in the street at real positions, and now-and-then events. All synthesised (nothing to download), all on the effects bus, so the mute button and the pause duck cover it. ----
+// The listener is the camera. Panners use the cheap 'equalpower' model (HRTF is costly on phones). Emitters: the Agency van's engine (a real warning as it nears, and it stalls with the Low C like the van does), the
+// bread truck idling, the four taco carts sizzling, the Tear's hum while it is open. Events: birds, a car passing in a side street, a siren far away.
+const AMB_VOL = 0.9, AMB_CARTS = [[-3.2, -100], [3.2, -190], [-3.4, -240], [3.2, -52]];
+let amb = null;
+const ambDir = new THREE.Vector3();
+function setPannerPos(p, x, y, z) { if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z); }
+function startAmbience() {
+  if (amb || !ac) return;
+  const out = ac.createGain(); out.gain.value = 0; out.connect(master);
+  const nb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  amb = { out, nb, lvl: 0, em: {}, shots: [], birdT: 3 + Math.random() * 4, carT: 8 + Math.random() * 10, sirenT: 50 + Math.random() * 50, tearLvl: 0 };
+  const noise = () => { const n = ac.createBufferSource(); n.buffer = nb; n.loop = true; n.start(0, Math.random() * 1.5); return n; };
+  const filt = (type, f, q) => { const b = ac.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q) b.Q.value = q; return b; };
+  const gain = (v) => { const g = ac.createGain(); g.gain.value = v; return g; };
+  const pan = (x, y, z) => { const p = ac.createPanner(); p.panningModel = 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.4; p.maxDistance = 200; setPannerPos(p, x, y, z); return p; };
+  amb.noise = noise; amb.filt = filt; amb.gain = gain; amb.pan = pan;
+  // the bed: far traffic as a low rumble, and a crowd murmur that swells and falls slowly
+  { const a = noise(), f = filt('lowpass', 320), g = gain(0.16); a.connect(f); f.connect(g); g.connect(out);
+    const b = noise(), bf = filt('bandpass', 850, 0.7), bg = gain(0.03); b.connect(bf); bf.connect(bg); bg.connect(out);
+    const lfo = ac.createOscillator(), lg = gain(0.022); lfo.frequency.value = 0.11; lfo.connect(lg); lg.connect(bg.gain); lfo.start(); }
+  // the van: a rough engine (saw + rumble), one gain per emitter so each can be lifted or killed on its own
+  { const g = gain(0), p = pan(0, 1, 0), o = ac.createOscillator(), lp = filt('lowpass', 240), n = noise(), nf = filt('lowpass', 380), ng = gain(0.6);
+    o.type = 'sawtooth'; o.frequency.value = 58; o.connect(lp); lp.connect(g); n.connect(nf); nf.connect(ng); ng.connect(g); g.connect(p); p.connect(out); o.start(); amb.em.van = { g, p, o, lvl: 0 }; }
+  { const g = gain(0), p = pan(0, 1, 0), o = ac.createOscillator(), lp = filt('lowpass', 180), lfo = ac.createOscillator(), lg = gain(2.5);
+    o.type = 'triangle'; o.frequency.value = 47; lfo.frequency.value = 7.5; lfo.connect(lg); lg.connect(o.frequency); lfo.start(); o.connect(lp); lp.connect(g); g.connect(p); p.connect(out); o.start(); amb.em.truck = { g, p, lvl: 0 }; }
+  amb.em.carts = AMB_CARTS.map(([x, z]) => { const g = gain(0), p = pan(x, 1.2, z), n = noise(), hp = filt('highpass', 4200); n.connect(hp); hp.connect(g); g.connect(p); p.connect(out); return { g, p, x, z, lvl: 0 }; });
+  { const g = gain(0), p = pan(PORTAL.x, 5, PORTAL.z), o1 = ac.createOscillator(), o2 = ac.createOscillator(), lfo = ac.createOscillator(), lg = gain(0.25), tg = gain(0.75);
+    o1.frequency.value = 55; o2.frequency.value = 82.6; lfo.frequency.value = 0.35; o1.connect(tg); o2.connect(tg); lfo.connect(lg); lg.connect(tg.gain); tg.connect(g); g.connect(p); p.connect(out); o1.start(); o2.start(); lfo.start(); amb.em.tear = { g, p }; }
+}
+function ambShot(kind, camX, camZ) { // one-off sounds with their own short-lived nodes
+  const t = ac.currentTime;
+  if (kind === 'bird') {
+    const a = Math.random() * 6.28, d = 8 + Math.random() * 12, p = amb.pan(camX + Math.cos(a) * d, 7 + Math.random() * 4, camZ + Math.sin(a) * d), base = 3000 + Math.random() * 1500; p.connect(amb.out);
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) { const o = ac.createOscillator(), g = amb.gain(0), t0 = t + i * 0.14; o.type = 'sine'; o.frequency.setValueAtTime(base, t0); o.frequency.exponentialRampToValueAtTime(base * 1.45, t0 + 0.07);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09); o.connect(g); g.connect(p); o.start(t0); o.stop(t0 + 0.12); }
+    setTimeout(() => { try { p.disconnect(); } catch (e) { /* fine */ } }, 1200);
+  } else if (kind === 'car') { // a car going by in the alley or a side street: engine + road noise, pitch easing down as it passes (a stand-in for doppler), on a moving panner
+    const side = Math.random() < 0.5 ? -1 : 1, dir = Math.random() < 0.5 ? -1 : 1, x = side * (22 + Math.random() * 8), z0 = camZ - dir * 55, z1 = camZ + dir * 55, dur = 6.5;
+    const p = amb.pan(x, 1, z0), g = amb.gain(0), o = ac.createOscillator(), lp = amb.filt('lowpass', 500), n = amb.noise(), nf = amb.filt('bandpass', 700, 0.8), ng = amb.gain(0.5);
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(92, t); o.frequency.linearRampToValueAtTime(66, t + dur); o.connect(lp); lp.connect(g); n.connect(nf); nf.connect(ng); ng.connect(g); g.connect(p); p.connect(amb.out);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5, t + dur * 0.45); g.gain.linearRampToValueAtTime(0.0001, t + dur); o.start(t); o.stop(t + dur + 0.1);
+    amb.shots.push({ p, x, z0, z1, t0: t, dur, stops: [n] });
+  } else if (kind === 'siren') { // far away, behind buildings: dull and quiet, two alternating notes
+    const side = Math.random() < 0.5 ? -1 : 1, p = amb.pan(side * 120, 3, camZ + (Math.random() * 2 - 1) * 90), g = amb.gain(0), lp = amb.filt('lowpass', 1300), o = ac.createOscillator(), dur = 7;
+    o.type = 'triangle'; for (let i = 0; i < dur * 1.8; i++) o.frequency.setValueAtTime(i % 2 ? 960 : 740, t + i * 0.55);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.45, t + 1.5); g.gain.setValueAtTime(0.45, t + dur - 2); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(p); p.connect(amb.out); o.start(t); o.stop(t + dur + 0.1);
+    setTimeout(() => { try { p.disconnect(); } catch (e) { /* fine */ } }, (dur + 0.5) * 1000);
+  }
+}
+function updateAmbience(dt) {
+  if (!amb || !ac || ac.state !== 'running') return;
+  const c = camera.position, L = ac.listener, d = camera.getWorldDirection(ambDir);
+  if (L.positionX) { L.positionX.value = c.x; L.positionY.value = c.y; L.positionZ.value = c.z; L.forwardX.value = d.x; L.forwardY.value = d.y; L.forwardZ.value = d.z; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0; }
+  else { L.setPosition(c.x, c.y, c.z); L.setOrientation(d.x, d.y, d.z, 0, 1, 0); }
+  // overall level: off until the game starts, lower under the pause card, the capture screen and the Low C blast
+  const target = !started ? 0 : gamePaused ? 0.2 : captured ? 0.45 : (lowCActive || ego > 0) ? 0.6 : 1;
+  amb.lvl += (target - amb.lvl) * (1 - Math.exp(-4 * dt)); amb.out.gain.value = AMB_VOL * amb.lvl;
+  const ease = (e, want, r) => { e.lvl += (want - e.lvl) * (1 - Math.exp(-r * dt)); e.g.gain.value = e.lvl; };
+  { const v = amb.em.van, frozen = van.vb && van.vb.tint, moving = van.stop <= 0;
+    setPannerPos(v.p, van.x, 1, van.z); ease(v, frozen ? 0.12 : moving ? 0.55 : 0.2, 3); v.o.frequency.value += ((frozen ? 38 : moving ? 66 : 54) - v.o.frequency.value) * (1 - Math.exp(-2 * dt)); }
+  { const t = amb.em.truck; setPannerPos(t.p, TRUCK.x, 1, TRUCK.z); ease(t, 0.2, 3); }
+  for (const cart of amb.em.carts) { cart.lvl += (0.11 - cart.lvl) * (1 - Math.exp(-3 * dt)); const near = Math.hypot(cart.x - c.x, cart.z - c.z) < 45; cart.g.gain.value = near ? cart.lvl * (0.45 + Math.random() * 0.75) : 0; } // the random flicker IS the sizzle
+  { const e = amb.em.tear; amb.tearLvl += ((tearOpen ? 0.5 : 0) - amb.tearLvl) * (1 - Math.exp(-1.5 * dt)); e.g.gain.value = amb.tearLvl; }
+  // moving one-offs
+  for (let i = amb.shots.length - 1; i >= 0; i--) { const s = amb.shots[i], k = (ac.currentTime - s.t0) / s.dur; if (k >= 1) { for (const n of s.stops) { try { n.stop(); } catch (e) { /* already stopped */ } } try { s.p.disconnect(); } catch (e) { /* fine */ } amb.shots.splice(i, 1); continue; } setPannerPos(s.p, s.x, 1, s.z0 + (s.z1 - s.z0) * k); }
+  if (started && !captured && !gamePaused) {
+    amb.birdT -= dt; if (amb.birdT <= 0) { amb.birdT = 3.5 + Math.random() * 7; ambShot('bird', c.x, c.z); }
+    amb.carT -= dt; if (amb.carT <= 0) { amb.carT = 14 + Math.random() * 22; ambShot('car', player.position.x, player.position.z); }
+    amb.sirenT -= dt; if (amb.sirenT <= 0) { amb.sirenT = 70 + Math.random() * 60; ambShot('siren', player.position.x, player.position.z); }
+  }
 }
 const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="#00fff9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
 const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
@@ -2233,7 +2307,7 @@ function updateHunt(dt) {
   aura = Math.max(0, aura - dt * 3);
   killT += dt; if (killT > 50 && suitKills > 0) { suitKills--; killT = 0; } // the heat of a shooting spree fades if you lie low
   repelCool = Math.max(0, repelCool - dt); { const c0 = Math.ceil(lureT); lureT = Math.max(0, lureT - dt); if (Math.ceil(lureT) !== c0) updateLootHud(); }
-  updateIntro(dt); updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateTear(dt); updateGun(dt); updateReticle(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
+  updateIntro(dt); updateVan(dt); updateWanderers(dt); updateRoamers(dt); updateTruck(dt); updateDeliveries(dt); updateSupply(dt); updateHelpers(dt); updateEgo(dt); updateMusic(dt); updateAmbience(dt); updateTear(dt); updateGun(dt); updateReticle(dt); updateFx(dt); updateSky(dt); updateSuitRespawn(dt); updateGoals(dt); scanTips(dt); updateTips(dt); updateBodegaSpot(dt);
   for (const e of enemies) if (!e.dead) updateEnemy(e, dt);
   for (const e of enemies) if (e.hitT > 0) { e.hitT -= dt; e.b.tintHex = 0xff5a5a; e.b.tint = true; } // a hit flashes red
   for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].dead) { const e = enemies[i]; e.b.group.visible = false; e.cone.visible = false; e.mark.visible = false; scene.remove(e.cone); scene.remove(e.mark); if (e.hum) scene.remove(e.hum); billboards.splice(billboards.indexOf(e.b), 1); scene.remove(e.b.group); enemies.splice(i, 1); }
@@ -2491,7 +2565,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 camera.position.set(0, 5, 17); applyTier();
-window.__g = { TEAR_SPOT, keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
+window.__g = { get amb() { return amb; }, get acx() { return ac; }, get masterNode() { return master; }, TEAR_SPOT, keys, vel, walls, colliders, stick, skipIntro() { introT = 0; }, update, render, player, camera, scene, renderer, loot, pickups, billboards, NPCS, playerBill, get heat() { return heatF; }, hunt: { enemies, van, setHeat(v) { heatF = v; }, restart: restartRun, get captured() { return captured; }, crew: CREW, get invis() { return invis; }, get lowCMult() { return lowCMult; }, get lowC() { return lowC; }, nav: NAV }, get cloak() { return cloak; }, get cardsHeld() { return cardsHeld; }, get wiresHeld() { return wiresHeld; }, set wiresHeld(v) { wiresHeld = v; }, get egoCharges() { return egoCharges; }, set egoCharges(v) { egoCharges = v; }, get tearOpen() { return tearOpen; }, get laserAmmo() { return laserAmmo; }, set laserAmmo(v) { laserAmmo = v; updateLootHud(); }, get elevateT() { return elevateT; }, signs: SIGN_LOG, facades: FACADES, seal: SEAL, get pressBuf() { return pressBuf; }, set pressBuf(v) { pressBuf = v; }, get vanWatchT() { return vanWatchT; }, music: { get el() { return musicEl; }, get on() { return albumOn; }, get order() { return albumOrder; }, next: nextTrack }, get suitKills() { return suitKills; }, dbg: { sightOf, visionRange, firstHit, get invis() { return invis; }, get cloak() { return cloak; }, get hidden() { return hidden; } }, get ammo() { return ammo; }, set ammo(v) { ammo = v; updateLootHud(); }, get weapon() { return weapon; }, swapWeapon, get skyK() { return skyK; }, get tipsSeen() { return [...tipsSeen]; }, tipQueue, get humT() { return humT; }, get dadOn() { return dadOn; }, get luzCool() { return luzCool; }, get tearT() { return tearT; }, fireEgo, roamers: ROAMERS, set lowC(v) { lowC = v; }, set cardsHeld(v) { cardsHeld = v; }, get inTruck() { return inTruck; }, get ego() { return ego; }, truck: TRUCK, wanderers: WANDERERS, setTier(t) { tier = t; applyTier(); }, get tier() { return tier; }, get yaw() { return yaw; }, set yaw(v) { yaw = v; lookIdle = 0; }, set pitch(v) { pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, v)); lookIdle = 0; }, get pitch() { return pitch; }, get camDist() { return camDist; }, get lowC() { return lowC; }, get lowCActive() { return lowCActive; }, start() { started = true; }, get tearArmed() { return tearArmed; }, set tearArmed(v) { tearArmed = v; }, BODEGA_SPOT, openBodega, closeBodega, get paused() { return gamePaused; }, get behindK() { return behindK; }, spawnTearMob, get guards() { return enemies.filter((q) => q.mob); } };
 requestAnimationFrame(frame);
 if (params.has('go')) { $('start-btn').click(); const gc = $('go-curtain'); if (gc) { requestAnimationFrame(() => { gc.style.opacity = '0'; setTimeout(() => gc.remove(), 800); }); } } // from the 2D game's sky level: straight into the portal intro
 </script>
