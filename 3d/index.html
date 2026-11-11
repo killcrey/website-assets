@@ -947,14 +947,46 @@ ART_JOBS.forEach((j) => {
   // props along the sidewalks (the bench and the traffic cones are held back until their images are re-made: they came out smeared)
   const PROP_ART = [{ key: 'prop_cans', h: 1.4 }, { key: 'prop_mailbox', h: 1.5 }, { key: 'prop_newsbox', h: 1.4 }, { key: 'prop_hydrant', h: 1.0 }];
   const addProp = (key, h, x, z, r) => { makeStatic(key, h, x, z, 0, ['front']); colliders.push({ x, z, r }); };
+  // Real 3D models made in Blender (art/models/*.glb: vertex colours, 16-80 KB, 200-840 triangles), one instanced mesh per kind. They replace the flat single pictures (a flat picture vanishes from the side, and
+  // the bench, cones and hydrant pictures came out smeared). If a model can't load, the hydrant falls back to its old picture and the bench and cones simply don't appear.
+  const PROP_MODELS = { hydrant: [], bench: [], cone: [] }; // each entry [x, z, rotY]
+  const addModel = (kind, x, z, rotY, r) => { PROP_MODELS[kind].push([x, z, rotY || 0]); if (r) colliders.push({ x, z, r }); };
   for (let z = -12, i = 0; z > STREET_END + 10; z -= 13 + crnd() * 9, i++) {
     if (GAPS.some((g) => Math.abs(z - g) < 6)) continue;
     const side = i % 2 ? 1 : -1, pr = PROP_ART[Math.floor(crnd() * PROP_ART.length)];
     if (side > 0 && Math.abs(z - BODEGA.z) < 7) continue;
-    addProp(pr.key, pr.h, side * (pr.key === 'prop_hydrant' ? 5.75 : 7.35), z, 0.4);
+    if (pr.key === 'prop_hydrant') addModel('hydrant', side * 5.75, z, 0, 0.4); else addProp(pr.key, pr.h, side * 7.35, z, 0.4);
   }
   for (const [key, h, x, z] of [['sign_fifth', 2.7, -5.7, -12], ['sign_stop', 2.4, 5.7, -93.3], ['sign_oneway', 2.6, -5.7, -150.3], ['sign_noparking', 2.4, 5.7, -207.3], ['sign_ped', 2.4, -5.7, -264.3]]) addProp(key, h, x, z, 0.25);
-  for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25], ['prop_bench2', 0.8, -7.2, -243, 0.5]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
+  for (const [key, h, x, z, r] of [['prop_olmec', 1.7, -7.3, -226, 0.5], ['prop_tirepot', 0.55, -6.9, -214, 0.4], ['prop_tirepot', 0.55, -7.0, -236, 0.4], ['prop_bollard', 1.0, -5.8, -247, 0.25], ['prop_bollard', 1.0, 5.8, -221, 0.25]]) addProp(key, h, x, z, r); // Barrio Logan sidewalk pieces: the stone-head planter, tire planters, bollards, a bench
+  { // park benches along the sidewalks, seat toward the street, on free ground only; and two small work zones of cones along the curb
+    const free = (x, z, pad) => !insideAnyWall(x, z, pad) && !colliders.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + pad);
+    let last = 1e9, placed = 0;
+    for (let z = -24, i = 0; z > STREET_END + 30 && placed < 8; z -= 3, i++) {
+      if (last - z < 38 || GAPS.some((g) => Math.abs(z - g) < 8)) continue;
+      const side = i % 2 ? 1 : -1; if (side > 0 && Math.abs(z - BODEGA.z) < 9) continue;
+      const x = side * 6.55; // between the curb row of lamps (5.9) and the shop fronts (7.2)
+      if (!free(x, z - 0.45, 0.55) || !free(x, z + 0.45, 0.55)) continue;
+      addModel('bench', x, z, side > 0 ? -Math.PI / 2 : Math.PI / 2); colliders.push({ x, z: z - 0.5, r: 0.4 }, { x, z: z + 0.5, r: 0.4 }); last = z; placed++;
+    }
+    for (const [zc, side] of [[-36, 1], [-83, -1], [-171, 1]]) for (let k = 0; k < 4; k++) { const x = side * 5.45, z = zc - k * 1.2; if (free(x, z, 0.3)) addModel('cone', x, z, 0, 0.22); }
+  }
+  (async () => {
+    let ok = false;
+    try {
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'), ld = new GLTFLoader(), mt = new THREE.Matrix4(), q = new THREE.Quaternion(), eu = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+      for (const [kind, list] of Object.entries(PROP_MODELS)) {
+        if (!list.length) continue;
+        const gltf = await ld.loadAsync('art/models/' + kind + '.glb'); let geo = null; gltf.scene.traverse((o) => { if (o.isMesh && !geo) geo = o.geometry; });
+        if (!geo) throw new Error('no mesh in ' + kind);
+        const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), list.length);
+        list.forEach(([x, z, ry], i) => { eu.set(0, ry, 0); q.setFromEuler(eu); mt.compose(v.set(x, 0, z), q, one); im.setMatrixAt(i, mt); });
+        im.instanceMatrix.needsUpdate = true; im.frustumCulled = false; scene.add(im);
+      }
+      ok = true;
+    } catch (err) { console.warn('prop models failed, using the old pictures', err); }
+    if (!ok) for (const [x, z] of PROP_MODELS.hydrant) makeStatic('prop_hydrant', 1.0, x, z, 0, ['front']);
+  })();
   for (const [key, x] of [['pillar_c', -27], ['pillar_a', -12.6], ['pillar_d', 12.6], ['pillar_b', 27]]) onSprite(key, (e) => { // four Aztec mural pillars hold up the low overpass: the two warriors beside the pavilion, the UFO boy and the serpent further out
     if (e.failed) return;
     const hM = 12.3, wM = hM * e.w / e.h, m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({ map: e.tex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));
