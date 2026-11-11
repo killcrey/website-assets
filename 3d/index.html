@@ -201,7 +201,7 @@ const $ = (id) => document.getElementById(id);
 function fail(msg) { $('fail-msg').textContent = msg; $('fail').style.display = 'flex'; }
 
 // ---- load Three.js (break-proof: any failure shows a fallback to the 2D game) ----
-let THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass;
+let THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, FXAAPass = null; // (FXAAPass is optional: if it can't load, the game just has no edge smoothing)
 try {
   THREE = await import('three');
   const [m1, m2, m3, m4] = await Promise.all([
@@ -211,6 +211,7 @@ try {
     import('three/addons/postprocessing/OutputPass.js'),
   ]);
   EffectComposer = m1.EffectComposer; RenderPass = m2.RenderPass; UnrealBloomPass = m3.UnrealBloomPass; OutputPass = m4.OutputPass;
+  try { FXAAPass = (await import('three/addons/postprocessing/FXAAPass.js')).FXAAPass; } catch (e) { /* fine: no FXAA */ }
 } catch (e) {
   fail('Your browser could not load the 3D engine. The 2D game works everywhere.');
   throw e;
@@ -259,6 +260,7 @@ function buildComposer() {
   bloom.setSize = (w, h) => origSetSize(w * (tier === 1 ? 0.5 : 1), h * (tier === 1 ? 0.5 : 1));
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  if (FXAAPass && !params.has('nofxaa')) composer.addPass(new FXAAPass()); // edge smoothing for tiers 1 and 2 (the renderer has no MSAA); after OutputPass because FXAA wants the final sRGB picture. ?nofxaa turns it off. Tier 0 doesn't use the composer.
 }
 buildComposer();
 
