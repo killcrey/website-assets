@@ -2304,6 +2304,8 @@ function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main
 const CAM_MIN_DIST = 2.6; // the closest a blocked camera is ever pulled to (was 1.1, which filled the screen with the character)
 const CAM_DIST_PORTRAIT = 5.0, CAM_DIST_LANDSCAPE = 4.6; // how far behind the character the camera sits (was 6.6 / 6.0: closer reads bigger and means walls pull it in far less often)
 const MOVE_STEP = 1 / 120, SPRINT_RATE = 6, PLAYER_R = 0.45; // movement substep (s); how fast the final push up to sprint speed builds (1/s); body radius
+const CAM_SWING_T = 0.10, CAM_SWING_MAX = 15; // the camera's corner swing: smoothing time (s) and top turn speed (rad/s)
+let yawVel = 0;
 const LOOK_AHEAD = 0.15, LOOK_AHEAD_MAX = 1.6; // seconds of travel the view leads by (metres, capped)
 let laX = 0, laZ = 0; // camera look-ahead, eased
 function pushOutOfSolids(p) { // slide out of buildings, cover and props. Repeats until nothing overlaps: in an inside corner, leaving one wall can land you in the next
@@ -2351,10 +2353,16 @@ function update(dt) {
     yawBias += (bestOff - yawBias) * (1 - Math.exp(-6 * dt)); wantYaw += yawBias; } else yawBias *= Math.exp(-6 * dt);
   const yawGap = wantYaw === null ? 0 : Math.abs(Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)));
   alignT = (started && !captured && !inTruck && yawGap > 0.3) ? alignT + dt : 0;
-  if (!frameLocked && alignT > (alongAxis ? 0.1 : 0.22) && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
+  if (!frameLocked && alignT > (alongAxis ? 0.05 : 0.13) && look.id === null && lookIdle > 0.25) { frameLocked = true; lockX = ix; lockY = iy; }
   if (frameLocked && started && !captured && !inTruck && look.id === null && lookIdle > 0.25 && wantYaw !== null) {
-    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw)); yaw += d * (1 - Math.exp(-11 * dt)); swinging = Math.abs(d) > 0.12;
-  } else swinging = false;
+    const d = Math.atan2(Math.sin(wantYaw - yaw), Math.cos(wantYaw - yaw));
+    { // a critically damped ("smooth damp") approach with a top speed: it starts from rest and ramps up, where the old exponential ease ran at full speed on its very first frame (the view whipped round,
+      // ~900 deg/s for a 90 degree corner, ~1800 for a U-turn: the jerk) and then crawled through a long tail. This one arrives sooner and without the step.
+      const T = CAM_SWING_T, om = 2 / T, x = om * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), maxCh = CAM_SWING_MAX * T;
+      const ch = Math.max(-maxCh, Math.min(maxCh, -d)), tmp = (yawVel + om * ch) * dt; yawVel = (yawVel - om * tmp) * e;
+      let out = yaw - ch + (ch + tmp) * e; if (d > 0 === out > yaw + d) { out = yaw + d; yawVel = 0; } yaw = out; }
+    swinging = Math.abs(d) > 0.12;
+  } else { swinging = false; yawVel = 0; }
   { const wantLean = (started && !captured && !inTruck && !frameLocked && look.id === null && lookIdle > 0.25) ? -ix * 0.34 : 0; leanYaw += (wantLean - leanYaw) * (1 - Math.exp(-5 * dt)); }
   const run = stick.id !== null ? (stick.raw > 1.15 ? 1.45 : 1) : (keys.ShiftLeft || keys.ShiftRight) ? 1 : 1.45, // (on a phone you run by pushing the stick past the rim; on a keyboard you run unless you hold Shift)
    speedNow = SPEED * run * (lowCLock ? 0.7 : 1); runNow = run > 1 ? 1 : 0;
