@@ -225,6 +225,7 @@ const lowEnd = (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navig
 let tier = isMobile ? (lowEnd ? 0 : 1) : 2; // 0 = no bloom, 1 = half-res bloom, 2 = full bloom
 if (params.has('tier')) tier = Math.max(0, Math.min(2, +params.get('tier') || 0));
 const DPR_CAP = [1, 1.25, 2];
+const PIX_H = params.has('pix') ? Math.max(120, Math.min(720, +params.get('pix') || 270)) : 0; // ?pix or ?pix=<rows>: render at that many pixel rows (default 270) and scale up with hard edges, for a chunky pixel look in real colours
 
 let renderer;
 try {
@@ -260,7 +261,7 @@ function buildComposer() {
   bloom.setSize = (w, h) => origSetSize(w * (tier === 1 ? 0.5 : 1), h * (tier === 1 ? 0.5 : 1));
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
-  if (FXAAPass && !params.has('nofxaa')) composer.addPass(new FXAAPass()); // edge smoothing for tiers 1 and 2 (the renderer has no MSAA); after OutputPass because FXAA wants the final sRGB picture. ?nofxaa turns it off. Tier 0 doesn't use the composer.
+  if (FXAAPass && !params.has('nofxaa') && !PIX_H) composer.addPass(new FXAAPass()); // edge smoothing for tiers 1 and 2 (the renderer has no MSAA); after OutputPass because FXAA wants the final sRGB picture. ?nofxaa turns it off. Tier 0 doesn't use the composer.
 }
 buildComposer();
 
@@ -271,6 +272,7 @@ function applyTier() {
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   if (w < 2 || h < 2) return; // hidden/collapsed viewport: keep the last good size
+  if (PIX_H) { renderer.setPixelRatio(PIX_H / h); renderer.domElement.style.imageRendering = 'pixelated'; }
   renderer.setSize(w, h, false);
   renderer.domElement.style.width = w + 'px';
   renderer.domElement.style.height = h + 'px';
