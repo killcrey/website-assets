@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>LAYERS v2 (slice) | The Invisible Panchos</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe6f5; touch-action: none; -webkit-user-select: none; user-select: none; font-family: ui-rounded, 'Trebuchet MS', system-ui, sans-serif; }
+  #stage, #stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .chip { position: fixed; padding: 8px 14px; border-radius: 14px; background: rgba(20, 28, 50, .62); color: #fff; font-weight: 800; letter-spacing: .04em; text-shadow: 0 1px 0 rgba(0,0,0,.35); pointer-events: none; }
+  #hud-count { top: max(12px, env(safe-area-inset-top)); left: 12px; font-size: 18px; }
+  #hud-count b { color: #7ff0ff; }
+  #hud-place { top: max(12px, env(safe-area-inset-top)); right: 12px; font-size: 13px; opacity: .9; }
+  #toast { left: 50%; top: 22%; transform: translate(-50%, 0) scale(.9); opacity: 0; font-size: 20px; text-align: center; transition: opacity .25s, transform .25s; background: rgba(255, 150, 40, .92); color: #2a1200; text-shadow: none; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  #joy { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 3px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); display: none; pointer-events: none; }
+  #joy i { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255,255,255,.85); }
+  #hint { bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 14px; transition: opacity .6s; }
+  #err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 30px; text-align: center; background: #14213d; color: #fff; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="chip" id="hud-count">MEMORIES <b id="n">0</b>/<span id="need">8</span></div>
+<div class="chip" id="hud-place">GASLAMP QUARTER</div>
+<div class="chip" id="toast"></div>
+<div id="joy"><i></i></div>
+<div class="chip" id="hint">DRAG TO MOVE</div>
+<div id="err"></div>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+
+// ---------- renderer / scene ----------
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); }
+catch (e) { $('err').style.display = 'flex'; $('err').textContent = 'This browser blocked 3D graphics.'; throw e; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+$('stage').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const SKY = 0xbfe3f7; scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 38, 95);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 200);
+scene.add(new THREE.HemisphereLight(0xdff2ff, 0x9a8a78, 1.05));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.1); sun.castShadow = true; sun.shadow.mapSize.set(1536, 1536);
+Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 90 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+let CAMK = 1; // camera distance multiplier: pull back on narrow (portrait) screens so the buildings stay in view
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; CAMK = w / h < 0.9 ? 1 + (0.9 - w / h) * 0.7 : 1; camera.fov = w / h < 0.9 ? 44 : 36; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+// ---------- helpers ----------
+const mats = {};
+const M = (hex, rough = 0.85) => mats[hex + '_' + rough] || (mats[hex + '_' + rough] = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: 0 }));
+function mesh(geo, mat, x = 0, y = 0, z = 0, cast = true, recv = true) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = recv; return m; }
+const box = (w, h, d, hex, x, y, z, parent = scene, cast = true) => { const m = mesh(new THREE.BoxGeometry(w, h, d), M(hex), x, y, z, cast); parent.add(m); return m; };
+const colliders = [];
+function solid(x0, x1, z0, z1, tag) { const c = { x0, x1, z0, z1, on: true, tag }; colliders.push(c); return c; }
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// ---------- ground / street ----------
+const ZMIN = -112, ZMAX = 12;
+const ground = mesh(new THREE.PlaneGeometry(260, 260), M(0x8f9aa3, 1), 0, -0.02, (ZMIN + ZMAX) / 2, false, true); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+box(8, 0.06, ZMAX - ZMIN, 0x3b4150, 0, 0.0, (ZMIN + ZMAX) / 2, scene, false).receiveShadow = true;           // road
+for (const sx of [-1, 1]) box(2.8, 0.22, ZMAX - ZMIN, 0xd9d2c3, sx * 5.4, 0.08, (ZMIN + ZMAX) / 2, scene, false).receiveShadow = true; // sidewalks
+for (let z = ZMAX - 2; z > ZMIN; z -= 4) box(0.22, 0.01, 2, 0xf3c53a, 0, 0.04, z, scene, false);              // centre dashes
+for (let z of [-24, -76]) for (let i = -3; i <= 3; i++) box(0.7, 0.01, 3.2, 0xefefef, i * 1.1, 0.04, z, scene, false); // crosswalks
+
+// ---------- buildings (facade painted on a canvas) ----------
+const STYLES = {
+  brick:  { wall: '#b4543a', trim: '#f0d9b5', win: '#2b4c63', glass: '#79b7d9', awn: ['#f0d9b5', '#2f6f4f'] },
+  stucco: { wall: '#f0c98b', trim: '#fff4dc', win: '#3a5d7a', glass: '#8cc6e8', awn: ['#e4572e', '#fff4dc'] },
+  teal:   { wall: '#3f9aa3', trim: '#f4efe2', win: '#274a5c', glass: '#9fd6e6', awn: ['#ffb627', '#274a5c'] },
+  pink:   { wall: '#e48fa8', trim: '#fff0e6', win: '#4a3a5c', glass: '#a9d4f0', awn: ['#3d348b', '#fff0e6'] },
+  mural:  { wall: '#f2b134', trim: '#2c2a4a', win: '#2c2a4a', glass: '#7fc8e8', awn: ['#e4572e', '#2c2a4a'] },
+  sand:   { wall: '#d9b98a', trim: '#fff6e4', win: '#5b4636', glass: '#9acbe0', awn: ['#4a7c59', '#fff6e4'] },
+};
+function facade(style, cols, floors, shop) {
+  const S = STYLES[style], cw = 56, ch = 64, c = document.createElement('canvas'); c.width = cols * cw; c.height = floors * ch;
+  const g = c.getContext('2d'); g.fillStyle = S.wall; g.fillRect(0, 0, c.width, c.height);
+  for (let f = 0; f < floors; f++) for (let k = 0; k < cols; k++) {
+    const x = k * cw, y = c.height - (f + 1) * ch;
+    if (f === 0 && shop) {
+      g.fillStyle = S.win; g.fillRect(x + 6, y + 18, cw - 12, ch - 18); g.fillStyle = S.glass; g.fillRect(x + 9, y + 22, cw - 18, ch - 28);
+      const a = S.awn; for (let s = 0; s < 6; s++) { g.fillStyle = a[s % 2]; g.fillRect(x + 4 + s * ((cw - 8) / 6), y + 6, (cw - 8) / 6 + 1, 14); }
+    } else {
+      g.fillStyle = S.trim; g.fillRect(x + 10, y + 12, cw - 20, ch - 22);
+      g.fillStyle = S.win; g.fillRect(x + 13, y + 15, cw - 26, ch - 28);
+      g.fillStyle = (f + k) % 3 === 0 ? '#ffe9a8' : S.glass; g.fillRect(x + 16, y + 18, cw - 32, ch - 34);
+      g.fillStyle = S.win; g.fillRect(x + cw / 2 - 1, y + 15, 2, ch - 28);
+    }
+  }
+  g.fillStyle = S.trim; g.fillRect(0, 0, c.width, 6); g.fillRect(0, c.height - ch - 2, c.width, 3);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+const risers = []; // buildings that grow up when a district unlocks
+function building(x, z, w, d, floors, style, faceDir, group) {
+  const S = STYLES[style], h = floors * 3.3, cols = Math.max(2, Math.round((faceDir ? d : w) / 2.6));
+  const front = new THREE.MeshStandardMaterial({ map: facade(style, cols, floors, true), roughness: 0.9 });
+  const side = new THREE.MeshStandardMaterial({ map: facade(style, 2, floors, false), roughness: 0.9 });
+  const wall = M(new THREE.Color(S.wall).getHex()), roof = M(0x6c6a66);
+  // faces: +x, -x, +y, -y, +z, -z
+  const sideM = [side, side, roof, roof, side, side]; if (faceDir) sideM[faceDir > 0 ? 0 : 1] = front;
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), sideM); b.position.set(x, h / 2, z); b.castShadow = true; b.receiveShadow = true; group.add(b);
+  const cap = box(w + 0.5, 0.45, d + 0.5, new THREE.Color(S.trim).getHex(), x, h + 0.2, z, group); // cornice
+  for (let i = 0; i < 2; i++) box(0.9, 0.7, 0.9, 0x7a7a7a, x + (i ? 1 : -1) * w * 0.25, h + 0.8, z + (i ? 1 : -1) * d * 0.2, group); // rooftop units
+  return { b, cap, h, solid: solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2) };
+}
+
+// ---------- districts ----------
+const DIST = [
+  { name: 'GASLAMP QUARTER', z0: 8, z1: -52, styles: ['brick', 'stucco', 'brick', 'teal', 'brick', 'sand'] },
+  { name: 'BARRIO LOGAN', z0: -52, z1: -112, styles: ['mural', 'pink', 'teal', 'mural', 'stucco', 'pink'] },
+];
+const groups = [];
+DIST.forEach((D, di) => {
+  const grp = new THREE.Group(); scene.add(grp); groups.push(grp); D.risers = [];
+  let zc = D.z0 - 4, i = 0;
+  for (const side of [-1, 1]) {
+    zc = D.z0 - 4; i = side < 0 ? 0 : 3;
+    while (zc > D.z1 + 8) {
+      const d = 8 + Math.floor(rnd() * 4), w = 9 + Math.floor(rnd() * 5), floors = 3 + Math.floor(rnd() * 4);
+      const r = building(side * (6.8 + w / 2), zc - d / 2, w, d, floors, D.styles[i++ % D.styles.length], -side, grp);
+      D.risers.push(r); zc -= d + 0.4 + (rnd() < 0.3 ? 4 : 0); // occasional gap = side alley
+    }
+  }
+  // street dressing: palms, lamps, cars, planters
+  for (let z = D.z0 - 5; z > D.z1 + 3; z -= 9) for (const sx of [-1, 1]) {
+    palm(sx * 5.5, z + rnd() * 2, grp); lamp(sx * 4.9, z - 4.5, grp);
+  }
+  const carCols = [0xe4572e, 0x3d7ea6, 0xf3c53a, 0xe9e4d8, 0x2f6f4f, 0x8e4a9e];
+  for (let z = D.z0 - 8; z > D.z1 + 6; z -= 15 + rnd() * 8) car(rnd() < 0.5 ? -2.2 : 2.2, z, carCols[Math.floor(rnd() * carCols.length)], rnd() < 0.5 ? 0 : Math.PI, grp);
+  D.group = grp;
+});
+function palm(x, z, grp) {
+  const g = new THREE.Group(), lean = (rnd() - 0.5) * 0.25, trunkH = 4.6 + rnd() * 1.4;
+  const t = mesh(new THREE.CylinderGeometry(0.13, 0.2, trunkH, 8), M(0x8a6a48), 0, trunkH / 2, 0); t.rotation.z = lean; g.add(t);
+  const top = new THREE.Group(); top.position.set(-Math.sin(lean) * trunkH, trunkH, 0); g.add(top);
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, leaf = mesh(new THREE.ConeGeometry(0.42, 2.6, 5), M(0x3f9b4a), Math.cos(a) * 1.0, -0.2, Math.sin(a) * 1.0); leaf.rotation.set(Math.sin(a) * 1.25, 0, -Math.cos(a) * 1.25); leaf.scale.z = 0.35; top.add(leaf); }
+  g.position.set(x, 0.18, z); grp.add(g); solid(x - 0.3, x + 0.3, z - 0.3, z + 0.3);
+}
+function lamp(x, z, grp) { box(0.14, 4.2, 0.14, 0x2e3340, x, 2.1, z, grp); box(0.6, 0.12, 0.12, 0x2e3340, x - Math.sign(x) * 0.25, 4.15, z, grp); const l = mesh(new THREE.SphereGeometry(0.2, 10, 8), new THREE.MeshStandardMaterial({ color: 0xfff1b0, emissive: 0xffe9a0, emissiveIntensity: 0.9 }), x - Math.sign(x) * 0.5, 4.0, z, false, false); grp.add(l); solid(x - 0.2, x + 0.2, z - 0.2, z + 0.2); }
+function car(x, z, col, rot, grp) {
+  const g = new THREE.Group(); g.position.set(x, 0.05, z); g.rotation.y = rot;
+  g.add(mesh(new THREE.BoxGeometry(1.9, 0.7, 4.0), M(col, 0.5), 0, 0.65, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.7, 0.6, 2.0), M(0xcfe7f2, 0.3), 0, 1.3, -0.1));
+  for (const sx of [-1, 1]) for (const sz of [-1.3, 1.3]) { const w = mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.3, 12), M(0x1b1b1f), sx * 0.95, 0.36, sz); w.rotation.z = Math.PI / 2; g.add(w); }
+  grp.add(g); const c = Math.cos(rot) < 0 ? 1 : 1; solid(x - 1.0, x + 1.0, z - 2.1, z + 2.1);
+}
+// the Bodega, a landmark on the first block (left side)
+{
+  const grp = groups[0], x = -14.5, z = -20;
+  box(1.2, 0.5, 6, 0xe4572e, -6.4, 3.1, z, grp).rotation.z = 0.12;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#1c2a48'; g.fillRect(0, 0, 512, 128); g.fillStyle = '#ffd34d'; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BODEGA', 256, 70);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.3), new THREE.MeshBasicMaterial({ map: t })); sign.rotation.y = Math.PI / 2; sign.position.set(-6.65, 4.1, z); grp.add(sign);
+}
+
+// ---------- barricade that holds the next district back ----------
+const barricade = new THREE.Group(); scene.add(barricade);
+for (let i = -3; i <= 3; i++) { const p = box(1.3, 1.0, 0.25, i % 2 ? 0xf3c53a : 0xe9e4d8, i * 1.4, 0.7, DIST[0].z1 + 0.5, barricade); }
+const barCol = solid(-9, 9, DIST[0].z1 - 0.3, DIST[0].z1 + 0.9, 'bar');
+// the second district stays buried until unlocked
+DIST[1].risers.forEach((r) => { r.b.scale.y = 0.001; r.cap.visible = false; r.solid.on = false; });
+DIST[1].group.children.forEach((o) => { if (!DIST[1].risers.some((r) => r.b === o || r.cap === o)) o.visible = false; });
+
+// ---------- hero (jointed, procedurally animated) ----------
+function makeHero() {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const cream = M(0xf3ddb0, 0.8), cream2 = M(0xe2c690, 0.8), orange = M(0xd9602f, 0.7), green = M(0x6d7a4c, 0.9), blue = M(0x4f7f99, 0.7), skin = M(0xb97a50, 0.7), hair = M(0x15171d, 0.6), steel = M(0x9aa6ad, 0.35);
+  const cap = (r, len, mat) => mesh(new THREE.CapsuleGeometry(r, len, 6, 12), mat);
+  const J = {};
+  // legs
+  for (const [k, sx] of [['L', 1], ['R', -1]]) {
+    const hip = new THREE.Group(); hip.position.set(sx * 0.14, 0.84, 0); body.add(hip);
+    const th = cap(0.105, 0.24, cream); th.position.y = -0.2; hip.add(th);
+    const knee = new THREE.Group(); knee.position.y = -0.4; hip.add(knee);
+    const sh = cap(0.09, 0.16, cream2); sh.position.y = -0.17; knee.add(sh);
+    const pad = mesh(new THREE.BoxGeometry(0.17, 0.14, 0.07), blue, 0, -0.02, 0.09); knee.add(pad);
+    const boot = mesh(new THREE.BoxGeometry(0.19, 0.22, 0.34), green, 0, -0.36, 0.05); knee.add(boot);
+    const band = mesh(new THREE.CylinderGeometry(0.098, 0.098, 0.05, 12), orange, 0, -0.27, 0); knee.add(band);
+    J['hip' + k] = hip; J['knee' + k] = knee;
+  }
+  const hips = cap(0.2, 0.04, cream2); hips.position.y = 0.86; hips.scale.z = 0.85; body.add(hips);
+  // torso
+  const torso = new THREE.Group(); torso.position.y = 0.95; body.add(torso); J.torso = torso;
+  const chest = cap(0.22, 0.26, cream); chest.position.y = 0.26; chest.scale.z = 0.82; torso.add(chest);
+  torso.add(mesh(new THREE.BoxGeometry(0.34, 0.2, 0.08), cream2, 0, 0.34, 0.2));
+  for (const sx of [-1, 1]) { torso.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), steel, sx * 0.08, 0.34, 0.25)); torso.add(mesh(new THREE.BoxGeometry(0.05, 0.42, 0.02), green, sx * 0.15, 0.27, 0.19)); }
+  torso.add(mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.05, 14), orange, 0, 0.02, 0));
+  const pack = mesh(new THREE.BoxGeometry(0.4, 0.46, 0.2), cream2, 0, 0.3, -0.27); torso.add(pack);
+  for (const sx of [-1, 1]) torso.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.36, 10), steel, sx * 0.24, 0.3, -0.27));
+  torso.add(mesh(new THREE.BoxGeometry(0.28, 0.06, 0.02), blue, 0, 0.42, -0.38));
+  // head
+  const head = new THREE.Group(); head.position.set(0, 1.64, 0); body.add(head); J.head = head;
+  const neck = mesh(new THREE.TorusGeometry(0.17, 0.045, 8, 18), steel, 0, 1.44, 0); neck.rotation.x = Math.PI / 2; body.add(neck);
+  const skull = mesh(new THREE.SphereGeometry(0.2, 18, 14), skin); skull.scale.set(0.95, 1.05, 1); head.add(skull);
+  const hr = mesh(new THREE.SphereGeometry(0.215, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, 0.03, -0.015); head.add(hr);
+  const fringe = mesh(new THREE.BoxGeometry(0.3, 0.09, 0.12), hair, 0.02, 0.15, 0.15); fringe.rotation.x = -0.3; head.add(fringe);
+  for (const sx of [-1, 1]) { head.add(mesh(new THREE.SphereGeometry(0.03, 8, 6), M(0x10131a, 0.3), sx * 0.075, 0.015, 0.185)); head.add(mesh(new THREE.SphereGeometry(0.06, 8, 6), skin, sx * 0.2, 0, 0)); }
+  // arms
+  for (const [k, sx] of [['L', 1], ['R', -1]]) {
+    const sh = new THREE.Group(); sh.position.set(sx * 0.31, 1.4, 0); body.add(sh);
+    sh.add(mesh(new THREE.SphereGeometry(0.125, 12, 10), orange));
+    const up = cap(0.078, 0.14, cream); up.position.y = -0.19; sh.add(up);
+    const el = new THREE.Group(); el.position.y = -0.36; sh.add(el);
+    const fo = cap(0.07, 0.12, cream); fo.position.y = -0.15; el.add(fo);
+    el.add(mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 10), blue, 0, -0.27, 0));
+    el.add(mesh(new THREE.SphereGeometry(0.09, 10, 8), M(0xb8a47c, 0.8), 0, -0.36, 0));
+    J['sh' + k] = sh; J['el' + k] = el;
+  }
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+  return { root, body, J };
+}
+const hero = makeHero(); scene.add(hero.root);
+
+// ---------- effects pool (dust puffs + pickup sparkles) ----------
+const FX = []; const fxGeo = new THREE.SphereGeometry(0.5, 8, 6);
+for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(fxGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; scene.add(m); FX.push({ m, t: 0, life: 0, v: new THREE.Vector3(), s0: 0.2, s1: 0.5 }); }
+function puff(x, y, z, color, vx, vy, vz, life, s0, s1) { const f = FX.find((q) => q.life <= 0) || FX[0]; f.m.position.set(x, y, z); f.m.material.color.set(color); f.v.set(vx, vy, vz); f.t = 0; f.life = life; f.s0 = s0; f.s1 = s1; f.m.visible = true; }
+function stepFx(dt) { for (const f of FX) { if (f.life <= 0) continue; f.t += dt; const k = f.t / f.life; if (k >= 1) { f.life = 0; f.m.visible = false; continue; } f.m.position.addScaledVector(f.v, dt); const s = f.s0 + (f.s1 - f.s0) * k; f.m.scale.setScalar(s); f.m.material.opacity = 0.55 * (1 - k); } }
+
+// ---------- collectibles ----------
+const items = [];
+const gemGeo = new THREE.OctahedronGeometry(0.42, 0), gemMat = new THREE.MeshStandardMaterial({ color: 0x4fe6ff, emissive: 0x16b7d6, emissiveIntensity: 0.9, roughness: 0.25 });
+function blocked(x, z, r) { return colliders.some((c) => c.x0 - r < x && x < c.x1 + r && c.z0 - r < z && z < c.z1 + r); }
+DIST.forEach((D, di) => {
+  let n = 0, tries = 0; D.items = [];
+  while (n < 12 && tries++ < 800) {
+    const x = (rnd() - 0.5) * 11, z = D.z0 - 6 - rnd() * (D.z0 - D.z1 - 12);
+    if (blocked(x, z, 0.9) || D.items.some((p) => Math.hypot(p.x - x, p.z - z) < 5)) continue;
+    const g = new THREE.Group(); g.position.set(x, 0.9, z); const m = new THREE.Mesh(gemGeo, gemMat); m.castShadow = true; g.add(m);
+    const ring = mesh(new THREE.RingGeometry(0.5, 0.65, 24), new THREE.MeshBasicMaterial({ color: 0x7ff0ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide }), 0, -0.85, 0, false, false); ring.rotation.x = -Math.PI / 2; g.add(ring);
+    scene.add(g); if (di > 0) g.visible = false;
+    const it = { g, x, z, got: false, d: di, ph: rnd() * 6 }; items.push(it); D.items.push(it); n++;
+  }
+});
+
+// ---------- input (floating joystick + keys) ----------
+const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 }, keys = {};
+const joy = $('joy'), knob = joy.querySelector('i');
+addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; hideHint(); }); addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+renderer.domElement.addEventListener('pointerdown', (e) => { if (stick.id !== null) return; stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY; stick.x = stick.y = 0; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.style.display = 'block'; knob.style.transform = ''; hideHint(); renderer.domElement.setPointerCapture(e.pointerId); });
+renderer.domElement.addEventListener('pointermove', (e) => { if (e.pointerId !== stick.id) return; let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy; const L = Math.hypot(dx, dy), R = 60; if (L > R) { dx *= R / L; dy *= R / L; } stick.x = dx / R; stick.y = dy / R; knob.style.transform = `translate(${dx}px,${dy}px)`; });
+const endStick = (e) => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; joy.style.display = 'none'; };
+renderer.domElement.addEventListener('pointerup', endStick); renderer.domElement.addEventListener('pointercancel', endStick);
+let hintGone = false; function hideHint() { if (hintGone) return; hintGone = true; $('hint').style.opacity = 0; }
+
+// ---------- game state ----------
+const P = { pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.38, stepSide: 0 };
+hero.root.rotation.y = P.yaw; P.yaw = Math.PI;
+const NEED = 8; let got = 0, district = 0, unlocked = [true, false]; $('need').textContent = NEED;
+let toastT = 0; function toast(s, sec = 2.6) { const t = $('toast'); t.textContent = s; t.classList.add('on'); toastT = sec; }
+function unlock(di) {
+  unlocked[di] = true; const D = DIST[di]; barCol.on = false; barricade.visible = false; got = 0; $('n').textContent = 0;
+  D.group.children.forEach((o) => { o.visible = true; });
+  items.filter((i) => i.d === di).forEach((i) => { i.g.visible = true; });
+  D.rise = { t: 0 }; D.risers.forEach((r, k) => { r.delay = k * 0.07; r.cap.visible = false; });
+  toast(`NEW BLOCK: ${D.name}`, 3.4); camera.userData.shake = 0.5;
+}
+function currentDistrict() { return P.pos.z < DIST[1].z0 + 1 && unlocked[1] ? 1 : 0; }
+
+const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3(0, 15, 14);
+camera.position.copy(camPos); camera.lookAt(0, 0, 0);
+const MAXV = 6.4, ACC = 11;
+function update(dt) {
+  P.t += dt;
+  // input -> target velocity (camera is fixed, so up = -z)
+  let ix = stick.x, iz = stick.y; if (keys['a'] || keys['arrowleft']) ix -= 1; if (keys['d'] || keys['arrowright']) ix += 1; if (keys['w'] || keys['arrowup']) iz -= 1; if (keys['s'] || keys['arrowdown']) iz += 1;
+  let L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; L = 1; } if (L < 0.12) { ix = iz = 0; }
+  const tx = ix * MAXV, tz = iz * MAXV, k = 1 - Math.exp(-ACC * dt);
+  const ovx = P.vel.x, ovz = P.vel.z; P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k;
+  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt;
+  P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt;
+  // collide (circle vs boxes)
+  for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
+    if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
+  P.pos.x = Math.max(-6.2, Math.min(6.2, P.pos.x)); P.pos.z = Math.max(ZMIN + 2, Math.min(ZMAX - 2, P.pos.z));
+  const sp = Math.hypot(P.vel.x, P.vel.z), amp = Math.min(sp / MAXV, 1);
+  // facing: eased toward the direction of travel, always by the shortest way round
+  const oy = P.yaw; if (sp > 0.35) { const target = Math.atan2(P.vel.x, P.vel.z); let d = target - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); P.yaw += d * (1 - Math.exp(-13 * dt)); }
+  let yr = P.yaw - oy; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yawRate += (yr / dt - P.yawRate) * (1 - Math.exp(-14 * dt));
+  // gait
+  const stride = 2.15; P.phase += sp * stride * dt * (sp > 0.2 ? 1 : 0);
+  const J = hero.J, ph = P.phase, s = Math.sin(ph), c = Math.cos(ph);
+  const legA = 0.95 * amp, kneeA = 1.15 * amp;
+  J.hipL.rotation.x = -s * legA; J.hipR.rotation.x = s * legA;
+  J.kneeL.rotation.x = Math.max(0, -c) * kneeA + 0.05 * amp; J.kneeR.rotation.x = Math.max(0, c) * kneeA + 0.05 * amp;
+  J.shL.rotation.x = s * 0.85 * amp; J.shR.rotation.x = -s * 0.85 * amp;
+  J.shL.rotation.z = 0.08 + 0.1 * amp; J.shR.rotation.z = -0.08 - 0.1 * amp;
+  J.elL.rotation.x = -(0.25 + 0.75 * amp) - Math.max(0, s) * 0.3 * amp; J.elR.rotation.x = -(0.25 + 0.75 * amp) - Math.max(0, -s) * 0.3 * amp;
+  // body: lean into the run, into turns and into accelerations; bob; breathing
+  const fwdX = Math.sin(P.yaw), fwdZ = Math.cos(P.yaw), accF = ax * fwdX + az * fwdZ;
+  const leanT = 0.2 * amp + Math.max(-0.12, Math.min(0.14, accF * 0.011)), rollT = Math.max(-0.28, Math.min(0.28, -P.yawRate * 0.045 * amp));
+  hero.body.rotation.x += (leanT - hero.body.rotation.x) * (1 - Math.exp(-12 * dt));
+  hero.body.rotation.z += (rollT - hero.body.rotation.z) * (1 - Math.exp(-12 * dt));
+  J.torso.rotation.y = s * 0.2 * amp; J.head.rotation.y = -s * 0.1 * amp + Math.sin(P.t * 0.7) * 0.12 * (1 - amp);
+  hero.body.position.y = Math.cos(ph * 2) * 0.045 * amp + Math.sin(P.t * 2.1) * 0.006 * (1 - amp);
+  hero.body.scale.y = 1 + Math.sin(P.t * 2.1) * 0.01 * (1 - amp);
+  hero.root.position.copy(P.pos); hero.root.rotation.y = P.yaw;
+  // footfall dust
+  const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
+  // items
+  for (const it of items) { if (it.got || !it.g.visible) continue; it.g.rotation.y += dt * 1.8; it.g.children[0].position.y = Math.sin(P.t * 2.4 + it.ph) * 0.12;
+    if (Math.hypot(it.x - P.pos.x, it.z - P.pos.z) < 1.15 && !it.got) { it.got = true; it.g.visible = false; got++; $('n').textContent = got; for (let q = 0; q < 8; q++) { const a = q / 8 * Math.PI * 2; puff(it.x, 0.9, it.z, 0x7ff0ff, Math.cos(a) * 2.6, 1.4, Math.sin(a) * 2.6, 0.55, 0.16, 0.05); }
+      if (got >= NEED && !unlocked[it.d + 1] && DIST[it.d + 1]) unlock(it.d + 1); else if (got < NEED) toast(`${got} / ${NEED}`, 0.7); } }
+  // rising buildings
+  const D1 = DIST[1]; if (D1.rise) { D1.rise.t += dt; let done = true; D1.risers.forEach((r) => { const k = Math.max(0, Math.min(1, (D1.rise.t - r.delay) / 0.9)), e = 1 - Math.pow(1 - k, 3), ov = k < 1 ? 1 + Math.sin(k * Math.PI) * 0.06 : 1; r.b.scale.y = Math.max(0.001, e * ov); r.b.position.y = r.h * r.b.scale.y / 2; r.cap.position.y = r.h * e + 0.2; r.cap.visible = k > 0.98; if (k < 1) done = false; r.solid.on = k > 0.5; }); if (done) D1.rise = null; }
+  // place + toast
+  const di = currentDistrict(); if (di !== district) { district = di; $('hud-place').textContent = DIST[di].name; }
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
+  // camera: fixed angle, eased follow with a little look-ahead, optional shake
+  camTarget.set(P.pos.x + P.vel.x * 0.28, 0, P.pos.z + P.vel.z * 0.28);
+  const want = new THREE.Vector3(camTarget.x * 0.85, 15.5 * CAMK, camTarget.z + 13.5 * CAMK), kc = 1 - Math.exp(-5.5 * dt);
+  camPos.lerp(want, kc); const sh = camera.userData.shake || 0; camera.userData.shake = Math.max(0, sh - dt);
+  camera.position.set(camPos.x + (Math.random() - 0.5) * sh * 0.4, camPos.y + (Math.random() - 0.5) * sh * 0.4, camPos.z); camera.lookAt(camPos.x * 0.85 + (camTarget.x - camPos.x * 0.85) * 0.6, 0.8, camPos.z - 13.5 * CAMK);
+  sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld();
+  stepFx(dt);
+}
+let last = performance.now(), acc = 0; const FIX = 1 / 60;
+function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
+requestAnimationFrame(frame);
+window.__v2 = { P, update, items, got: () => got, unlock, keys, stick, hero, camera, scene, DIST };
+</script>
+</body>
+</html>
