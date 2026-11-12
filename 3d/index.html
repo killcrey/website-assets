@@ -2370,6 +2370,8 @@ function camOutOfProps(cam) {
   for (const c of colliders) { const dx = cam.x - c.x, dz = cam.z - c.z, d2 = dx * dx + dz * dz, min = c.r + 0.2; if (d2 < min * min && d2 > 1e-8) { const d = Math.sqrt(d2); cam.x = c.x + dx / d * min; cam.z = c.z + dz / d * min; } }
 }
 const SPEED = 7.2;
+const FACE_T = 0.07, FACE_MAX = 13; // the body's turn: smoothing time (s) and top turn speed (rad/s)
+let faceVel = 0;
 let gait = 0, lastStep = 0, prevSpd = 0, dSpdK = 0, runNow = 0, puffCool = 0, runShown = 0; // gait: distance-driven step phase (one step per PI)
 function zoneAxis(p) { // which way the corridor under you runs: 'z' on the main street and in the alleys, 'x' in a cross street
   const ax = Math.abs(p.x);
@@ -2472,14 +2474,18 @@ function update(dt) {
   { const mvd = Math.hypot(p.x - px0, p.z - pz0); mvSpd = mvd / (dt || 1); if (mvd > 1e-4) mvDir = Math.atan2(p.x - px0, p.z - pz0); }
   updatePickups(dt); updateLowC(dt); updateHunt(dt);
   const spd = Math.hypot(vel.x, vel.z);
-  if (mvSpd > 1.0) { const iv = Math.hypot(vel.x, vel.z) > 0.5 ? Math.atan2(vel.x, vel.z) : mvDir, dvv = Math.atan2(Math.sin(mvDir - iv), Math.cos(mvDir - iv)), target = Math.abs(dvv) < 1.4 ? mvDir : iv; let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); faceAngle += diff * (1 - Math.exp(-14 * dt)); }
+  if (mvSpd > 1.0) { const iv = Math.hypot(vel.x, vel.z) > 0.5 ? Math.atan2(vel.x, vel.z) : mvDir, dvv = Math.atan2(Math.sin(mvDir - iv), Math.cos(mvDir - iv)), target = Math.abs(dvv) < 1.4 ? mvDir : iv; let diff = target - faceAngle; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    { const T = FACE_T, om = 2 / T, x = om * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), maxCh = FACE_MAX * T, ch = Math.max(-maxCh, Math.min(maxCh, -diff)), tmp = (faceVel + om * ch) * dt;
+      faceVel = (faceVel - om * tmp) * e; let out = faceAngle - ch + (ch + tmp) * e; if (diff > 0 === out > faceAngle + diff) { out = faceAngle + diff; faceVel = 0; } faceAngle = out; } // smooth-damp: a 180 degree reversal used to flip in ~3 frames (2,200 deg/s), now it takes its ~0.25 s
+  } else faceVel *= Math.exp(-12 * dt);
   player.rotation.y = faceAngle;
   const mk = Math.min(1, spd / SPEED), dS = (spd - prevSpd) / (dt || 1); gait += dt * spd * 1.65;
   { const on = playerBill.walkIdx >= 0; const moving = on ? spd > 0.5 : spd > 1.2; playerBill.walkIdx = moving ? Math.floor((((gait % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 2)) % 4 : -1; } // contact, passing, contact, passing
-  const wkK = playerBill.walkIdx >= 0 ? 0.35 : 1; // the drawn frames already carry the bob and sway, so the code motion shrinks to a hint dSpdK += (Math.max(-1, Math.min(1, dS / 60)) - dSpdK) * (1 - Math.exp(-14 * dt)); puffCool -= dt;
+  const wkK = playerBill.walkIdx >= 0 ? 0.35 : 1; // the drawn frames already carry the bob and sway, so the code motion shrinks to a hint
+  dSpdK += (Math.max(-1, Math.min(1, dS / 60)) - dSpdK) * (1 - Math.exp(-14 * dt)); puffCool -= dt; // (these two were once inside the comment above: the braking squash never ran and the dust cooldown never counted down, so there was at most one puff per session)
   body.position.y = outline.position.y = 0.95 + Math.abs(Math.sin(gait)) * (0.05 + 0.05 * runNow) * Math.min(1, spd / 3) * wkK;
   { const crx = Math.cos(yaw + leanYaw), crz = -Math.sin(yaw + leanYaw), lat = (vel.x * crx + vel.z * crz) / SPEED; // lean toward the way you are sliding across the screen
-    pRoll += (Math.max(-0.2, Math.min(0.2, -lat * 0.13)) + Math.sin(gait) * 0.055 * mk * (spd > 1.5 ? 1 : 0) * wkK - pRoll) * (1 - Math.exp(-16 * dt));
+    pRoll += (Math.max(-0.2, Math.min(0.2, -lat * 0.13)) + Math.max(-0.12, Math.min(0.12, faceVel * 0.012)) + Math.sin(gait) * 0.055 * mk * (spd > 1.5 ? 1 : 0) * wkK + (spd < 0.5 ? Math.sin(tAccum * 0.9) * 0.012 : 0) - pRoll) * (1 - Math.exp(-16 * dt)); // lateral slide + the turn's own lean + a faint idle sway
     pStretch += ((Math.abs(Math.sin(gait)) - 0.6) * 0.03 * mk * wkK + dSpdK * 0.05 - pStretch) * (1 - Math.exp(-18 * dt)); }
   if (prevSpd < 1.5 && spd > 1.5 && puffCool <= 0) { puffCool = 0.25; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.5, p.z + (Math.random() - 0.5) * 0.5, -vel.x * 0.08, -vel.z * 0.08, 0.45); } // push-off
   else if (prevSpd > 5 && dS < -40 && puffCool <= 0) { puffCool = 0.3; for (let i = 0; i < 2; i++) puff(p.x + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5) * 0.6, vel.x * 0.1, vel.z * 0.1, 0.55); } // skid
