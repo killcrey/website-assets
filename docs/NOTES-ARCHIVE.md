@@ -90,3 +90,8 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 
 ## Every building goes see-through when it covers the player (2026-11-13, on request)
 - Walls already faded, but roofs, trim, porches and the church tower were baked into shared batches and stayed solid. `bld()` now gives each building its own roof/porch/tower batch with a cloned material (`fadeB`, built at the end) that fades with the walls. Cost: ~50 extra small draw calls.
+
+## Fade includes the roof, Juan Carlos looks invisible, agents un-wedge (2026-11-13, on request)
+- Occlusion test uses the building's full height incl. gable roof (`b.top`); all 49 buildings verified to fade with the player right behind them.
+- Juan Carlos' boon: hero materials drop to 20% opacity while `P.invis > 0`.
+- Agents: patrol slides along walls and re-paths via A* if jammed >0.5 s; chase/return skip a node and re-plan after 0.4 s without progress. Replica building colliders span the whole lot (a 1 m sliver beside El Farol trapped an agent).

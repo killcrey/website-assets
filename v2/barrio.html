@@ -171,7 +171,7 @@ function bld(bt0, x, z, w, d, floors, style, face, o = {}) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats); m.position.set(x, h / 2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
   if (o.roof === 'gable') { const rise = o.rise || Math.min(w, d) * 0.28, rc = o.roofColor || 0x9a4b3a; if (w >= d) bt.gable(w + 0.6, rise, d + 0.6, rc, x, h, z, 0); else bt.gable(d + 0.6, rise, w + 0.6, rc, x, h, z, Math.PI / 2); }
   else { bt.box(w + 0.5, 0.45, d + 0.5, new THREE.Color(STYLES[style].trim).getHex(), x, h + 0.2, z); bt.box(1, 0.7, 1, 0x7a7a7a, x + w * 0.2, h + 0.8, z - d * 0.15); }
-  solidBox(x, z, w, d, true); const b = { m, h, x, z, w, d, fade: 1, mats: [front, side, roof, rmat], rb: bt }; buildings.push(b); return b;
+  solidBox(x, z, w, d, true); const b = { m, h, x, z, w, d, fade: 1, mats: [front, side, roof, rmat], rb: bt, top: h + (o.roof === 'gable' ? (o.rise || Math.min(w, d) * 0.28) + 0.4 : 1.6) }; buildings.push(b); return b;
 }
 
 // ---------- props (all go into the block batch) ----------
@@ -262,7 +262,7 @@ NAMED.forEach((n, i) => { if (REPLICA[n[0]]) return; const [key, text, r, floors
 [['BODEGA', [1150, 812, 1296, 998], 'bodega_front_cut.webp', 12.6, 1.706, 11.5, 1], ['FAROL', [1308, 812, 1464, 998], 'farol_front_cut.webp', 14.6, 1.808, 14.1, 0.63], ['TACO', [1581, 813, 1760, 991], 'taco_front_cut.webp', 17.0, 2.36, 16.6, 0.83]].forEach(([key, rect, file, pw, asp, bw, hf]) => {
   const q = R(rect), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, ph = pw / asp, bh = ph * hf, bd = q.z1 - q.z0, tex = new THREE.TextureLoader().load('./barrio-logan/art-in/' + file); tex.colorSpace = THREE.SRGBColorSpace;
   const art = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.4, side: THREE.DoubleSide }), side = new THREE.MeshStandardMaterial({ color: 0xe9dfcc, roughness: 0.95 }), top = new THREE.MeshStandardMaterial({ color: 0x4a3f3a, roughness: 1 });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), [side, side, top, top, side, side]); m.position.set(cx, bh / 2, cz); m.castShadow = m.receiveShadow = true; scene.add(m); solidBox(cx, cz, bw, bd, true);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), [side, side, top, top, side, side]); m.position.set(cx, bh / 2, cz); m.castShadow = m.receiveShadow = true; scene.add(m); solidBox(cx, cz, q.x1 - q.x0, bd, true); // collider spans the whole lot so no unreachable slivers beside the art
   const pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), art); pl.position.set(cx, ph / 2, q.z1 + 0.03); scene.add(pl);
   buildings.push({ m, h: bh, x: cx, z: cz, w: bw, d: bd, fade: 1, mats: [art, side, top] }); });
 // church: one story, tall pointed roof and steeple
@@ -385,7 +385,7 @@ carBody.castShadow = carTrim.castShadow = true; carBody.frustumCulled = carTrim.
 { let k = 0; for (const L of lanes) for (const c of L.cars) carBody.setColorAt(k++, new THREE.Color(c.col)); carBody.instanceColor.needsUpdate = true; }
 const carList = [], _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0);
 function segBox(ax, ay, az, bx, by, bz, b) { // does the camera->point segment pass through this building's box?
-  let t0 = 0, t1 = 1; const lo = [b.x - b.w / 2 - 0.3, b.y0 || 0, b.z - b.d / 2 - 0.3], hi = [b.x + b.w / 2 + 0.3, b.h, b.z + b.d / 2 + 0.3], a = [ax, ay, az], d = [bx - ax, by - ay, bz - az];
+  let t0 = 0, t1 = 1; const lo = [b.x - b.w / 2 - 0.3, b.y0 || 0, b.z - b.d / 2 - 0.3], hi = [b.x + b.w / 2 + 0.3, b.top || b.h, b.z + b.d / 2 + 0.3], a = [ax, ay, az], d = [bx - ax, by - ay, bz - az];
   for (let i = 0; i < 3; i++) { if (Math.abs(d[i]) < 1e-9) { if (a[i] < lo[i] || a[i] > hi[i]) return false; } else { let u = (lo[i] - a[i]) / d[i], v = (hi[i] - a[i]) / d[i]; if (u > v) { const q = u; u = v; v = q; } t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) return false; } }
   return t0 < 0.999;
 }
@@ -521,11 +521,12 @@ LOOKS.agent.cap = false;
 LOOKS.thug = { civ: true, h: 2.15, suit: 0x1e2024, suit2: 0x1a1b1f, leg: 0x15161a, leg2: 0x121316, boot: 0x08080a, pad: 0x08080a, skin: 0xb98660, hair: 0x0e0e10, glove: 0x08080a, eyes: { lid: 0.9, brow: 0.3, tilt: 0.2 },
   hairStyle(head, T) { for (const sx of [-1, 1]) head.add(T.m(new THREE.BoxGeometry(0.085, 0.05, 0.03), T.FM(0x050506, 0.2), sx * 0.078, 0.022, 0.2)); head.add(T.m(new THREE.BoxGeometry(0.04, 0.012, 0.02), T.FM(0x050506, 0.2), 0, 0.03, 0.205)); },
   gear(R, T) { R.J.torso.add(T.m(new THREE.BoxGeometry(0.6, 0.46, 0.38), T.FM(0x14151a, 0.8), 0, 0.3, 0)); for (const sx of [-1, 1]) R.J.torso.add(T.m(new THREE.BoxGeometry(0.12, 0.16, 0.1), T.FM(0x2a2c33, 0.8), sx * 0.2, 0.08, 0.24)); } };
-const heroRig = makeFigure(LOOKS.hero, true); heroRig.root.scale.setScalar(1.25); scene.add(heroRig.root);
+const heroMats = []; let heroInv = false; const heroRig = makeFigure(LOOKS.hero, true); heroRig.root.scale.setScalar(1.25); scene.add(heroRig.root);
 { const ghost = new THREE.MeshBasicMaterial({ color: 0x9ff0ff, transparent: true, opacity: 0.5, depthWrite: false, depthFunc: THREE.GreaterDepth, stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp });
   const list = []; heroRig.root.traverse((o) => { if (o.isMesh) list.push(o); });
   for (const o of list) { for (const mt of [].concat(o.material)) { mt.stencilWrite = true; mt.stencilRef = 1; mt.stencilFunc = THREE.AlwaysStencilFunc; mt.stencilZPass = THREE.ReplaceStencilOp; }
-    const gm = new THREE.Mesh(o.geometry, ghost); gm.renderOrder = 30; gm.castShadow = false; o.add(gm); } }
+    const gm = new THREE.Mesh(o.geometry, ghost); gm.renderOrder = 30; gm.castShadow = false; o.add(gm); }
+  for (const o of list) for (const mt of [].concat(o.material)) heroMats.push(mt); }
 
 // =====================================================================================
 // FX POOL, GEMS, STACK
@@ -604,9 +605,10 @@ function updateAgent(g, dt) {
   const follow = (tx, tz, sp, dt2) => { // walk along the navigation path toward (tx, tz); walls, fences and cars stop them
     g.repath -= dt2; if (g.repath <= 0) { g.path = navPath(NAV, g.pos.x, g.pos.z, tx, tz); g.repath = 0.4; }
     let gx = tx, gz = tz; while (g.path.length && Math.hypot(g.path[0][0] - g.pos.x, g.path[0][1] - g.pos.z) < 0.5) g.path.shift(); if (g.path.length) { gx = g.path[0][0]; gz = g.path[0][1]; }
-    const dx = gx - g.pos.x, dz = gz - g.pos.z, d = Math.hypot(dx, dz) || 1; g.pos.x += dx / d * sp * dt2; g.pos.z += dz / d * sp * dt2;
+    const dx = gx - g.pos.x, dz = gz - g.pos.z, d = Math.hypot(dx, dz) || 1, ox = g.pos.x, oz = g.pos.z; g.pos.x += dx / d * sp * dt2; g.pos.z += dz / d * sp * dt2;
     for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } }
     for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(g.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(g.pos.z, c.z + c.hz)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } }
+    if (Math.hypot(g.pos.x - ox, g.pos.z - oz) < 0.3 * sp * dt2 && d > 0.6) { g.stk = (g.stk || 0) + dt2; if (g.stk > 0.4) { g.stk = 0; g.repath = 0; if (g.path.length > 1) g.path.shift(); } } else g.stk = 0; // wedged on a corner: re-plan / skip the node
     let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-12 * dt2)); };
   const show = (amp, sp) => { g.fig.root.visible = true; g.cone.visible = true; g.ph += sp * 2.1 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); };
   if (g.mode === 'chase') { // they chase what they SEE; once you break line of sight they run to the last place they saw you, then search
@@ -624,7 +626,9 @@ function updateAgent(g, dt) {
   }
   const tgt = g.pts[g.wp], dx = tgt[0] - g.pos.x, dz = tgt[1] - g.pos.z, d = Math.hypot(dx, dz), v = 1.9;
   if (d < 0.25) { if (g.pp) { g.wp += g.dirn; if (g.wp >= g.pts.length || g.wp < 0) { g.dirn = -g.dirn; g.wp += 2 * g.dirn; } } else g.wp = (g.wp + 1) % g.pts.length; }
-  else { const nx = g.pos.x + dx / d * v * dt, nz = g.pos.z + dz / d * v * dt; if (!agentBlocked(nx, nz)) { g.pos.x = nx; g.pos.z = nz; } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-6 * dt)); }
+  else { const nx = g.pos.x + dx / d * v * dt, nz = g.pos.z + dz / d * v * dt; const ox = g.pos.x, oz = g.pos.z; if (!agentBlocked(nx, nz)) { g.pos.x = nx; g.pos.z = nz; } else if (!agentBlocked(nx, g.pos.z)) g.pos.x = nx; else if (!agentBlocked(g.pos.x, nz)) g.pos.z = nz;
+    if (Math.hypot(g.pos.x - ox, g.pos.z - oz) < 0.4 * v * dt) { g.stuck = (g.stuck || 0) + dt; if (g.stuck > 0.5) { g.stuck = 0; g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, tgt[0], tgt[1]); g.repath = 1.2; } } else g.stuck = 0; // jammed on a wall or corner: slide along it, then path around
+    let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-6 * dt)); }
   if (g.far) { g.fig.root.visible = false; g.cone.visible = false; g.fig.root.position.set(g.pos.x, 0, g.pos.z); return; } g.fig.root.visible = true; g.cone.visible = true;
   g.ph += v * 2.0 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.55, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g);
 }
@@ -658,7 +662,7 @@ function applyBoon(c) { let msg;
   else { P.heat = 0; for (const a of agents) { if (a.thug) a.remove = true; else if (a.mode === 'chase') { a.mode = 'search'; a.searchT = 3; a.alert = 0; a.mark.visible = false; } } msg = 'HEAT: CLEAR'; }
   hud(); toast(`${c.name}: \u201C${c.line}\u201D  \u2022  ${msg}`, 4.2); }
 function updateCrew(dt) {
-  P.invis = Math.max(0, P.invis - dt); const sh = Math.ceil(P.invis); if (sh !== P.invShown) { P.invShown = sh; hud(); } invRing.visible = P.invis > 0; if (invRing.visible) { invRing.position.set(P.pos.x, 0.32, P.pos.z); invRing.scale.setScalar(1 + Math.sin(P.t * 6) * 0.12); }
+  P.invis = Math.max(0, P.invis - dt); { const iv = P.invis > 0; if (iv !== heroInv) { heroInv = iv; for (const m of heroMats) { m.transparent = iv; m.opacity = iv ? 0.2 : 1; m.depthWrite = !iv; m.needsUpdate = true; } } } const sh = Math.ceil(P.invis); if (sh !== P.invShown) { P.invShown = sh; hud(); } invRing.visible = P.invis > 0; if (invRing.visible) { invRing.position.set(P.pos.x, 0.32, P.pos.z); invRing.scale.setScalar(1 + Math.sin(P.t * 6) * 0.12); }
   for (const c of CREW) { c.t += dt; c.cool = Math.max(0, c.cool - dt); c.beam.visible = c.cool <= 0; if (c.beam.visible) c.beam.material.opacity = 0.32 + Math.sin(P.t * 2 + c.pos.x) * 0.1;
     let moving = false;
     if (c.waitT > 0) c.waitT -= dt; else { if (!c.dest) { c.dest = crewSpot(c.far ? c.pos : null, 70); c.path = navPath(NAV, c.pos.x, c.pos.z, c.dest[0], c.dest[1]); c.repath = 2; }
