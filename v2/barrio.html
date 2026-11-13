@@ -638,7 +638,7 @@ function updateAgent(g, dt) {
   }
   if (g.mode === 'investigate') { // they heard it: walk over; at the turntables that is a raid
     g.invT += dt; const src = noiseSource(); if (!src || g.invT > 28) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.cool = 3; show(0.6, 2.8); return; }
-    follow(src.x, src.deck ? src.z + 1.8 : src.z, 2.9, dt); if (src.deck && Math.hypot(DECK.x - g.pos.x, DECK.z - g.pos.z) < 3.4) raidHouse(g); show(0.8, 2.9); return;
+    follow(src.x, src.deck ? src.z + 1.8 : src.z, 2.9, dt); if (src.deck && Math.hypot(DECK.x - g.pos.x, DECK.z - g.pos.z) < 3.4) { g.raidT = (g.raidT || 0) + dt; if (g.raidT > 0.4 + (state.wires || 0) * 1.6) { g.raidT = 0; raidHouse(g); } } else g.raidT = 0; show(0.8, 2.9); return;
   }
   if (g.mode === 'taco') { g.tacoT = (g.tacoT || 0) + (Math.hypot(g.tk.x - g.pos.x, g.tk.z + 2.6 - g.pos.z) < 2.4 ? dt : 0); g.invT = (g.invT || 0) + dt; if (g.tacoT > 5 || g.invT > 20) { g.tacoT = 0; g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.cool = 3; } else if (g.tacoT > 0) show(0, 0); else { follow(g.tk.x, g.tk.z + 2.6, 3.4, dt); show(0.8, 3.4); } return; }
   if (g.mode === 'search') { // lost you: stop, look around
@@ -647,7 +647,7 @@ function updateAgent(g, dt) {
   if (g.mode === 'return') { // walk back to the patrol route (around walls, through gates)
     follow(g.pts[g.wp][0], g.pts[g.wp][1], 2.8, dt); if (Math.hypot(g.pts[g.wp][0] - g.pos.x, g.pts[g.wp][1] - g.pos.z) < 1.2) g.mode = 'patrol'; show(0.6, 2.8); return;
   }
-  if (g.cool <= 0) { const src = noiseSource(); if (src && Math.hypot(src.x - g.pos.x, src.z - g.pos.z) < src.r) { g.mode = 'investigate'; g.invT = 0; g.path = []; g.repath = 0; return; } }
+  if (g.cool <= 0) { const src = noiseSource(); if (src && Math.hypot(src.x - g.pos.x, src.z - g.pos.z) < src.r) { if (src.deck && state.luzMet && !(state.warnCd > 0)) { state.warnCd = 20; toast('LUZ ON THE RADIO: AN AGENT IS HEADING FOR THE HOUSE', 3, true); } g.mode = 'investigate'; g.invT = 0; g.path = []; g.repath = 0; return; } }
   const tgt = g.pts[g.wp], dx = tgt[0] - g.pos.x, dz = tgt[1] - g.pos.z, d = Math.hypot(dx, dz), v = 1.9;
   if (d < 0.25) { if (g.pp) { g.wp += g.dirn; if (g.wp >= g.pts.length || g.wp < 0) { g.dirn = -g.dirn; g.wp += 2 * g.dirn; } } else g.wp = (g.wp + 1) % g.pts.length; }
   else { const nx = g.pos.x + dx / d * v * dt, nz = g.pos.z + dz / d * v * dt; const ox = g.pos.x, oz = g.pos.z; if (!agentBlocked(nx, nz)) { g.pos.x = nx; g.pos.z = nz; } else if (!agentBlocked(nx, g.pos.z)) g.pos.x = nx; else if (!agentBlocked(g.pos.x, nz)) g.pos.z = nz;
@@ -675,7 +675,7 @@ function shotDown() { // spec 13: shot = you lose the carried record and wake up
 }
 function blast() { // spec 17: short-range burst, stuns, does not kill; the playlist makes it stronger
   if (state.won || P.blastCd > 0) return; if (P.lowC < 25) { toast('LOW C TOO LOW TO BLAST', 1.2, true); return; }
-  P.lowC -= 25; P.blastCd = 3; const R = 7 + gotRec.size * 0.35, T = 3 + gotRec.size * 0.4; let hit = 0;
+  P.lowC -= 25; P.blastCd = 3; if (P.invis > 0) { P.invis = 0; } const R = 7 + gotRec.size * 0.35, T = 3 + gotRec.size * 0.4; let hit = 0;
   for (const a of agents) if (!a.down && Math.hypot(a.pos.x - P.pos.x, a.pos.z - P.pos.z) < R) { a.stun = T; a.alert = 0; a.mark.visible = false; a.qmark.visible = false; hit++; }
   for (let k = 0; k < 28; k++) { const an = k / 28 * 6.283; puff(P.pos.x, 0.8, P.pos.z, 0x7ff0ff, Math.cos(an) * R * 1.6, 0.4, Math.sin(an) * R * 1.6, 0.5, 0.4, 0.9); }
   toast(hit ? `BLAST! ${hit} STUNNED FOR ${T.toFixed(1)}s` : 'BLAST!', 1.4);
@@ -683,6 +683,37 @@ function blast() { // spec 17: short-range burst, stuns, does not kill; the play
 $('blast').addEventListener('pointerdown', (e) => { e.stopPropagation(); blast(); });
 $('mdown').addEventListener('pointerdown', (e) => { e.stopPropagation(); state.musicDown = !state.musicDown; if (audio) audio.volume = state.musicDown ? 0.25 : 0.7; $('mdown').classList.toggle('on', state.musicDown); toast(state.musicDown ? 'MUSIC DOWN. THE GRID HEARS LESS' : 'MUSIC UP', 1.4); });
 $('inside').addEventListener('pointerdown', (e) => { e.stopPropagation(); if (state.insideCd > 0) { toast('GIVE THEM A MINUTE', 1.1, true); return; } if (!gotRec.size) return; state.inside = 12; state.insideCd = 24; toast('EVERYONE INSIDE. THE HOUSE GOES QUIET', 1.8); });
+// ---------- THE BODEGA HUB (spec 32-34, 37): Pancho and his dad behind the bodega, copper wires, the front circle ----------
+LOOKS.pancho = Object.assign({}, LOOKS.eduardo, { suit: 0xd9602f, suit2: 0xb34c22, skin: 0xb97a50 }); LOOKS.dad = Object.assign({}, LOOKS.eduardo, { suit: 0xb8b2a0, suit2: 0x9d9784, skin: 0xa98666, hair: 0xcfcfcf });
+const HUB = { pancho: [122.3, 80.2], hint: [119.4, 77.4], wire: [124.0, 77.6], dad: [114.6, 77.6], circle: [126.4, 100.0] };
+function hubFig(look, x, z, h, yaw) { const f = makeFigure(look, false); f.root.scale.setScalar(h / 1.83 * 1.25); f.root.position.set(x, 0, z); f.root.rotation.y = yaw; scene.add(f.root); return f; }
+const panchoFig = hubFig(LOOKS.pancho, HUB.pancho[0], HUB.pancho[1], 1.7, 0), dadFig = hubFig(LOOKS.dad, HUB.dad[0], HUB.dad[1], 1.75, Math.PI / 2);
+function hubRing(x, z, r, col, label) { const m = new THREE.Mesh(new THREE.RingGeometry(r - 0.28, r, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.75, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.3, z); scene.add(m); const t = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), canvasSign(label, 3.2, 0.8, null, '#' + col.toString(16).padStart(6, '0'))); t.rotation.x = -Math.PI / 2; t.position.set(x, 0.31, z + r + 0.7); scene.add(t); return m; }
+const hubRings = [hubRing(HUB.hint[0], HUB.hint[1], 1.3, 0x7ff0ff, 'WHERE TO?'), hubRing(HUB.wire[0], HUB.wire[1], 1.3, 0xd9884a, 'COPPER WIRE'), hubRing(HUB.dad[0], HUB.dad[1], 2.4, 0xaab4c8, 'BACK ROOM'), hubRing(HUB.circle[0], HUB.circle[1], 1.4, 0xffd34d, 'TO THE BODEGA')];
+{ const nm = (txt, x, z) => { const t = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.62), canvasSign(txt, 2.6, 0.62, '#10162a', '#ffd34d')); t.position.set(x, 3.0, z); scene.add(t); }; nm('PANCHO', HUB.pancho[0], HUB.pancho[1] - 0.2); nm('PANCHO’S DAD', HUB.dad[0], HUB.dad[1] - 1.4); }
+function coilMesh() { const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: 0xc9783a, roughness: 0.35, metalness: 0.7 }); for (let k = 0; k < 5; k++) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.34 - k * 0.02, 0.07, 8, 16), m); t.position.y = k * 0.11; t.rotation.x = Math.PI / 2; g.add(t); } return g; }
+const hubSt = { dadT: 0, panchoT: 0, circleT: 0, modal: false, wireCd: 0, hintCd: 0 };
+const dadStage = (n) => n >= 12 ? 3 : n >= 8 ? 2 : n >= 4 ? 1 : 0, DAD_LINES = ['… static …', '“The sky is a cage.”', '“I went. I came back. Third launch out.”', '“Turn it up, mijo.”'];
+function updateHub(dt) {
+  const near = (p, r) => Math.hypot(P.pos.x - p[0], P.pos.z - p[1]) < r; hubSt.wireCd = Math.max(0, hubSt.wireCd - dt); hubSt.hintCd = Math.max(0, hubSt.hintCd - dt);
+  animateFigure(panchoFig, { ph: P.t, t: P.t, amp: 0.05, yawRate: 0, accF: 0 }, dt); const st = dadStage(gotRec.size); dadFig.root.visible = st < 3; dadFig.root.scale.y = (st === 0 ? 0.72 : st === 1 ? 0.84 : 1) * 1.75 / 1.83 * 1.25; animateFigure(dadFig, { ph: P.t, t: P.t, amp: st === 0 ? Math.sin(P.t * 9) * 0.05 + 0.02 : 0.05, yawRate: 0, accF: 0 }, dt);
+  for (const m of hubRings) m.material.opacity = 0.5 + Math.sin(P.t * 4) * 0.25;
+  // Pancho: hint ring points at the next record; wire ring hands out one bundle (empty hands only, three layers max)
+  if (near(HUB.hint, 1.5) && hubSt.hintCd <= 0) { hubSt.hintCd = 20; state.hintT = 15; toast('PANCHO: “Pancho know yo path.”', 2.6); }
+  if (near(HUB.wire, 1.5) && hubSt.wireCd <= 0 && !stack.length) { if (state.wires >= 3) { hubSt.wireCd = 8; toast('PANCHO: “Yo house tight already.”', 2, false); } else { hubSt.wireCd = 12; const m = coilMesh(); scene.add(m); m.position.set(P.pos.x, 2.1, P.pos.z); stack.push({ tier: 0, wire: true, mesh: m, p: m.position }); hud(); toast('COPPER WIRE. BRING IT HOME TO THE HOUSE', 2.6); } }
+  // the back room is a copper-lined locker: inside it the grid cannot read you, and Pancho's dad tops off Low C
+  state.faraday = near(HUB.dad, 2.4); if (state.faraday) { P.invis = Math.max(P.invis, 0.4); hubSt.dadT -= dt; if (hubSt.dadT <= 0) { hubSt.dadT = 30; P.lowC = 100; P.tired = false; toast(`PANCHO’S DAD: ${DAD_LINES[st]}  •  LOW C FULL`, 3.4); } } else hubSt.dadT = Math.min(hubSt.dadT, 0);
+  // the bodega circle: stand 3 s with nobody on you and it takes you to the store (the game waits)
+  const hot = near(HUB.circle, 1.5) && !agents.some((a) => a.mode === 'chase' && !a.down && Math.hypot(a.pos.x - P.pos.x, a.pos.z - P.pos.z) < 20); hubSt.circleT = hot ? hubSt.circleT + dt : 0;
+  if (hubSt.circleT > 3 && !hubSt.modal) { hubSt.modal = true; state.paused = true; const ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(8,12,34,.86);color:#fff;font:900 clamp(22px,5vw,40px) system-ui,sans-serif;text-align:center;padding:24px'; ov.innerHTML = 'PANCHOS BODEGA<a href="https://bodega.theinvisiblepanchos.com" target="_blank" rel="noopener" style="font:800 20px system-ui;padding:14px 28px;border-radius:12px;background:#ffd34d;color:#2a1200;text-decoration:none">OPEN THE STORE</a><button style="font:700 17px system-ui;padding:10px 22px;border-radius:12px;border:2px solid #fff;background:transparent;color:#fff">BACK TO THE GAME</button>'; document.body.appendChild(ov); ov.querySelector('button').addEventListener('click', () => { ov.remove(); state.paused = false; hubSt.modal = false; hubSt.circleT = -4; }); }
+}
+// ---------- THE TEAR (spec 36): Low C full opens a rip at the west end of Julian Ave; through it is the 2D game, and back ----------
+const TEAR = { x: -3.5, z: 51.3, on: false, go: (u) => { location.href = u; } };
+{ const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xb06bff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }); const e = new THREE.Mesh(new THREE.CircleGeometry(1, 28), m); e.scale.set(1.2, 3.2, 1); e.position.y = 3.2; g.add(e); const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.09, 8, 28), new THREE.MeshBasicMaterial({ color: 0xffffff })); ring.scale.set(1.2, 3.2, 1); ring.position.y = 3.2; g.add(ring); g.position.set(TEAR.x, 0, TEAR.z); g.rotation.y = Math.PI / 2; g.visible = false; scene.add(g); TEAR.g = g; }
+function saveBarrio() { try { localStorage.setItem('v2_barrio_pause', JSON.stringify({ t: Date.now(), x: P.pos.x, z: P.pos.z, raids: state.raids, wires: state.wires, lowC: P.lowC, carry: (stack.find((c) => c.rec !== undefined) || {}).rec ?? null, met: [...(state.met || [])] })); } catch (e) { /* no storage */ } }
+function updateTear(dt) { const on = P.lowC >= 99.5 && !state.over && !state.won; if (on && !TEAR.on) toast('A TEAR OPENED AT THE END OF JULIAN AVE', 3); TEAR.on = on; TEAR.g.visible = on; if (!on) return; TEAR.g.children[0].material.opacity = 0.45 + Math.sin(P.t * 5) * 0.15; TEAR.g.rotation.z = Math.sin(P.t * 2) * 0.03; TEAR.cool = Math.max(0, (TEAR.cool || 0) - dt); if (!(TEAR.cool > 0) && Math.hypot(P.pos.x - TEAR.x, P.pos.z - TEAR.z) < 1.8) { saveBarrio(); state.paused = true; TEAR.go('../?from=barrio'); } }
+function applyResume() { const sv = (() => { try { return new URLSearchParams(location.search).has('resume') ? JSON.parse(localStorage.getItem('v2_barrio_pause')) : null; } catch (e) { return null; } })();
+  if (sv && Date.now() - sv.t < 12 * 3600 * 1000) { const rx = Math.hypot(sv.x - TEAR.x, sv.z - TEAR.z) < 6 ? TEAR.x + 6 : sv.x; P.pos.set(rx, 0, sv.z); camF.set(rx, 0, sv.z); TEAR.cool = 5; /* step out of the rip, not back into it */ state.raids = sv.raids || 0; state.wires = sv.wires || 0; P.lowC = sv.lowC; state.met = new Set(sv.met || []); if (sv.carry !== null && sv.carry !== undefined) setTimeout(() => collectRecord(records[sv.carry]), 300); P.inv = 3; try { localStorage.removeItem('v2_barrio_pause'); } catch (e) { /* no storage */ } toast('BACK IN THE BARRIO', 2); hud(); } }
 // ---------- TACO TRUCKS (spec 23): a chasing agent in range goes to eat for 5 s ----------
 const trucks = []; { const cand = [[38, 112], [152, 94], [106, 66], [186, 120]], bodyM = new THREE.MeshStandardMaterial({ color: 0xf3c53a, roughness: 0.7 }), awnM = new THREE.MeshStandardMaterial({ color: 0xd9402f, roughness: 0.8 });
   for (const [cx, cz] of cand) { let x = cx, z = cz, ok = false; for (let r = 0; r < 28 && !ok; r += 1.5) for (let a = 0; a < 6.283 && !ok; a += 0.7) { const tx = cx + Math.cos(a) * r, tz = cz + Math.sin(a) * r; if (!blocked(tx, tz, 2.6) && !onAsphalt(tx, tz) && Math.hypot(tx - PAD.x, tz - PAD.z) > 12) { x = tx; z = tz; ok = true; } } if (!ok) continue;
@@ -690,10 +721,21 @@ const trucks = []; { const cand = [[38, 112], [152, 94], [106, 66], [186, 120]],
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.7), canvasSign('TACOS', 2.8, 0.7, '#d9402f', '#fff3c8')); sg.position.set(0, 3.1, 1.02); g.add(sg); for (const wx of [-1.4, 1.4]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 14), new THREE.MeshStandardMaterial({ color: 0x15151a })); w.rotation.x = Math.PI / 2; w.position.set(wx, 0.42, 0.95); g.add(w); }
     g.position.set(x, 0, z); scene.add(g); solidBox(x, z, 4.2, 2, false); trucks.push({ x, z, cd: 0 }); } }
 
+const arrowEls = [];
+function drawArrows(list) { // edge-of-screen pointers to world targets [{x, z, col}]
+  while (arrowEls.length < list.length) { const e = document.createElement('div'); e.style.cssText = 'position:fixed;z-index:4;width:0;height:0;pointer-events:none;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:18px solid #ffd34d;filter:drop-shadow(0 0 4px #000)'; document.body.appendChild(e); arrowEls.push(e); }
+  const w = innerWidth, h = innerHeight, v = new THREE.Vector3();
+  arrowEls.forEach((e, i) => { const t = list[i]; if (!t) { e.style.display = 'none'; return; } v.set(t.x, 1, t.z).project(camera); let sx = v.x * w / 2, sy = -v.y * h / 2; const behind = v.z > 1; if (behind) { sx = -sx; sy = -sy; } const inside = !behind && Math.abs(sx) < w / 2 - 20 && Math.abs(sy) < h / 2 - 20; if (inside) { e.style.display = 'none'; return; } const k = Math.min((w / 2 - 28) / (Math.abs(sx) || 1), (h / 2 - 90) / (Math.abs(sy) || 1)); sx *= k; sy *= k; e.style.display = 'block'; e.style.borderBottomColor = t.col || '#ffd34d'; e.style.left = (w / 2 + sx - 9) + 'px'; e.style.top = (h / 2 + sy - 9) + 'px'; e.style.transform = `rotate(${Math.atan2(sx, -sy)}rad)`; });
+}
+function updateHints(dt) { // pointers: Luz's reveal (every loose record) and Pancho's hint (the next one)
+  const list = []; if (state.reveal > 0) { state.reveal -= dt; for (const r of records) if (r.on) list.push({ x: r.x, z: r.z, col: '#ffd34d' }); }
+  if (state.hintT > 0) { state.hintT -= dt; const r = records.filter((q) => q.on).sort((a, b) => Math.hypot(a.x - P.pos.x, a.z - P.pos.z) - Math.hypot(b.x - P.pos.x, b.z - P.pos.z))[0]; if (r) list.push({ x: r.x, z: r.z, col: '#7ff0ff' }); }
+  drawArrows(list);
+}
 function noiseSource() { // spec 20/22/24: the grid hears songs. A carried song makes YOU loud; banked songs and the party make the HOUSE loud. Music down quiets both.
-  if (state.won || state.over) return null; const mul = state.musicDown ? 0.4 : 1, run = Math.hypot(P.vel.x, P.vel.z) > 3.2 ? 4 : 0;
-  if (stack.some((c) => c.rec !== undefined) && P.invis <= 0) return { x: P.pos.x, z: P.pos.z, r: (7 + gotRec.size * 1.5 + 9 + run) * mul, deck: false };
-  if (gotRec.size > 0 && !(state.inside > 0)) return { x: DECK.x, z: DECK.z, r: (7 + gotRec.size * 1.5 + party.n * 0.06) * mul, deck: true };
+  if (state.won || state.over || state.faraday) return null; const mul = state.musicDown ? 0.4 : 1, run = Math.hypot(P.vel.x, P.vel.z) > 3.2 ? 4 : 0;
+  if (stack.some((c) => c.rec !== undefined)) return { x: P.pos.x, z: P.pos.z, r: (7 + gotRec.size * 1.5 + 9 + run) * mul, deck: false };
+  if (gotRec.size > 0 && !(state.inside > 0)) return { x: DECK.x, z: DECK.z, r: (7 + gotRec.size * 1.5 + party.n * 0.06) * mul * (1 - 0.15 * (state.wires || 0)), deck: true };
   return null;
 }
 function raidHouse(g) { // spec 21: an agent at the turntables costs a song; three raids shut the house down
@@ -715,28 +757,32 @@ function agentSees(g, px, pz) {
 // then they need 40 s to power up again. Juan Carlos: invisible to the Agency 20 s. Christopher: gun and Low C refilled. Eduardo: heat cleared, thugs gone.
 // =====================================================================================
 const CREW_COOLDOWN = 40;
+LOOKS.luz = Object.assign({}, LOOKS.eduardo, { suit: 0x7a2f5a, suit2: 0x5e2246, accent: 0xffd34d, hair: 0x15171d });
 const CREW = [
-  { key: 'juancarlos', name: 'JUAN CARLOS', h: 1.72, glow: 0xffa860, css: '#ffb27a', line: 'You\u2019re one of us now.', boon: 'invisible', speed: 1.9, wait: [6, 20], far: false, start: [150, 30] },
+  { key: 'juancarlos', name: 'JUAN CARLOS', h: 1.72, glow: 0xffa860, css: '#ffb27a', line: 'You\u2019re one of us now.', boon: 'invisible', speed: 1.9, wait: [6, 20], far: false, start: [30, 130], zone: [4, 108, 64, 155] },
   { key: 'christopher', name: 'CHRISTOPHER', h: 1.82, glow: 0x7fb8ff, css: '#9fd0ff', line: 'It\u2019s not mine. It\u2019s ours.', boon: 'refill', speed: 3.4, wait: [2, 5], far: true, start: [38, 142] },
+  { key: 'luz', name: 'LUZ', h: 1.66, glow: 0xff7ac8, css: '#ffa8dc', line: 'We never needed proof. We needed medicine.', boon: 'reveal', speed: 2.4, wait: [4, 12], far: true, start: [110, 20] },
   { key: 'eduardo', name: 'EDUARDO', h: 1.76, glow: 0xc9a8ff, css: '#d9c8ff', line: 'Hold the line.', boon: 'cool', speed: 1.9, wait: [6, 20], far: false, start: [140, 128] },
 ];
-function crewSpot(near, minDist) { for (let k = 0; k < 600; k++) { const x = rr(3, W - 3), z = rr(3, D - 3); if (!reachable(x, z) || onAsphalt(x, z)) continue; if (near && Math.hypot(x - near.x, z - near.z) < minDist) continue; return [x, z]; } return [93, 62]; }
+function crewSpot(near, minDist, zone) { for (let k = 0; k < 600; k++) { const x = zone ? rr(zone[0], zone[2]) : rr(3, W - 3), z = zone ? rr(zone[1], zone[3]) : rr(3, D - 3); if (!reachable(x, z) || onAsphalt(x, z)) continue; if (near && Math.hypot(x - near.x, z - near.z) < minDist) continue; return [x, z]; } return [93, 62]; }
 for (const c of CREW) { const fig = makeFigure(LOOKS[c.key], false); fig.root.scale.setScalar(c.h / 1.83 * 1.25); scene.add(fig.root); c.fig = fig;
   let [sx, sz] = c.start; if (!reachable(sx, sz)) { let ok = false; for (let k = 0; k < 400 && !ok; k++) { const a = rnd() * 6.283, d = rr(2, 18), x = sx + Math.cos(a) * d, z = sz + Math.sin(a) * d; if (x > 3 && x < W - 3 && z > 3 && z < D - 3 && reachable(x, z) && !onAsphalt(x, z)) { sx = x; sz = z; ok = true; } } if (!ok) [sx, sz] = crewSpot(); } c.pos = new THREE.Vector3(sx, 0, sz); c.yaw = 0; c.ph = rnd() * 6; c.t = 0; c.cool = 0; c.dest = null; c.path = []; c.repath = 0; c.waitT = rr(0, 4);
   c.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 28, 12, 1, true), new THREE.MeshBasicMaterial({ color: c.glow, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })); c.beam.position.set(sx, 14, sz); scene.add(c.beam);
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48; const cg = cv.getContext('2d'); cg.font = '900 32px system-ui, sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle'; cg.lineWidth = 6; cg.strokeStyle = 'rgba(10,14,30,.85)'; cg.strokeText(c.name, 128, 26); cg.fillStyle = c.css; cg.fillText(c.name, 128, 26);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; c.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthTest: false })); c.tag.scale.set(3.4, 0.64, 1); c.tag.renderOrder = 11; scene.add(c.tag); }
 const invRing = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: 0.8, side: THREE.DoubleSide })); invRing.rotation.x = -Math.PI / 2; invRing.visible = false; scene.add(invRing);
-function applyBoon(c) { let msg;
-  if (c.boon === 'invisible') { P.invis = 20; msg = 'INVISIBLE TO THE AGENCY: 20s'; for (const a of agents) if (a.mode === 'chase' && !a.thug) { a.mode = 'search'; a.searchT = 2.5; a.mark.visible = false; } }
-  else if (c.boon === 'refill') { P.ammo = 10; P.lowC = Math.max(P.lowC, 50); P.tired = false; msg = 'GUN FILLED  \u2022  LOW C HALF'; }
-  else { P.heat = 0; for (const a of agents) { if (a.thug) a.remove = true; else if (a.mode === 'chase') { a.mode = 'search'; a.searchT = 3; a.alert = 0; a.mark.visible = false; } } msg = 'HEAT: CLEAR'; }
-  hud(); toast(`${c.name}: \u201C${c.line}\u201D  \u2022  ${msg}`, 4.2); }
+function applyBoon(c) { let msg; state.met = state.met || new Set(); state.met.add(c.key);
+  if (c.boon === 'invisible') { P.invis = 20; msg = 'INVISIBLE FOR 20s (CARRYING A SONG OR A BLAST BREAKS IT)'; for (const a of agents) if (a.mode === 'chase' && !a.thug) { a.mode = 'search'; a.searchT = 2.5; a.mark.visible = false; } }
+  else if (c.boon === 'refill') { P.lowC = Math.max(P.lowC, 50); P.tired = false; msg = 'LOW C: HALF'; }
+  else if (c.boon === 'reveal') { state.reveal = 30; state.luzMet = true; msg = 'SHE MARKS EVERY HIDDEN RECORD FOR 30s. SHE WILL WARN YOU ABOUT RAIDS'; }
+  else { P.heat = 0; state.raidWatch = 0; for (const a of agents) { if (a.thug) a.remove = true; else if (a.mode === 'chase' || a.mode === 'investigate') { a.mode = 'search'; a.searchT = 3; a.alert = 0; a.mark.visible = false; } } msg = 'HEAT ZERO. FLAGGED ARCHIVED. RAID CANCELLED'; }
+  if (state.met.has('christopher') && state.met.has('juancarlos') && !state.duet) { state.duet = true; P.lowC = 100; P.tired = false; msg += '  •  DUET: LOW C FULL'; }
+  hud(); toast(`${c.name}: “${c.line}”  •  ${msg}`, 4.6); }
 function updateCrew(dt) {
   P.invis = Math.max(0, P.invis - dt); { const iv = P.invis > 0; if (iv !== heroInv) { heroInv = iv; for (const m of heroMats) { m.transparent = iv; m.opacity = iv ? 0.2 : 1; m.depthWrite = !iv; m.needsUpdate = true; } } } const sh = Math.ceil(P.invis); if (sh !== P.invShown) { P.invShown = sh; hud(); } invRing.visible = P.invis > 0; if (invRing.visible) { invRing.position.set(P.pos.x, 0.32, P.pos.z); invRing.scale.setScalar(1 + Math.sin(P.t * 6) * 0.12); }
   for (const c of CREW) { c.t += dt; c.cool = Math.max(0, c.cool - dt); c.beam.visible = c.cool <= 0; if (c.beam.visible) c.beam.material.opacity = 0.32 + Math.sin(P.t * 2 + c.pos.x) * 0.1;
     let moving = false;
-    if (c.waitT > 0) c.waitT -= dt; else { if (!c.dest) { c.dest = crewSpot(c.far ? c.pos : null, 70); c.path = navPath(NAV, c.pos.x, c.pos.z, c.dest[0], c.dest[1]); c.repath = 2; }
+    if (c.waitT > 0) c.waitT -= dt; else { if (!c.dest) { c.dest = crewSpot(c.far ? c.pos : null, c.zone ? 10 : 70, c.zone); c.path = navPath(NAV, c.pos.x, c.pos.z, c.dest[0], c.dest[1]); c.repath = 2; }
       c.repath -= dt; if (c.repath <= 0) { c.path = navPath(NAV, c.pos.x, c.pos.z, c.dest[0], c.dest[1]); c.repath = 2; }
       while (c.path.length && Math.hypot(c.path[0][0] - c.pos.x, c.path[0][1] - c.pos.z) < 0.5) c.path.shift(); const tgt = c.path[0] || c.dest, dx = tgt[0] - c.pos.x, dz = tgt[1] - c.pos.z, d = Math.hypot(dx, dz) || 1; moving = true;
       c.pos.x += dx / d * c.speed * dt; c.pos.z += dz / d * c.speed * dt; for (const k of carList) { const cx = Math.max(k.x - k.hx, Math.min(c.pos.x, k.x + k.hx)), cz = Math.max(k.z - k.hz, Math.min(c.pos.z, k.z + k.hz)); let ex = c.pos.x - cx, ez = c.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } c.pos.x += ex / e * (0.5 - e); c.pos.z += ez / e * (0.5 - e); } }
@@ -810,7 +856,7 @@ async function signedUrl(i) { await tracksReady; if (!TRACKS[i].url) throw new E
 function renderList() { $('hud-list').textContent = `\u266A ${gotRec.size}/${TRACKS.length}`; $('playlist').innerHTML = '<b>MEMORIES OF HOME</b> ' + gotRec.size + '/' + TRACKS.length + TRACKS.map((t, i) => gotRec.has(i) ? `<button data-i="${i}"${i === playing ? ' class="on"' : ''}>${i === playing ? '\u25B6 ' : ''}${t.no}. ${t.title}</button>` : `<span>${t.no}. ??? (find the record and bring it home)</span>`).join(''); }
 async function playTrack(i) { playing = i; renderList(); try { const u = await signedUrl(i); if (audio) audio.pause(); audio = new Audio(u); audio.volume = state.musicDown ? 0.25 : 0.7; audio.onended = () => { if (stack.some((g) => g.rec === i)) { audio.currentTime = 0; audio.play().catch(() => {}); return; } const nx = [...gotRec].sort((a, b) => a - b); playTrack(nx[(nx.indexOf(i) + 1) % nx.length]); }; await audio.play(); $('hud-music').textContent = '\u266A ' + TRACKS[i].title; $('hud-music').style.opacity = 1; } catch (e) { toast('COULD NOT PLAY THAT SONG YET. TAP IT AGAIN', 2.4, true); } }
 function makeRecMesh(i) { const g = new THREE.Group(), disc = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 24), new THREE.MeshStandardMaterial({ color: 0x111114, roughness: 0.35 })), lab = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 16), new THREE.MeshStandardMaterial({ color: REC_COLS[i], roughness: 0.6 })); disc.rotation.x = lab.rotation.x = Math.PI / 2; g.add(disc, lab); return g; }
-function collectRecord(r) { if (stack.length >= STACK_MAX) { toast('HANDS FULL. TAKE IT HOME FIRST', 1.2, true); return; } r.on = false; r.carried = true; r.spin.visible = r.beam.visible = r.ring.visible = false; const m = makeRecMesh(r.i); scene.add(m); m.position.set(P.pos.x, 2.1, P.pos.z); stack.push({ tier: 0, rec: r.i, mesh: m, p: m.position });
+function collectRecord(r) { if (P.invis > 0 && stack.length < STACK_MAX) { P.invis = 0; toast('THE SONG BROKE YOUR CLOAK', 1.6, true); } if (stack.length >= STACK_MAX) { toast('HANDS FULL. TAKE IT HOME FIRST', 1.2, true); return; } r.on = false; r.carried = true; r.spin.visible = r.beam.visible = r.ring.visible = false; const m = makeRecMesh(r.i); scene.add(m); m.position.set(P.pos.x, 2.1, P.pos.z); stack.push({ tier: 0, rec: r.i, mesh: m, p: m.position });
   for (let q = 0; q < 10; q++) { const a = q / 10 * 6.283; puff(r.x, 1.2, r.z, 0xffd34d, Math.cos(a) * 2.8, 1.6, Math.sin(a) * 2.8, 0.6, 0.2, 0.05); } toast(`RECORD: ${TRACKS[r.i].title}. BRING IT HOME TO KEEP IT`, 3.2); hud(); playTrack(r.i); } // the song plays while you carry it
 const SPAWNS = records.map((r) => [r.x, r.z]); for (let k = 0, tries = 0; k < 18 && tries++ < 3000;) { const x = rr(4, W - 4), z = rr(4, D - 4); if (!reachable(x, z) || blocked(x, z, 1.3) || onAsphalt(x, z) || Math.hypot(x - PAD.x, z - PAD.z) < 22 || SPAWNS.some((q) => Math.hypot(q[0] - x, q[1] - z) < 14)) continue; SPAWNS.push([x, z]); k++; } // extra spots so a lost record always comes back somewhere else records.forEach((r, n) => { r.si = n; });
 function relocateRecord(r) { const used = new Set(records.filter((q) => q !== r && (q.on || q.carried)).map((q) => q.si)), free = SPAWNS.map((_, n) => n).filter((n) => !used.has(n) && n !== r.si); if (!free.length) return; r.si = free[Math.floor(rnd() * free.length)]; r.x = SPAWNS[r.si][0]; r.z = SPAWNS[r.si][1]; r.spin.position.x = r.x; r.spin.position.z = r.z; r.beam.position.x = r.x; r.beam.position.z = r.z; r.ring.position.x = r.x; r.ring.position.z = r.z; }
@@ -851,8 +897,8 @@ function winGame() { if (WIN.on) return; WIN.on = true; state.won = true; for (c
 // =====================================================================================
 // GAME STATE + UPDATE
 // =====================================================================================
-const P = { invis: 0, invShown: 0, heat: 0, heatShown: 0, thugCool: 0, ammo: 0, lowC: 100, tired: false, boosting: false, pos: new THREE.Vector3(PAD.x, 0, PAD.z + 5.5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.45, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
-const state = { raids: 0, over: false, banked: 0, bankedGems: 0, takedowns: 0, clock: 0, place: '' };
+const P = { invis: 0, invShown: 0, heat: 0, heatShown: 0, thugCool: 0, ammo: 0, lowC: 40, tired: false, boosting: false, pos: new THREE.Vector3(PAD.x, 0, PAD.z + 5.5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.45, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
+const state = { wires: 0, raids: 0, over: false, banked: 0, bankedGems: 0, takedowns: 0, clock: 0, place: '' };
 try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0', 10) || 0); } catch (e) { /* no storage */ }
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
 function hud() { const c = stack[0], nm = c ? (c.rec !== undefined ? '♪ ' + TRACKS[c.rec].title : 'wires') : 'nothing'; $('hud-a').innerHTML = `CARRYING <b>${nm}</b><br>SONGS <b>${gotRec.size}/${TRACKS.length}</b><br>${state.raids ? `RAIDS <b>${state.raids}/3</b><br>` : ''}HEAT <b>${'★'.repeat(Math.floor(P.heat))}${'☆'.repeat(3 - Math.floor(P.heat))}</b>${P.invis > 0 ? `<br>INVISIBLE <b>${Math.ceil(P.invis)}s</b>` : ''}`; }
@@ -866,14 +912,14 @@ function scatter(fromX, fromZ, why) {
 }
 const camF = new THREE.Vector3(P.pos.x, 0, P.pos.z);
 function update(dt) {
-  if (state.over) return;
+  if (state.over || state.paused) return;
   P.t += dt; state.clock += dt;
   let ix = stick.x, iz = stick.y; if (keys['a'] || keys['arrowleft']) ix -= 1; if (keys['d'] || keys['arrowright']) ix += 1; if (keys['w'] || keys['arrowup']) iz -= 1; if (keys['s'] || keys['arrowdown']) iz += 1;
   let L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; L = 1; } if (L < 0.12 || P.stun > 0) { ix = iz = 0; }
   P.boosting = false; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
   const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x = tx; P.vel.z = tz; } /* spec 2: instant start, stop and turn, no momentum */ else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
-  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.max(0, P.stun - dt); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
-  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (stack.some((g) => g.rec !== undefined)) P.lowC = Math.max(0, P.lowC - 2.2 * dt); /* Low C drains while you carry a song (blast will drain it too) */ else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
+  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.max(0, P.stun - dt); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); state.warnCd = Math.max(0, (state.warnCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
+  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (stack.some((g) => g.rec !== undefined)) P.lowC = Math.max(0, P.lowC - 2.2 * dt); /* Low C drains while you carry a song (blast will drain it too) */ /* spec 30/34/35: Low C only refills from the crew and Pancho's dad */ if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
   { const hitC = (x, z) => { for (const c of colliders) { if (!c.on) continue; if (Math.hypot(x - Math.max(c.x0, Math.min(x, c.x1)), z - Math.max(c.z0, Math.min(z, c.z1))) < P.r) return true; } return false; };
     if (P.stun <= 0 && hitC(P.pos.x, P.pos.z) && !hitC(px0, pz0)) { P.pos.x = px0; P.pos.z = pz0; P.vel.x = P.vel.z = 0; } } // spec 5: a wall is a hard stop, no sliding along it
   for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
@@ -887,7 +933,7 @@ function update(dt) {
   heroRig.root.position.copy(P.pos); heroRig.root.rotation.y = P.yaw; heroRig.root.visible = P.inv <= 0 || Math.floor(P.t * 14) % 2 === 0;
   const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, P.boosting ? 0x7ff0ff : 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
   // traffic, lights, agents
-  updateAlien(dt); updateCrew(dt); updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
+  updateAlien(dt); updateCrew(dt); updateHints(dt); updateHub(dt); updateTear(dt); updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
   for (const g of agents) { updateAgent(g, dt); if (g.down || g.far) continue; g.cool = Math.max(0, g.cool - dt);
     const dist = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), onPadA = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r + 1;
@@ -922,8 +968,8 @@ function update(dt) {
       if (it.loose) { scene.remove(it.g); items.splice(n, 1); } else { it.on = false; it.g.visible = false; it.respawn = 45; } hud(); } }
   { let bx = P.pos.x, by = 2.15 + Math.sin(P.t * 3) * 0.03, bz = P.pos.z; stack.forEach((g, n) => { const kk = 1 - Math.exp(-(20 - Math.min(10, n * 0.6)) * dt); g.p.x += (bx - g.p.x) * kk; g.p.z += (bz - g.p.z) * kk; g.p.y += (by - g.p.y) * kk; g.mesh.rotation.y += dt * 2; bx = g.p.x; bz = g.p.z; by = g.p.y + 0.36; }); } // the carried stack wobbles above the hero
   const onPad = Math.hypot(P.pos.x - DECK.x, P.pos.z - (DECK.z + 0.3)) < DECK.r; padRing.material.opacity = 0.55 + Math.sin(P.t * 4) * 0.3; updateParty(dt, P.t);
-  if (onPad && stack.length && P.stun <= 0) { P.bankT -= dt; while (P.bankT <= 0 && stack.length) { P.bankT += 0.08; const g = stack.pop(); scene.remove(g.mesh); if (g.rec !== undefined) { bankRecord(g.rec); puff(PAD.x, 1.4, PAD.z, 0xffd34d, rr(-1.5, 1.5), 2.8, rr(-1.5, 1.5), 0.7, 0.25, 0.05); } else { state.banked += TIERS[g.tier].v; state.bankedGems++; puff(PAD.x, 1.2, PAD.z, TIERS[g.tier].c, rr(-1.5, 1.5), 2.4, rr(-1.5, 1.5), 0.6, 0.2, 0.05); } hud(); onBank(state.banked); try { localStorage.setItem('v2banked', String(state.banked)); } catch (e) { /* no storage */ } if (!stack.length && g.rec === undefined) toast(`BANKED! ${state.banked}`, 1.4); } } else P.bankT = 0;
-  { const onP = Math.hypot(P.pos.x - POWER.x, P.pos.z - POWER.z) < POWER.r; powerRing.material.opacity = 0.55 + Math.sin(P.t * 4) * 0.3; if (onP && P.stun <= 0) { const had = P.ammo; P.powerAcc = (P.powerAcc || 0) + dt * 2; while (P.powerAcc >= 1 && P.ammo < 10) { P.ammo++; P.powerAcc--; hud(); } P.lowC = Math.min(100, P.lowC + 45 * dt); if (!P.powered) { P.powered = true; toast('POWER UP! LOW C AND AMMO REFILL HERE', 1.8); } if (P.ammo > had) puff(POWER.x + rr(-1, 1), 0.8, POWER.z + rr(-1, 1), 0xffb347, 0, 1.6, 0, 0.5, 0.2, 0.5); } else if (!onP) P.powered = false; }
+  if (onPad && stack.length && P.stun <= 0) { P.bankT -= dt; while (P.bankT <= 0 && stack.length) { P.bankT += 0.08; const g = stack.pop(); scene.remove(g.mesh); if (g.rec !== undefined) { bankRecord(g.rec); puff(PAD.x, 1.4, PAD.z, 0xffd34d, rr(-1.5, 1.5), 2.8, rr(-1.5, 1.5), 0.7, 0.25, 0.05); } else if (g.wire) { state.wires = Math.min(3, (state.wires || 0) + 1); toast(`COPPER LAYER ${state.wires}/3. THE HOUSE GOES QUIETER`, 2.8); puff(DECK.x, 1.6, DECK.z, 0xc9783a, rr(-1.5, 1.5), 2.4, rr(-1.5, 1.5), 0.7, 0.25, 0.05); } else { state.banked += TIERS[g.tier].v; state.bankedGems++; puff(PAD.x, 1.2, PAD.z, TIERS[g.tier].c, rr(-1.5, 1.5), 2.4, rr(-1.5, 1.5), 0.6, 0.2, 0.05); } hud(); onBank(state.banked); try { localStorage.setItem('v2banked', String(state.banked)); } catch (e) { /* no storage */ } if (!stack.length && g.rec === undefined) toast(`BANKED! ${state.banked}`, 1.4); } } else P.bankT = 0;
+  { const onP = Math.hypot(P.pos.x - POWER.x, P.pos.z - POWER.z) < POWER.r; powerRing.material.opacity = 0.55 + Math.sin(P.t * 4) * 0.3; if (onP && P.stun <= 0) { const had = P.ammo; P.powerAcc = (P.powerAcc || 0) + dt * 2; while (P.powerAcc >= 1 && P.ammo < 10) { P.ammo++; P.powerAcc--; hud(); } if (!P.powered) { P.powered = true; } if (P.ammo > had) puff(POWER.x + rr(-1, 1), 0.8, POWER.z + rr(-1, 1), 0xffb347, 0, 1.6, 0, 0.5, 0.2, 0.5); } else if (!onP) P.powered = false; }
   const px = P.pos.x / MP, py = P.pos.z / MP, REG = [[0, 0, 649, 478, 'NORTHWEST HOMES'], [727, 0, 1757, 478, 'ASTRONAUT SCHOOL'], [1838, 0, 2000, 478, 'NORTHEAST HOMES'], [0, 553, 649, 992, 'CHURCH AND BREAD FACTORY'], [727, 553, 1757, 780, 'HOME BASE BLOCK'], [727, 780, 1757, 992, 'LOGAN AVE SHOPS'], [1838, 553, 2000, 992, 'EAST HOMES'], [0, 1095, 649, 1600, 'THE PARK'], [727, 1095, 1757, 1340, 'BODEGA ROW'], [727, 1340, 1757, 1600, 'AGENCY ROW'], [1838, 1095, 2000, 1600, 'SOUTHEAST HOMES']];
   let pl = 'BARRIO LOGAN'; for (const r of REG) if (px >= r[0] && px < r[2] && py >= r[1] && py < r[3]) { pl = r[4]; break; } for (const h of HS) if (Math.abs(P.pos.z - h.c) < h.w / 2) pl = h.name; for (const v of VS) if (Math.abs(P.pos.x - v.c) < v.w / 2) pl = v.name; if (pl !== state.place) { state.place = pl; $('hud-place').textContent = pl; }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
@@ -933,11 +979,11 @@ function update(dt) {
   if (dbg.cam) { camera.position.set(...dbg.cam.p); camera.lookAt(...dbg.cam.t); } // test hook: free camera for close-ups
   updateFade(dt); sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
 }
-update(1 / 60);
+applyResume(); update(1 / 60);
 let last = performance.now(), acc = 0; const FIX = 1 / 60;
 function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
 requestAnimationFrame(frame);
-window.__v2 = { trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
+window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
 <div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 f · toast fit</div>
 </body>

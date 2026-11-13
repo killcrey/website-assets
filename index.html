@@ -283,7 +283,7 @@
                 <p id="loading-status" class="text-xs md:text-sm text-cyan-300 font-vt323 tracking-widest uppercase mt-2 animate-pulse">LOADING ASSETS... 0%</p>
                 <div class="flex flex-col md:flex-row items-center justify-center md:items-start gap-0 md:gap-4 w-full flex-shrink-0">
                     <button id="start-btn" class="btn w-full max-w-xs flex-shrink-0 hidden" disabled>INITIATE LAUNCH</button>
-                    <a id="earth-btn" class="btn btn-earth w-full max-w-xs flex-shrink-0" href="./3d/">START ON EARTH<span class="earth-beta">(BETA TEST)</span></a>
+                    <a id="earth-btn" class="btn btn-earth w-full max-w-xs flex-shrink-0" href="./v2/barrio.html">START ON EARTH<span class="earth-beta">(BETA TEST)</span></a>
                 </div>
             </div>
         </div>
@@ -1630,7 +1630,7 @@
                         // straight into the 3D game: white flash, freeze the run, and the 3D page auto-starts on its portal flash (?go=1 skips its start screen)
                         choiceModalActive = true; saveRunForReturn();
                         flashOverlay.style.backgroundColor = 'white'; flashOverlay.style.opacity = '1';
-                        setTimeout(() => { location.href = './3d/?go=1'; }, 250);
+                        setTimeout(() => { location.href = './v2/barrio.html?resume=1'; }, 250);
                     }
                     if (ent.markedForDeletion && PICKUP_FX[ent.type]) spawnFx(PICKUP_FX[ent.type], ent.x, ent.y);
                 } else if (!ent.grazed && (ent.type === 'enemy' || ent.type === 'enemyship' || ent.type === 'octo' || ent.type === 'snake')) {
