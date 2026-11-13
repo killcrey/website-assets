@@ -46,14 +46,14 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const SKY = 0xbfe3f7; scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 46, 120);
-const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 260);
+const SKY = 0xbfe3f7; scene.background = new THREE.Color(SKY); scene.fog = new THREE.Fog(SKY, 85, 200);
+const camera = new THREE.PerspectiveCamera(36, 1, 1, 320);
 scene.add(new THREE.HemisphereLight(0xdff2ff, 0x9a8a78, 1.05));
 const sun = new THREE.DirectionalLight(0xfff1d6, 2.1); sun.castShadow = true; sun.shadow.mapSize.set(1536, 1536);
 Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 100 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-let CAMK = 1;
-function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; CAMK = w / h < 0.9 ? 1 + (0.9 - w / h) * 0.7 : 1; camera.fov = w / h < 0.9 ? 44 : 36; camera.updateProjectionMatrix(); }
+let CAMK = 1, CAMY = 20, CAMZ = 12; // camera height / back-offset from the player (set in resize)
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; const asp = w / h, dist = asp < 0.9 ? 25 + (0.9 - asp) * 42 : 25, pitch = 1.05; /* 60 degrees, steep so buildings hide less */ CAMY = dist * Math.sin(pitch); CAMZ = dist * Math.cos(pitch); camera.fov = 36; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
 // =====================================================================================
@@ -306,7 +306,7 @@ function animateFigure(R, st, dt) {
   R.body.position.y = Math.cos(ph * 2) * 0.045 * amp + Math.sin(st.t * 2.1) * 0.006 * (1 - amp); R.body.scale.y = 1 + Math.sin(st.t * 2.1) * 0.01 * (1 - amp);
   return s;
 }
-const heroRig = makeFigure({ suit: 0xf3ddb0, suit2: 0xe2c690, accent: 0xd9602f, boot: 0x6d7a4c, pad: 0x4f7f99, skin: 0xb97a50, hair: 0x15171d, glove: 0xb8a47c }, true); scene.add(heroRig.root);
+const heroRig = makeFigure({ suit: 0xf3ddb0, suit2: 0xe2c690, accent: 0xd9602f, boot: 0x6d7a4c, pad: 0x4f7f99, skin: 0xb97a50, hair: 0x15171d, glove: 0xb8a47c }, true); heroRig.root.scale.setScalar(1.25); scene.add(heroRig.root);
 
 // =====================================================================================
 // FX POOL, GEMS, STACK
@@ -352,7 +352,7 @@ const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, agents = [];
 const agentPal = { suit: 0x3a4a78, suit2: 0x2d3a63, accent: 0xf3c53a, boot: 0x1d1f27, pad: 0x1d1f27, skin: 0xa86e48, hair: 0x1b2342, glove: 0x1d1f27, cap: true };
 function makeAgent(i, j, rev) {
   const x0 = bx0(i), z0 = bz0(j), a = 1.5, pts = [[x0 + a, z0 + a], [x0 + B - a, z0 + a], [x0 + B - a, z0 + B - a], [x0 + a, z0 + B - a]]; if (rev) pts.reverse();
-  const fig = makeFigure(agentPal, false); scene.add(fig.root);
+  const fig = makeFigure(agentPal, false); fig.root.scale.setScalar(1.25); scene.add(fig.root);
   const pos = new Float32Array((CONE_N + 2) * 3), idx = []; for (let k = 1; k <= CONE_N; k++) idx.push(0, k, k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
@@ -399,7 +399,7 @@ function onBank(total) { if (!audioReady) return; const k = TRACKS.reduce((a, t,
 // =====================================================================================
 // GAME STATE + UPDATE
 // =====================================================================================
-const P = { pos: new THREE.Vector3(PAD.x + 4, 0, PAD.z + 5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.38, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
+const P = { pos: new THREE.Vector3(PAD.x + 4, 0, PAD.z + 5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.45, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
 const state = { banked: 0, bankedGems: 0, takedowns: 0, clock: 0, place: '' };
 try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0', 10) || 0); } catch (e) { /* no storage */ }
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
@@ -457,7 +457,7 @@ function update(dt) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   const tgx = P.pos.x + P.vel.x * 0.28, tgz = P.pos.z + P.vel.z * 0.28, kc = 1 - Math.exp(-5.5 * dt); camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
   const sh = camera.userData.shake || 0; camera.userData.shake = Math.max(0, sh - dt);
-  camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, 17 * CAMK + (Math.random() - 0.5) * sh * 0.5, camF.z + 11 * CAMK); camera.lookAt(camF.x, 0.8, camF.z);
+  camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, CAMY + (Math.random() - 0.5) * sh * 0.5, camF.z + CAMZ); camera.lookAt(camF.x, 0.8, camF.z);
   updateFade(dt); sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
 }
 update(1 / 60);
