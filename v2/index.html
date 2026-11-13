@@ -332,6 +332,7 @@ function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against visio
   }
   return best;
 }
+function bangSprite() { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
 const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, guards = [];
 const guardPal = { suit: 0x3a4a78, suit2: 0x2d3a63, accent: 0xf3c53a, boot: 0x1d1f27, pad: 0x1d1f27, skin: 0xa86e48, hair: 0x1b2342, glove: 0x1d1f27, cap: true };
 function makeGuard(i, j, rev) {
@@ -340,7 +341,7 @@ function makeGuard(i, j, rev) {
   const pos = new Float32Array((CONE_N + 2) * 3), idx = []; for (let k = 1; k <= CONE_N; k++) idx.push(0, k, k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
-  const g = { pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; guards.push(g); return g;
+  const g = { mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; guards.push(g); return g;
 }
 makeGuard(0, 0, false); makeGuard(1, 0, true); makeGuard(2, 0, false); makeGuard(1, 1, false); makeGuard(2, 1, true);
 function updateGuard(g, dt) {
@@ -380,10 +381,11 @@ function onBank(total) { if (!audioReady) return; const k = TRACKS.reduce((a, t,
 // =====================================================================================
 const P = { pos: new THREE.Vector3(PAD.x + 4, 0, PAD.z + 5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.38, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
 const state = { banked: 0, bankedGems: 0, clock: 0, place: '' };
+try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0', 10) || 0); } catch (e) { /* no storage */ }
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
 function hud() { const val = stack.reduce((a, g) => a + TIERS[g.tier].v, 0); $('hud-a').innerHTML = `CARRYING <b>${stack.length}</b>${stack.length ? ` <i>+${val}</i>` : ''}<br>BANKED <b>${state.banked}</b>`; }
 hud();
-const MAXV = 6.4, ACC = 11;
+const MAXV = 6.4, ACC = 28; // near-instant start/stop (the reference games have no acceleration ramp)
 function scatter(fromX, fromZ, why) {
   const lost = stack.length;
   for (const g of stack) { scene.remove(g.mesh); let x, z, n = 0; do { const a = rnd() * 6.283, r = rr(1.2, 3.6); x = P.pos.x + Math.cos(a) * r; z = P.pos.z + Math.sin(a) * r; } while (blocked(x, z, 0.5) && n++ < 8); if (n >= 8) { x = P.pos.x; z = P.pos.z; } spawnGem(x, z, g.tier, true); }
@@ -402,7 +404,7 @@ function update(dt) {
     if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
   P.pos.x = Math.max(0.8, Math.min(W - 0.8, P.pos.x)); P.pos.z = Math.max(0.8, Math.min(D - 0.8, P.pos.z));
   const sp = Math.hypot(P.vel.x, P.vel.z), amp = Math.min(sp / MAXV, 1);
-  const oy = P.yaw; if (sp > 0.35 && P.stun <= 0) { let d = Math.atan2(P.vel.x, P.vel.z) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); P.yaw += d * (1 - Math.exp(-13 * dt)); }
+  const oy = P.yaw; if (sp > 0.35 && P.stun <= 0) { let d = Math.atan2(P.vel.x, P.vel.z) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); P.yaw += d * (1 - Math.exp(-26 * dt)); }
   let yr = P.yaw - oy; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yawRate += (yr / dt - P.yawRate) * (1 - Math.exp(-14 * dt));
   P.phase += sp * 2.15 * dt * (sp > 0.2 ? 1 : 0); const fwdX = Math.sin(P.yaw), fwdZ = Math.cos(P.yaw);
   const s = animateFigure(heroRig, { ph: P.phase, t: P.t, amp, yawRate: P.yawRate, accF: ax * fwdX + az * fwdZ }, dt);
@@ -411,7 +413,7 @@ function update(dt) {
   // traffic, lights, guards
   updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
-  for (const g of guards) { updateGuard(g, dt); const seen = P.inv <= 0 && guardSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
+  for (const g of guards) { updateGuard(g, dt); const seen = P.inv <= 0 && guardSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
     if (g.alert > 0.4) { g.alert = 0; scatter(g.pos.x, g.pos.z, 'SPOTTED'); } }
   // gems: pick up, bob, expire loose ones, respawn the rest
   for (let n = items.length - 1; n >= 0; n--) { const it = items[n];
@@ -424,7 +426,7 @@ function update(dt) {
       if (it.loose) { scene.remove(it.g); items.splice(n, 1); } else { it.on = false; it.g.visible = false; it.respawn = 45; } hud(); } }
   { let bx = P.pos.x, by = 2.15 + Math.sin(P.t * 3) * 0.03, bz = P.pos.z; stack.forEach((g, n) => { const kk = 1 - Math.exp(-(20 - Math.min(10, n * 0.6)) * dt); g.p.x += (bx - g.p.x) * kk; g.p.z += (bz - g.p.z) * kk; g.p.y += (by - g.p.y) * kk; g.mesh.rotation.y += dt * 2; bx = g.p.x; bz = g.p.z; by = g.p.y + 0.36; }); } // the carried stack wobbles above the hero
   const onPad = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; padRing.material.opacity = 0.55 + Math.sin(P.t * 4) * 0.3 + (onPad && stack.length ? 0.15 : 0);
-  if (onPad && stack.length && P.stun <= 0) { P.bankT -= dt; while (P.bankT <= 0 && stack.length) { P.bankT += 0.08; const g = stack.pop(); scene.remove(g.mesh); state.banked += TIERS[g.tier].v; state.bankedGems++; puff(PAD.x, 1.2, PAD.z, TIERS[g.tier].c, rr(-1.5, 1.5), 2.4, rr(-1.5, 1.5), 0.6, 0.2, 0.05); hud(); onBank(state.banked); if (!stack.length) toast(`BANKED! ${state.banked}`, 1.4); } } else P.bankT = 0;
+  if (onPad && stack.length && P.stun <= 0) { P.bankT -= dt; while (P.bankT <= 0 && stack.length) { P.bankT += 0.08; const g = stack.pop(); scene.remove(g.mesh); state.banked += TIERS[g.tier].v; state.bankedGems++; puff(PAD.x, 1.2, PAD.z, TIERS[g.tier].c, rr(-1.5, 1.5), 2.4, rr(-1.5, 1.5), 0.6, 0.2, 0.05); hud(); onBank(state.banked); try { localStorage.setItem('v2banked', String(state.banked)); } catch (e) { /* no storage */ } if (!stack.length) toast(`BANKED! ${state.banked}`, 1.4); } } else P.bankT = 0;
   const pb = blockOf(P.pos.x, P.pos.z), pl = pb ? THEMES[pb[1]][pb[0]].name : 'CROSSING'; if (pl !== state.place) { state.place = pl; $('hud-place').textContent = pl; }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   const tgx = P.pos.x + P.vel.x * 0.28, tgz = P.pos.z + P.vel.z * 0.28, kc = 1 - Math.exp(-5.5 * dt); camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
