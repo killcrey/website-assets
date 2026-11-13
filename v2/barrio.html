@@ -319,7 +319,7 @@ const rampMats = []; { const pts = [[27.5, 82], [14.5, 109.6], [6, 158]], ptex =
   const pmat = new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.9 }), pgeo = new THREE.CylinderGeometry(0.95, 0.95, 6.6, 18);
   for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, mt = new THREE.MeshStandardMaterial({ color: 0xcfc5b0, roughness: 0.95 }); rampMats.push(mt);
     const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 2, 1.2, 11), mt); deck.position.set((x0 + x1) / 2, 7.2, (z0 + z1) / 2); deck.rotation.y = Math.atan2(-dz, dx); deck.castShadow = deck.receiveShadow = true; scene.add(deck);
-    for (let t = 2; t < L; t += 11) for (const sd of [-1, 1]) { const x = x0 + ux * t - uz * sd * 3.8, z = z0 + uz * t + ux * sd * 3.8, p = new THREE.Mesh(pgeo, pmat); p.position.set(x, 3.3, z); p.castShadow = true; scene.add(p); solidBox(x, z, 1.9, 1.9, false); } }
+    for (let t = 2; t < L; t += 11) for (const sd of [-1, 1]) { const x = x0 + ux * t - uz * sd * 3.8, z = z0 + uz * t + ux * sd * 3.8, pm = pmat.clone(), p = new THREE.Mesh(pgeo, pm); p.position.set(x, 3.3, z); p.castShadow = true; scene.add(p); solidBox(x, z, 1.9, 1.9, false); buildings.push({ m: p, h: 6.6, x, z, w: 1.9, d: 1.9, fade: 1, mats: [pm] }); /* each pillar fades on its own */ } }
   buildings.push({ m: null, h: 7.8, x: 17, z: 120, w: 36, d: 80, y0: 6.6, fade: 1, mats: rampMats }); }
 // picket fences around every single-story home: front gate + a back or side gate. Runs are recorded first; the yard audit may cut more gates; geometry is built last.
 const FRUNS = [];
