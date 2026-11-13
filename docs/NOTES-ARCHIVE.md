@@ -87,3 +87,6 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 ## Barrio Logan: Bodega / El Farol / Taco Shop facade art (2026-11-13, on request)
 - `v2/barrio.html`: BODEGA, FAROL, TACO skip the generic building+sign (`REPLICA` list) and are built from cut-out art (`v2/barrio-logan/art-in/{bodega,farol,taco}_front_cut.webp`): alpha plane at the building's front edge (z1+0.03) + plain cream body behind, fading like other buildings. Bodega is cropped above "SAN DIEGO" (single story).
 - Store `get-playback-url` (panchos-bodega repo) now signs only preview tracks and product images by exact match, never paid files, vip/ or odd paths (e34b40b, e621f68; deployed).
+
+## Every building goes see-through when it covers the player (2026-11-13, on request)
+- Walls already faded, but roofs, trim, porches and the church tower were baked into shared batches and stayed solid. `bld()` now gives each building its own roof/porch/tower batch with a cloned material (`fadeB`, built at the end) that fades with the walls. Cost: ~50 extra small draw calls.
