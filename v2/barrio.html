@@ -667,9 +667,9 @@ function agentFire(g) {
 }
 function shotDown() { // spec 13: shot = you lose the carried record and wake up at home; banked songs are safe
   const had = stack.length; for (const c of stack) { scene.remove(c.mesh); if (c.rec !== undefined) returnRecord(c.rec); } stack.length = 0; hud();
-  P.stun = 0.6; P.pos.set(PAD.x, 0, PAD.z + 5.5); P.vel.set(0, 0, 0); P.inv = 2.4; camF.set(P.pos.x, 0, P.pos.z);
+  P.stun = 0.6; P.vel.set(0, 0, 0); P.inv = 2.4; /* you get back up right where you fell */
   for (const a of agents) if (a.mode === 'chase' && !a.thug) { a.mode = 'return'; a.path = navPath(NAV, a.pos.x, a.pos.z, a.pts[a.wp][0], a.pts[a.wp][1]); a.repath = 1.2; a.cool = 3; a.mark.visible = false; }
-  toast(had ? 'SHOT! THE RECORD IS LOST. BACK HOME' : 'SHOT! BACK HOME', 2.4, true);
+  toast(had ? 'SHOT! YOU LOST THE RECORD. GET UP' : 'SHOT! GET UP', 2.4, true);
 }
 function toggleVolume() { state.musicDown = !state.musicDown; if (audio) audio.volume = state.musicDown ? 0.25 : 0.7; toast(state.musicDown ? 'VOLUME DOWN. THE GRID HEARS LESS' : 'VOLUME UP', 1.6); }
 // ---------- THE BODEGA HUB (spec 32-34, 37): Pancho and his dad behind the bodega, copper wires, the front circle ----------
@@ -989,6 +989,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 j · long sprint</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 k · respawn in place</div>
 </body>
 </html>
