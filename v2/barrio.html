@@ -219,7 +219,7 @@ APTS.forEach((r, i) => addB(r, 3, ['brick', 'stucco', 'pink', 'teal'][i % 4], nu
 const NAMEDB = {};
 NAMED.forEach((n, i) => { if (n[0] === 'BEATBOX') return; const [key, text, r, floors, style, face, o] = n, B = addB(r, floors, style, face, Object.assign({}, o)); NAMEDB[key] = B; if (text) { const top = o.h || floors * 3.3, sw = Math.min(8, (face === 'n' || face === 's' ? B.w : B.d) * 0.85); signOn(B, text, sw, 1.15, top - 0.8, SIGNBG[i % 4], SIGNFG[i % 4]); } });
 // BEAT BOX RECORDS: the exact replica art on a building as tall as the picture (7.8 m), so it is a building and not a billboard
-{ const q = R([997, 812, 1140, 990]), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, bw = 7.4, bh = 7.78, bd = q.z1 - q.z0, tex = new THREE.TextureLoader().load('./barrio-logan/art-in/beatbox_front_03_FINAL_with_awning_text.webp'); tex.colorSpace = THREE.SRGBColorSpace; tex.repeat.set(0.64, 0.9347); tex.offset.set(0.15, 0.0271);
+{ const q = R([997, 812, 1140, 990]), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, bw = 7.4, bh = 7.78, bd = q.z1 - q.z0, tex = new THREE.TextureLoader().load('./barrio-logan/art-in/beatbox_front_flush.png'); tex.colorSpace = THREE.SRGBColorSpace;
   const front = new THREE.MeshBasicMaterial({ map: tex }), side = new THREE.MeshStandardMaterial({ color: 0xe9dfcc, roughness: 0.95 }), top = new THREE.MeshStandardMaterial({ color: 0x4a3f3a, roughness: 1 });
   const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), [side, side, top, top, front, side]); m.position.set(cx, bh / 2, cz); m.castShadow = m.receiveShadow = true; scene.add(m); solidBox(cx, cz, bw, bd, true);
   buildings.push({ m, h: bh, x: cx, z: cz, w: bw, d: bd, fade: 1, mats: [front, side, top] }); }
@@ -260,12 +260,20 @@ const rampMats = []; { const pts = [[27.5, 82], [14.5, 109.6], [6, 158]], ptex =
   const inBld = (x, z) => colliders.some((c) => c.vis && c.x0 - 0.15 < x && x < c.x1 + 0.15 && c.z0 - 0.15 < z && z < c.z1 + 0.15);
   HOUSES.forEach((r) => { const q = R(r), m = 1.5, x0 = q.x0 - m, x1 = q.x1 + m, z0 = q.z0 - m, z1 = q.z1 + m, gx = (q.x0 + q.x1) / 2, gz = (q.z0 + q.z1) / 2, face = nearestFace(gx, gz);
     const side = (ax, a0, a1, fixed, gate) => { const len = a1 - a0, n = Math.max(2, Math.round(len / 0.22)), step = len / n; let run = null;
-      const flush = () => { if (run && run.n > 1) { const mid = (run.s + run.e) / 2, L = run.e - run.s, bt = BT(ax === 'x' ? mid : fixed, ax === 'x' ? fixed : mid);
+      const flush = () => { if (run && run.n > 1) { const mid = (run.s + run.e) / 2, L = run.e - run.s, bt = BT(ax === 'x' ? mid : fixed, ax === 'x' ? fixed : mid); for (const e of [run.s, run.e]) bt.box(0.14, 1.1, 0.14, 0xf4efe2, ax === 'x' ? e : fixed, 0.55, ax === 'x' ? fixed : e);
           if (ax === 'x') { bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.8, fixed); bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.35, fixed); solidBox(mid, fixed, L, 0.2, false); } else { bt.box(0.06, 0.05, L, 0xf4efe2, fixed, 0.8, mid); bt.box(0.06, 0.05, L, 0xf4efe2, fixed, 0.35, mid); solidBox(fixed, mid, 0.2, L, false); } } run = null; };
       for (let i = 0; i <= n; i++) { const t = a0 + i * step, x = ax === 'x' ? t : fixed, z = ax === 'x' ? fixed : t, gap = gate && Math.abs(t - gate) < 0.85, bad = gap || onSt(x, z) || inBld(x, z) || x < 0.3 || x > W - 0.3 || z < 0.3 || z > D - 0.3;
         if (bad) { flush(); continue; } if (!run) run = { s: t, e: t, n: 0 }; run.e = t; run.n++; SCL.set(ax === 'x' ? 0.07 : 0.04, 0.95, ax === 'x' ? 0.04 : 0.07); V.set(x, 0.5, z); M4.compose(V, Q, SCL); pk.push(M4.clone()); } flush(); };
-    side('x', x0, x1, z0, face === 'n' ? gx : 0); side('x', x0, x1, z1, face === 's' ? gx : 0); side('z', z0, z1, x0, face === 'w' ? gz : 0); side('z', z0, z1, x1, face === 'e' ? gz : 0); });
+    const idx = HOUSES.indexOf(r), back = { n: 's', s: 'n', e: 'w', w: 'e' }[face], sideG = (face === 'n' || face === 's') ? (idx % 2 ? 'w' : 'e') : (idx % 2 ? 'n' : 's'), second = idx % 2 === 0 ? back : sideG, gate = (dir) => dir === face || dir === second; // front gate + a back gate or a side gate
+    side('x', x0, x1, z0, gate('n') ? gx : 0); side('x', x0, x1, z1, gate('s') ? gx : 0); side('z', z0, z1, x0, gate('w') ? gz : 0); side('z', z0, z1, x1, gate('e') ? gz : 0); });
   const im = new THREE.InstancedMesh(pgeo, new THREE.MeshStandardMaterial({ color: 0xf4efe2, roughness: 0.8 }), pk.length); pk.forEach((m4, i) => im.setMatrixAt(i, m4)); im.castShadow = false; im.receiveShadow = false; scene.add(im); }
+// trees near the single-story houses and scattered over the grass areas
+{ const TR = [], inB = (x, z, m) => colliders.some((c) => c.vis && c.x0 - m < x && x < c.x1 + m && c.z0 - m < z && z < c.z1 + m), thin = (x, z, m) => colliders.some((c) => !c.vis && (c.x1 - c.x0 < 0.3 || c.z1 - c.z0 < 0.3) && c.x0 - m < x && x < c.x1 + m && c.z0 - m < z && z < c.z1 + m);
+  const onS = (x, z) => HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 1.8) || VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 1.8) || ALLEYS.some((a) => x > a[0] * MP - 1.5 && x < a[2] * MP + 1.5 && z > a[1] * MP - 1.5 && z < a[3] * MP + 1.5);
+  const okT = (x, z) => x > 1.5 && x < W - 1.5 && z > 1.5 && z < D - 1.5 && !inB(x, z, 1.8) && !thin(x, z, 1.2) && !onS(x, z) && !(x > 72 && x < 90 && z < 48) && !(x > 87 && x < 99.5 && z > 63.5 && z < 77) && !(x < 66 && z > 108) && !(x < 36 && z > 78) && !(x > 72 && x < 177 && z > 79 && z < 100.5) && Math.hypot(x - POWER.x, z - POWER.z) > 5 && !TR.some((t) => Math.hypot(t[0] - x, t[1] - z) < 4.5);
+  const put = (x, z) => { const bt = BT(x, z); if (rnd() < 0.3) palm(bt, x, z); else tree(bt, x, z); TR.push([x, z]); };
+  HOUSES.forEach((r) => { const q = R(r); for (let k = 0, tries = 0; k < 1 && tries < 40; tries++) { const a = rnd() * 6.283, d = Math.max(q.x1 - q.x0, q.z1 - q.z0) / 2 + rr(2.8, 5), x = (q.x0 + q.x1) / 2 + Math.cos(a) * d, z = (q.z0 + q.z1) / 2 + Math.sin(a) * d; if (okT(x, z)) { put(x, z); k++; } } });
+  for (let tries = 0; TR.length < 100 && tries < 4000; tries++) { const x = rr(2, W - 2), z = rr(2, D - 2); if (okT(x, z)) put(x, z); } window.__treeCount = TR.length; }
 for (const bt of Object.values(chunkB)) bt.build();
 
 // =====================================================================================
