@@ -102,3 +102,6 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 
 ## Ring road + sidewalks around the whole map (2026-11-13, on request)
 - 7 m ring (1.2 sidewalk | 4.6 asphalt | 1.2 sidewalk) outside the map edge on all four sides; the existing streets run into it (`EXT` 18 -> 7, street sidewalks clipped to the map, inner ring sidewalk broken at street mouths). Centre dashes on the ring. Player clamp widened by `EXT`. Cars now loop -7..W+7 only. Agents' nav grid still covers just the map (they chase straight in from its edge). No colliders on the ring; nothing is placed on it.
+
+## Barrio build spec (Marlowe/Christopher, Drive "MISSION SIMULATOR Barrio build spec") — progress log
+- §1 done 2026-11-13: (1) floating joystick, linear speed; (2) velocity = target, no momentum; (3) walk-only: Low C sprint boost removed, Low C now drains while carrying a song (2.2/s) and refills standing/at home; (4) camera: no velocity lead, no shake, constant height/offset; (5) walls are a hard stop (move cancelled, no sliding); (6) top speed 4.5 m/s (was 6.8); agents 4.0, thugs 3.8, alien 3.6 rescaled to match. Decisions by Christopher: 4.5 m/s, Low C drains on blast/carrying a song.

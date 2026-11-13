@@ -582,14 +582,14 @@ function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against visio
 function bangSprite(ch = '!') { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
 const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, agents = [];
 const agentPal = LOOKS.agent;
-const AGENT_CHASE = 6.0; // a little slower than the hero (6.8, 8.8 boosted), faster than a hero weighed down by a big stack
+const AGENT_CHASE = 4.0; // a little slower than the hero (6.8, 8.8 boosted), faster than a hero weighed down by a big stack
 function makeAgent(pts, o = {}) {
   const fig = makeFigure(o.thug ? LOOKS.thug : agentPal, false); fig.root.scale.setScalar(o.thug ? 1.6 : 1.25); scene.add(fig.root);
   const pos = new Float32Array((CONE_N + 2) * 3), idx = []; for (let k = 1; k <= CONE_N; k++) idx.push(0, k, k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
   fig.root.rotation.order = 'YXZ'; const dx0 = pts[1][0] - pts[0][0], dz0 = pts[1][1] - pts[0][1], L0 = Math.hypot(dx0, dz0) || 1, st = o.start || 0;
-  const g = { thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), qmark: bangSprite('?'), path: [], repath: 0, searchT: 0, lastX: 0, lastZ: 0, pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 5.8 : AGENT_CHASE }; g.qmark.visible = false; agents.push(g); return g;
+  const g = { thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), qmark: bangSprite('?'), path: [], repath: 0, searchT: 0, lastX: 0, lastZ: 0, pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 3.8 : AGENT_CHASE }; g.qmark.visible = false; agents.push(g); return g;
 }
 { const hN = (h) => h.c - h.w / 2 + SW / 2, hS = (h) => h.c + h.w / 2 - SW / 2, vW = (v) => v.c - v.w / 2 + SW / 2, vE = (v) => v.c + v.w / 2 - SW / 2, [J, Lg] = HS, [Ev, Sa] = VS;
   const MIDX = [vE(Ev) + 1.5, vW(Sa) - 1.5], WESTX = [1.5, vW(Ev) - 1.5], EASTX = [vE(Sa) + 1.5, W - 1.5]; let gid = 0;
@@ -705,7 +705,7 @@ function updateAlien(dt) {
   if (!A.active) { if (stack.length >= 2) A.timer -= dt; if (A.timer <= 0) { A.active = true; A.life = 26; A.hold = 0; A.leaving = 0; const a = rnd() * 6.283; A.x = Math.max(-10, Math.min(W + 10, P.pos.x + Math.cos(a) * 34)); A.z = Math.max(-10, Math.min(D + 10, P.pos.z + Math.sin(a) * 34)); toast('ALIEN INCOMING! KEEP MOVING', 2.6, true); } return; }
   A.life -= dt; const ufo = A.ufo; ufo.visible = A.beam.visible = A.ring.visible = true;
   if (A.leaving > 0) { A.leaving += dt; ufo.position.y += dt * 9; A.beam.visible = A.ring.visible = false; if (A.leaving > 2.2) { A.active = false; ufo.visible = false; A.timer = rr(40, 70); } return; }
-  const dx = P.pos.x - A.x, dz = P.pos.z - A.z, d = Math.hypot(dx, dz) || 1, v = nearPad ? 0 : 5.4; A.x += dx / d * v * dt; A.z += dz / d * v * dt; if (nearPad) { A.x += (A.x - PAD.x) * 0.0; }
+  const dx = P.pos.x - A.x, dz = P.pos.z - A.z, d = Math.hypot(dx, dz) || 1, v = nearPad ? 0 : 3.6; A.x += dx / d * v * dt; A.z += dz / d * v * dt; if (nearPad) { A.x += (A.x - PAD.x) * 0.0; }
   ufo.position.set(A.x, 7 + Math.sin(P.t * 2) * 0.25, A.z); ufo.rotation.y += dt * 1.2; A.beam.position.set(A.x, 3.5, A.z); A.ring.position.set(A.x, 0.28, A.z); A.ring.rotation.z += dt;
   const hidden = covered(P.pos.x, P.pos.z); if (hidden && !A.hideToast) { A.hideToast = true; toast('HIDDEN! THE ALIEN CANNOT SEE YOU', 1.8); } if (!hidden) A.hideToast = false; const inBeam = d < ALIEN_R && !nearPad && !hidden && P.inv <= 0; A.hold = inBeam ? A.hold + dt : Math.max(0, A.hold - dt * 2); A.beam.material.opacity = 0.2 + Math.min(0.3, A.hold); 
   if (A.hold > 0.45) { const n = stack.length; for (const g of stack) { puff(g.p.x, g.p.y, g.p.z, g.rec !== undefined ? 0xffd34d : TIERS[g.tier].c, 0, 6, 0, 0.9, 0.3, 0.05); scene.remove(g.mesh); if (g.rec !== undefined) returnRecord(g.rec); } stack.length = 0; hud(); A.hold = 0; A.leaving = 0.01; P.inv = 1.2; camera.userData.shake = 0.4; toast(n ? `ABDUCTED! THE ALIEN TOOK ${n}` : 'THE ALIEN FOUND NOTHING', 2.4, true); }
@@ -765,7 +765,7 @@ try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
 function hud() { const recs = stack.filter((g) => g.rec !== undefined).length, val = stack.reduce((a, g) => a + (g.rec !== undefined ? 0 : TIERS[g.tier].v), 0); $('hud-a').innerHTML = `CARRYING <b>${stack.length}</b>${val ? ` <i>+${val}</i>` : ''}${recs ? ` <i>\u266A${recs}</i>` : ''}<br>BANKED <b>${state.banked}</b><br>GUN <b>${P.ammo}</b><br>HEAT <b>${'\u2605'.repeat(Math.floor(P.heat))}${'\u2606'.repeat(3 - Math.floor(P.heat))}</b>${P.invis > 0 ? `<br>INVISIBLE <b>${Math.ceil(P.invis)}s</b>` : ''}`; }
 hud();
-const dbg = {}; const MAXV = 6.8, BOOST = 1.3, ACC = 28; // base run speed; BOOST multiplies it while Low C lasts (aliens 5.4, so you can slightly outrun them) // near-instant start/stop (the reference games have no acceleration ramp)
+const dbg = {}; const MAXV = 4.5, BOOST = 1, ACC = 28; /* spec 6: slower, easier to place onto a record; spec 3: walk only, no sprint */ // base run speed; BOOST multiplies it while Low C lasts (aliens 5.4, so you can slightly outrun them) // near-instant start/stop (the reference games have no acceleration ramp)
 function scatter(fromX, fromZ, why) {
   const lost = stack.length;
   for (const g of stack) { scene.remove(g.mesh); if (g.rec !== undefined) { returnRecord(g.rec); continue; } let x, z, n = 0; do { const a = rnd() * 6.283, r = rr(1.2, 3.6); x = P.pos.x + Math.cos(a) * r; z = P.pos.z + Math.sin(a) * r; } while (blocked(x, z, 0.5) && n++ < 8); if (n >= 8) { x = P.pos.x; z = P.pos.z; } spawnGem(x, z, g.tier, true); }
@@ -777,10 +777,12 @@ function update(dt) {
   P.t += dt; state.clock += dt;
   let ix = stick.x, iz = stick.y; if (keys['a'] || keys['arrowleft']) ix -= 1; if (keys['d'] || keys['arrowright']) ix += 1; if (keys['w'] || keys['arrowup']) iz -= 1; if (keys['s'] || keys['arrowdown']) iz += 1;
   let L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; L = 1; } if (L < 0.12 || P.stun > 0) { ix = iz = 0; }
-  P.boosting = P.lowC > 0 && !P.tired && L > 0.6; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
-  const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k; } else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
-  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.max(0, P.stun - dt);
-  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 5.5 * dt); else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
+  P.boosting = false; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
+  const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x = tx; P.vel.z = tz; } /* spec 2: instant start, stop and turn, no momentum */ else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
+  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.max(0, P.stun - dt);
+  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (stack.some((g) => g.rec !== undefined)) P.lowC = Math.max(0, P.lowC - 2.2 * dt); /* Low C drains while you carry a song (blast will drain it too) */ else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
+  { const hitC = (x, z) => { for (const c of colliders) { if (!c.on) continue; if (Math.hypot(x - Math.max(c.x0, Math.min(x, c.x1)), z - Math.max(c.z0, Math.min(z, c.z1))) < P.r) return true; } return false; };
+    if (P.stun <= 0 && hitC(P.pos.x, P.pos.z) && !hitC(px0, pz0)) { P.pos.x = px0; P.pos.z = pz0; P.vel.x = P.vel.z = 0; } } // spec 5: a wall is a hard stop, no sliding along it
   for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
     if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
   P.pos.x = Math.max(0.8 - EXT, Math.min(W + EXT - 0.8, P.pos.x)); P.pos.z = Math.max(0.8 - EXT, Math.min(D + EXT - 0.8, P.pos.z)); // the ring road is walkable
@@ -835,9 +837,9 @@ function update(dt) {
   const px = P.pos.x / MP, py = P.pos.z / MP, REG = [[0, 0, 649, 478, 'NORTHWEST HOMES'], [727, 0, 1757, 478, 'ASTRONAUT SCHOOL'], [1838, 0, 2000, 478, 'NORTHEAST HOMES'], [0, 553, 649, 992, 'CHURCH AND BREAD FACTORY'], [727, 553, 1757, 780, 'HOME BASE BLOCK'], [727, 780, 1757, 992, 'LOGAN AVE SHOPS'], [1838, 553, 2000, 992, 'EAST HOMES'], [0, 1095, 649, 1600, 'THE PARK'], [727, 1095, 1757, 1340, 'BODEGA ROW'], [727, 1340, 1757, 1600, 'AGENCY ROW'], [1838, 1095, 2000, 1600, 'SOUTHEAST HOMES']];
   let pl = 'BARRIO LOGAN'; for (const r of REG) if (px >= r[0] && px < r[2] && py >= r[1] && py < r[3]) { pl = r[4]; break; } for (const h of HS) if (Math.abs(P.pos.z - h.c) < h.w / 2) pl = h.name; for (const v of VS) if (Math.abs(P.pos.x - v.c) < v.w / 2) pl = v.name; if (pl !== state.place) { state.place = pl; $('hud-place').textContent = pl; }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
-  const tgx = P.pos.x + P.vel.x * 0.28, tgz = P.pos.z + P.vel.z * 0.28, kc = 1 - Math.exp(-5.5 * dt); camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
+  const tgx = P.pos.x, tgz = P.pos.z, kc = 1 - Math.exp(-12 * dt); // spec 4: the camera just follows; no velocity lead, no shake, never zooms camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
   const sh = camera.userData.shake || 0; camera.userData.shake = Math.max(0, sh - dt);
-  camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, CAMY + (Math.random() - 0.5) * sh * 0.5, camF.z + CAMZ); camera.lookAt(camF.x, 0.8, camF.z);
+  camera.position.set(camF.x, CAMY, camF.z + CAMZ); camera.lookAt(camF.x, 0.8, camF.z);
   if (dbg.cam) { camera.position.set(...dbg.cam.p); camera.lookAt(...dbg.cam.t); } // test hook: free camera for close-ups
   updateFade(dt); sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
 }
