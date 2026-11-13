@@ -187,6 +187,38 @@ function fence(bt, x, z, w, d, col = 0xf0e6d2) { bt.box(w, 0.9, d, col, x, 0.65,
 function planter(bt, x, z) { bt.box(1.2, 0.5, 1.2, 0xb4543a, x, 0.45, z); bt.sph(0.6, 0x4aa04e, x, 1.0, z); solidBox(x, z, 1.2, 1.2, false); }
 
 // =====================================================================================
+// NAVIGATION GRID (0.5 m cells): used to audit that every yard and side path can be walked, and by agents to path around things
+// =====================================================================================
+function buildNav(Rr, pred) {
+  const CS = 0.5, NX = Math.ceil(W / CS), NZ = Math.ceil(D / CS), blocked = new Uint8Array(NX * NZ);
+  for (const c of colliders) { if (!c.on || (pred && !pred(c))) continue; const i0 = Math.max(0, Math.floor((c.x0 - Rr) / CS)), i1 = Math.min(NX - 1, Math.floor((c.x1 + Rr) / CS)), j0 = Math.max(0, Math.floor((c.z0 - Rr) / CS)), j1 = Math.min(NZ - 1, Math.floor((c.z1 + Rr) / CS));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const x = (i + 0.5) * CS, z = (j + 0.5) * CS, dx = Math.max(c.x0 - x, 0, x - c.x1), dz = Math.max(c.z0 - z, 0, z - c.z1); if (Math.hypot(dx, dz) < Rr) blocked[j * NX + i] = 1; } }
+  return { CS, NX, NZ, blocked };
+}
+function navComponents(N) { return navAnalyze(N).pockets; }
+function navAnalyze(N) { // flood fill: component ids, the biggest open area, and the pockets cut off from it
+  const { NX, NZ, blocked, CS } = N, comp = new Int32Array(NX * NZ).fill(-1), sizes = [], cent = []; let nc = 0;
+  for (let s0 = 0; s0 < NX * NZ; s0++) { if (blocked[s0] || comp[s0] >= 0) continue; const q = [s0]; comp[s0] = nc; let n = 0, sx = 0, sz = 0;
+    while (q.length) { const c = q.pop(); n++; const i = c % NX, j = (c / NX) | 0; sx += i; sz += j; for (const k of [c + 1, c - 1, c + NX, c - NX]) { if (k < 0 || k >= NX * NZ) continue; if ((k === c + 1 && i + 1 >= NX) || (k === c - 1 && i === 0)) continue; if (!blocked[k] && comp[k] < 0) { comp[k] = nc; q.push(k); } } }
+    sizes.push(n); cent.push([(sx / n + 0.5) * CS, (sz / n + 0.5) * CS]); nc++; }
+  const main = sizes.indexOf(Math.max(...sizes)); return { comp, main, pockets: sizes.map((n, k) => ({ k, area: n * CS * CS, cx: cent[k][0], cz: cent[k][1] })).filter((p) => p.k !== main && p.area > 2.5) };
+}
+function navOpen(N, x, z) { const i = Math.floor(x / N.CS), j = Math.floor(z / N.CS); return i >= 0 && j >= 0 && i < N.NX && j < N.NZ && !N.blocked[j * N.NX + i]; }
+function navLine(N, x0, z0, x1, z1) { const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.25); for (let k = 0; k <= n; k++) if (!navOpen(N, x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n)) return false; return true; }
+function navPath(N, sx, sz, tx, tz) { // A* over open cells, then pulled straight where the line is clear; returns [[x, z], ...] (without the start)
+  const { NX, NZ, CS, blocked } = N, cell = (x, z) => [Math.max(0, Math.min(NX - 1, Math.floor(x / CS))), Math.max(0, Math.min(NZ - 1, Math.floor(z / CS)))];
+  const nearest = (i, j) => { if (!blocked[j * NX + i]) return [i, j]; for (let r = 1; r < 10; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < NX && jj < NZ && !blocked[jj * NX + ii]) return [ii, jj]; } return [i, j]; };
+  let [si, sj] = cell(sx, sz), [ti, tj] = cell(tx, tz); [si, sj] = nearest(si, sj); [ti, tj] = nearest(ti, tj); const S0 = sj * NX + si, T0 = tj * NX + ti; if (S0 === T0) return [];
+  const g = new Map(), came = new Map(), open = [[0, S0]], closed = new Set(); g.set(S0, 0); let expand = 0;
+  const h = (k) => { const i = k % NX, j = (k / NX) | 0; return Math.hypot(i - ti, j - tj); };
+  while (open.length && expand < 9000) { let bi = 0; for (let q = 1; q < open.length; q++) if (open[q][0] < open[bi][0]) bi = q; const [, cur] = open.splice(bi, 1)[0]; if (closed.has(cur)) continue; closed.add(cur); expand++; if (cur === T0) break;
+    const ci = cur % NX, cj = (cur / NX) | 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= NX || jj >= NZ) continue; const k = jj * NX + ii; if (blocked[k] || closed.has(k)) continue; if (di && dj && (blocked[cj * NX + ii] || blocked[jj * NX + ci])) continue;
+      const ng = g.get(cur) + (di && dj ? 1.414 : 1); if (!g.has(k) || ng < g.get(k)) { g.set(k, ng); came.set(k, cur); open.push([ng + h(k), k]); } } }
+  if (!came.has(T0)) return []; const raw = []; for (let k = T0; k !== undefined && k !== S0; k = came.get(k)) raw.push([((k % NX) + 0.5) * CS, (((k / NX) | 0) + 0.5) * CS]); raw.reverse();
+  const out = []; let from = [sx, sz], i = 0; while (i < raw.length) { let far = i; for (let j = raw.length - 1; j > i; j--) if (navLine(N, from[0], from[1], raw[j][0], raw[j][1])) { far = j; break; } out.push(raw[far]); from = raw[far]; i = far + 1; } return out;
+}
+
+// =====================================================================================
 // THE CITY, BUILT FROM THE MAP DATA (every footprint is a rectangle in map pixels)
 // =====================================================================================
 const chunkB = {}; const BT = (x, z) => { const k = Math.floor(x / 50) + ',' + Math.floor(z / 50); return chunkB[k] || (chunkB[k] = new Batch()); };
@@ -254,26 +286,45 @@ const rampMats = []; { const pts = [[27.5, 82], [14.5, 109.6], [6, 158]], ptex =
     const deck = new THREE.Mesh(new THREE.BoxGeometry(L + 2, 1.2, 11), mt); deck.position.set((x0 + x1) / 2, 7.2, (z0 + z1) / 2); deck.rotation.y = Math.atan2(-dz, dx); deck.castShadow = deck.receiveShadow = true; scene.add(deck);
     for (let t = 2; t < L; t += 11) for (const sd of [-1, 1]) { const x = x0 + ux * t - uz * sd * 3.8, z = z0 + uz * t + ux * sd * 3.8, p = new THREE.Mesh(pgeo, pmat); p.position.set(x, 3.3, z); p.castShadow = true; scene.add(p); solidBox(x, z, 1.9, 1.9, false); } }
   buildings.push({ m: null, h: 7.8, x: 17, z: 120, w: 36, d: 80, y0: 6.6, fade: 1, mats: rampMats }); }
-// picket fences around every single-story home (gate in front); you can walk along them but not through
-{ const pk = [], pgeo = new THREE.BoxGeometry(1, 1, 1), M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SCL = new THREE.Vector3();
-  const onSt = (x, z) => HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 0.2) || VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 0.2) || ALLEYS.some((a) => x > a[0] * MP - 0.4 && x < a[2] * MP + 0.4 && z > a[1] * MP - 0.4 && z < a[3] * MP + 0.4);
+// picket fences around every single-story home: front gate + a back or side gate. Runs are recorded first; the yard audit may cut more gates; geometry is built last.
+const FRUNS = [];
+{ const onSt = (x, z) => HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 0.2) || VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 0.2) || ALLEYS.some((a) => x > a[0] * MP - 0.4 && x < a[2] * MP + 0.4 && z > a[1] * MP - 0.4 && z < a[3] * MP + 0.4);
   const inBld = (x, z) => colliders.some((c) => c.vis && c.x0 - 0.15 < x && x < c.x1 + 0.15 && c.z0 - 0.15 < z && z < c.z1 + 0.15);
   HOUSES.forEach((r) => { const q = R(r), m = 1.5, x0 = q.x0 - m, x1 = q.x1 + m, z0 = q.z0 - m, z1 = q.z1 + m, gx = (q.x0 + q.x1) / 2, gz = (q.z0 + q.z1) / 2, face = nearestFace(gx, gz);
     const side = (ax, a0, a1, fixed, gate) => { const len = a1 - a0, n = Math.max(2, Math.round(len / 0.22)), step = len / n; let run = null;
-      const flush = () => { if (run && run.n > 1) { const mid = (run.s + run.e) / 2, L = run.e - run.s, bt = BT(ax === 'x' ? mid : fixed, ax === 'x' ? fixed : mid); for (const e of [run.s, run.e]) bt.box(0.14, 1.1, 0.14, 0xf4efe2, ax === 'x' ? e : fixed, 0.55, ax === 'x' ? fixed : e);
-          if (ax === 'x') { bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.8, fixed); bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.35, fixed); solidBox(mid, fixed, L, 0.2, false); } else { bt.box(0.06, 0.05, L, 0xf4efe2, fixed, 0.8, mid); bt.box(0.06, 0.05, L, 0xf4efe2, fixed, 0.35, mid); solidBox(fixed, mid, 0.2, L, false); } } run = null; };
-      for (let i = 0; i <= n; i++) { const t = a0 + i * step, x = ax === 'x' ? t : fixed, z = ax === 'x' ? fixed : t, gap = gate && Math.abs(t - gate) < 0.85, bad = gap || onSt(x, z) || inBld(x, z) || x < 0.3 || x > W - 0.3 || z < 0.3 || z > D - 0.3;
-        if (bad) { flush(); continue; } if (!run) run = { s: t, e: t, n: 0 }; run.e = t; run.n++; SCL.set(ax === 'x' ? 0.07 : 0.04, 0.95, ax === 'x' ? 0.04 : 0.07); V.set(x, 0.5, z); M4.compose(V, Q, SCL); pk.push(M4.clone()); } flush(); };
-    const idx = HOUSES.indexOf(r), back = { n: 's', s: 'n', e: 'w', w: 'e' }[face], sideG = (face === 'n' || face === 's') ? (idx % 2 ? 'w' : 'e') : (idx % 2 ? 'n' : 's'), second = idx % 2 === 0 ? back : sideG, gate = (dir) => dir === face || dir === second; // front gate + a back gate or a side gate
-    side('x', x0, x1, z0, gate('n') ? gx : 0); side('x', x0, x1, z1, gate('s') ? gx : 0); side('z', z0, z1, x0, gate('w') ? gz : 0); side('z', z0, z1, x1, gate('e') ? gz : 0); });
-  const im = new THREE.InstancedMesh(pgeo, new THREE.MeshStandardMaterial({ color: 0xf4efe2, roughness: 0.8 }), pk.length); pk.forEach((m4, i) => im.setMatrixAt(i, m4)); im.castShadow = false; im.receiveShadow = false; scene.add(im); }
-// trees near the single-story houses and scattered over the grass areas
+      const flush = () => { if (run && run.n > 1) { const L = run.e - run.s, mid = (run.s + run.e) / 2, col = ax === 'x' ? solidBox(mid, fixed, L, 0.2, false) : solidBox(fixed, mid, 0.2, L, false); FRUNS.push({ ax, fixed, s: run.s, e: run.e, col, alive: true }); } run = null; };
+      for (let i = 0; i <= n; i++) { const t = a0 + i * step, x = ax === 'x' ? t : fixed, z = ax === 'x' ? fixed : t, gap = gate && Math.abs(t - gate) < 0.95, bad = gap || onSt(x, z) || inBld(x, z) || x < 0.3 || x > W - 0.3 || z < 0.3 || z > D - 0.3;
+        if (bad) { flush(); continue; } if (!run) run = { s: t, e: t, n: 0 }; run.e = t; run.n++; } flush(); };
+    const idx = HOUSES.indexOf(r), back = { n: 's', s: 'n', e: 'w', w: 'e' }[face], sideG = (face === 'n' || face === 's') ? (idx % 2 ? 'w' : 'e') : (idx % 2 ? 'n' : 's'), second = idx % 2 === 0 ? back : sideG, gate = (dir) => dir === face || dir === second;
+    side('x', x0, x1, z0, gate('n') ? gx : 0); side('x', x0, x1, z1, gate('s') ? gx : 0); side('z', z0, z1, x0, gate('w') ? gz : 0); side('z', z0, z1, x1, gate('e') ? gz : 0); }); }
+// trees near the single-story houses and scattered over the grass areas (kept well clear of fences and walls so they never seal a path)
 { const TR = [], inB = (x, z, m) => colliders.some((c) => c.vis && c.x0 - m < x && x < c.x1 + m && c.z0 - m < z && z < c.z1 + m), thin = (x, z, m) => colliders.some((c) => !c.vis && (c.x1 - c.x0 < 0.3 || c.z1 - c.z0 < 0.3) && c.x0 - m < x && x < c.x1 + m && c.z0 - m < z && z < c.z1 + m);
   const onS = (x, z) => HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 1.8) || VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 1.8) || ALLEYS.some((a) => x > a[0] * MP - 1.5 && x < a[2] * MP + 1.5 && z > a[1] * MP - 1.5 && z < a[3] * MP + 1.5);
-  const okT = (x, z) => x > 1.5 && x < W - 1.5 && z > 1.5 && z < D - 1.5 && !inB(x, z, 1.8) && !thin(x, z, 1.2) && !onS(x, z) && !(x > 72 && x < 90 && z < 48) && !(x > 87 && x < 99.5 && z > 63.5 && z < 77) && !(x < 66 && z > 108) && !(x < 36 && z > 78) && !(x > 72 && x < 177 && z > 79 && z < 100.5) && Math.hypot(x - POWER.x, z - POWER.z) > 5 && !TR.some((t) => Math.hypot(t[0] - x, t[1] - z) < 4.5);
+  const okT = (x, z) => x > 1.5 && x < W - 1.5 && z > 1.5 && z < D - 1.5 && !inB(x, z, 2.4) && !thin(x, z, 2.2) && !onS(x, z) && !(x > 72 && x < 90 && z < 48) && !(x > 87 && x < 99.5 && z > 63.5 && z < 77) && !(x < 66 && z > 108) && !(x < 36 && z > 78) && !(x > 72 && x < 177 && z > 79 && z < 100.5) && Math.hypot(x - POWER.x, z - POWER.z) > 5 && !TR.some((t) => Math.hypot(t[0] - x, t[1] - z) < 4.5);
   const put = (x, z) => { const bt = BT(x, z); if (rnd() < 0.3) palm(bt, x, z); else tree(bt, x, z); TR.push([x, z]); };
-  HOUSES.forEach((r) => { const q = R(r); for (let k = 0, tries = 0; k < 1 && tries < 40; tries++) { const a = rnd() * 6.283, d = Math.max(q.x1 - q.x0, q.z1 - q.z0) / 2 + rr(2.8, 5), x = (q.x0 + q.x1) / 2 + Math.cos(a) * d, z = (q.z0 + q.z1) / 2 + Math.sin(a) * d; if (okT(x, z)) { put(x, z); k++; } } });
+  HOUSES.forEach((r) => { const q = R(r); for (let k = 0, tries = 0; k < 1 && tries < 60; tries++) { const a = rnd() * 6.283, d = Math.max(q.x1 - q.x0, q.z1 - q.z0) / 2 + rr(3.4, 6), x = (q.x0 + q.x1) / 2 + Math.cos(a) * d, z = (q.z0 + q.z1) / 2 + Math.sin(a) * d; if (okT(x, z)) { put(x, z); k++; } } });
   for (let tries = 0; TR.length < 100 && tries < 4000; tries++) { const x = rr(2, W - 2), z = rr(2, D - 2); if (okT(x, z)) put(x, z); } window.__treeCount = TR.length; }
+// yard audit: every pocket sealed off from the rest of the map gets a gate cut into the nearest fence (so every house can be walked around and every side path used)
+function cutGate(run, t) { const hw = 0.95, parts = []; if (t - hw - run.s > 0.45) parts.push([run.s, t - hw]); if (run.e - (t + hw) > 0.45) parts.push([t + hw, run.e]); run.alive = false; run.col.on = false;
+  for (const [s0, e0] of parts) { const L = e0 - s0, mid = (s0 + e0) / 2, col = run.ax === 'x' ? solidBox(mid, run.fixed, L, 0.2, false) : solidBox(run.fixed, mid, 0.2, L, false); FRUNS.push({ ax: run.ax, fixed: run.fixed, s: s0, e: e0, col, alive: true }); } }
+window.__gatesCut = 0;
+for (let iter = 0; iter < 10; iter++) { const fenceCols = new Set(FRUNS.filter((r) => r.alive).map((r) => r.col)), Nall = buildNav(0.62), Noth = buildNav(0.62, (c) => !fenceCols.has(c)), A = navAnalyze(Nall); window.__pocketsLeft = A.pockets.length; if (!A.pockets.length) break;
+  const { NX, NZ, CS, blocked } = Nall; let cuts = 0;
+  for (const p of A.pockets) { // cheapest way out of the pocket: open cells cost 0, fence cells 1, anything else 80
+    const cost = (k) => !blocked[k] ? 0.001 : (!Noth.blocked[k] ? 1 : 80), dist = new Float32Array(NX * NZ).fill(1e9), par = new Int32Array(NX * NZ).fill(-1), heap = []; const push = (d, k) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const pa = (i - 1) >> 1; if (heap[pa][0] <= heap[i][0]) break; [heap[pa], heap[i]] = [heap[i], heap[pa]]; i = pa; } }; const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { let l = 2 * i + 1, r = l + 1, m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    for (let k = 0; k < NX * NZ; k++) if (A.comp[k] === p.k) { dist[k] = 0; push(0, k); } let end = -1;
+    while (heap.length) { const [d, k] = pop(); if (d > dist[k]) continue; if (A.comp[k] === A.main) { end = k; break; } const i = k % NX; for (const n of [k + 1, k - 1, k + NX, k - NX]) { if (n < 0 || n >= NX * NZ || (n === k + 1 && i + 1 >= NX) || (n === k - 1 && i === 0)) continue; const nd = d + cost(n); if (nd < dist[n]) { dist[n] = nd; par[n] = k; push(nd, n); } } }
+    if (end < 0) continue; const seen = new Set(); for (let k = end; k >= 0 && A.comp[k] !== p.k; k = par[k]) { if (!blocked[k] || Noth.blocked[k]) continue; const x = ((k % NX) + 0.5) * CS, z = (((k / NX) | 0) + 0.5) * CS;
+      for (const r of FRUNS) { if (!r.alive || seen.has(r)) continue; const inside = r.ax === 'x' ? (x > r.s - 0.7 && x < r.e + 0.7 && Math.abs(z - r.fixed) < 0.7) : (z > r.s - 0.7 && z < r.e + 0.7 && Math.abs(x - r.fixed) < 0.7); if (inside) { seen.add(r); cutGate(r, Math.max(r.s + 0.5, Math.min(r.e - 0.5, r.ax === 'x' ? x : z))); cuts++; window.__gatesCut++; break; } } } }
+  if (!cuts) break; }
+const NAV = buildNav(0.5), NAVA = navAnalyze(NAV); const reachable = (x, z) => { const i = Math.floor(x / NAV.CS), j = Math.floor(z / NAV.CS); return i >= 0 && j >= 0 && i < NAV.NX && j < NAV.NZ && NAVA.comp[j * NAV.NX + i] === NAVA.main; };
+// build the fence geometry from the final runs: pickets (one InstancedMesh), rails and end posts (batched)
+{ const pk = [], M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SCL = new THREE.Vector3();
+  for (const r of FRUNS) { if (!r.alive) continue; const L = r.e - r.s, mid = (r.s + r.e) / 2, bt = BT(r.ax === 'x' ? mid : r.fixed, r.ax === 'x' ? r.fixed : mid), n = Math.max(1, Math.round(L / 0.22));
+    for (const e of [r.s, r.e]) bt.box(0.14, 1.1, 0.14, 0xf4efe2, r.ax === 'x' ? e : r.fixed, 0.55, r.ax === 'x' ? r.fixed : e);
+    if (r.ax === 'x') { bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.8, r.fixed); bt.box(L, 0.05, 0.06, 0xf4efe2, mid, 0.35, r.fixed); } else { bt.box(0.06, 0.05, L, 0xf4efe2, r.fixed, 0.8, mid); bt.box(0.06, 0.05, L, 0xf4efe2, r.fixed, 0.35, mid); }
+    for (let i = 0; i <= n; i++) { const t = r.s + L * i / n; SCL.set(r.ax === 'x' ? 0.07 : 0.04, 0.95, r.ax === 'x' ? 0.04 : 0.07); V.set(r.ax === 'x' ? t : r.fixed, 0.5, r.ax === 'x' ? r.fixed : t); M4.compose(V, Q, SCL); pk.push(M4.clone()); } }
+  const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xf4efe2, roughness: 0.8 }), pk.length); pk.forEach((m4, i) => im.setMatrixAt(i, m4)); im.castShadow = false; im.receiveShadow = false; scene.add(im); }
 for (const bt of Object.values(chunkB)) bt.build();
 
 // =====================================================================================
@@ -460,11 +511,11 @@ function spawnGem(x, z, tier, loose = false) {
   const ring = new THREE.Mesh(ringGeo, ringMat[tier]); ring.rotation.x = -Math.PI / 2; ring.position.y = -0.85; g.add(ring); scene.add(g);
   const it = { x, z, tier, g, on: true, loose, life: loose ? 9 : 0, delay: loose ? 0.8 : 0, respawn: 0, ph: rnd() * 6 }; items.push(it); return it;
 }
-{ let placed = 0, tries = 0; while (placed < 58 && tries++ < 6000) { const x = rr(2, W - 2), z = rr(2, D - 2); if (blocked(x, z, 1.0) || Math.hypot(x - PAD.x, z - PAD.z) < PAD.r + 3 || (onAsphalt(x, z) && rnd() < 0.85) || items.some((it) => Math.hypot(it.x - x, it.z - z) < 7.5)) continue; spawnGem(x, z, tierFor(x, z)); placed++; } }
+{ let placed = 0, tries = 0; while (placed < 58 && tries++ < 6000) { const x = rr(2, W - 2), z = rr(2, D - 2); if (!reachable(x, z) || blocked(x, z, 1.0) || Math.hypot(x - PAD.x, z - PAD.z) < PAD.r + 3 || (onAsphalt(x, z) && rnd() < 0.85) || items.some((it) => Math.hypot(it.x - x, it.z - z) < 7.5)) continue; spawnGem(x, z, tierFor(x, z)); placed++; } }
 
 // ---------- ammo crates: you can only take an agent out while you are armed ----------
 const crates = [], crateGeo = new THREE.BoxGeometry(0.55, 0.38, 0.4), crateMat = new THREE.MeshStandardMaterial({ color: 0x4d5240, roughness: 0.8 }), stripeMat = new THREE.MeshStandardMaterial({ color: 0xf3c53a, roughness: 0.6 });
-{ let made = 0, tries = 0; while (made < 12 && tries++ < 4000) { const x = rr(2, W - 2), z = rr(2, D - 2); if (blocked(x, z, 1.0) || onAsphalt(x, z) || Math.hypot(x - PAD.x, z - PAD.z) < PAD.r + 2 || items.some((it) => Math.hypot(it.x - x, it.z - z) < 3) || crates.some((c) => Math.hypot(c.x - x, c.z - z) < 12)) continue;
+{ let made = 0, tries = 0; while (made < 12 && tries++ < 4000) { const x = rr(2, W - 2), z = rr(2, D - 2); if (!reachable(x, z) || blocked(x, z, 1.0) || onAsphalt(x, z) || Math.hypot(x - PAD.x, z - PAD.z) < PAD.r + 2 || items.some((it) => Math.hypot(it.x - x, it.z - z) < 3) || crates.some((c) => Math.hypot(c.x - x, c.z - z) < 12)) continue;
     const g = new THREE.Group(); const c = new THREE.Mesh(crateGeo, crateMat); c.castShadow = true; g.add(c); const st = new THREE.Mesh(new THREE.BoxGeometry(0.57, 0.08, 0.42), stripeMat); st.position.y = 0.05; g.add(st); for (let b = -1; b <= 1; b++) { const bl = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 8), stripeMat); bl.position.set(b * 0.14, 0.28, 0); g.add(bl); }
     g.position.set(x, 0.42, z); scene.add(g); crates.push({ g, x, z, on: true, respawn: 0 }); made++; } }
 const stack = []; // carried gems: {tier, mesh, p}
@@ -483,7 +534,7 @@ function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against visio
   }
   return best;
 }
-function bangSprite() { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
+function bangSprite(ch = '!') { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
 const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, agents = [];
 const agentPal = LOOKS.agent;
 const AGENT_CHASE = 6.0; // a little slower than the hero (6.8, 8.8 boosted), faster than a hero weighed down by a big stack
@@ -493,7 +544,7 @@ function makeAgent(pts, o = {}) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
   fig.root.rotation.order = 'YXZ'; const dx0 = pts[1][0] - pts[0][0], dz0 = pts[1][1] - pts[0][1], L0 = Math.hypot(dx0, dz0) || 1, st = o.start || 0;
-  const g = { thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 5.8 : AGENT_CHASE }; agents.push(g); return g;
+  const g = { thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), qmark: bangSprite('?'), path: [], repath: 0, searchT: 0, lastX: 0, lastZ: 0, pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 5.8 : AGENT_CHASE }; g.qmark.visible = false; agents.push(g); return g;
 }
 { const hN = (h) => h.c - h.w / 2 + SW / 2, hS = (h) => h.c + h.w / 2 - SW / 2, vW = (v) => v.c - v.w / 2 + SW / 2, vE = (v) => v.c + v.w / 2 - SW / 2, [J, Lg] = HS, [Ev, Sa] = VS;
   const MIDX = [vE(Ev) + 1.5, vW(Sa) - 1.5], WESTX = [1.5, vW(Ev) - 1.5], EASTX = [vE(Sa) + 1.5, W - 1.5]; let gid = 0;
@@ -510,17 +561,30 @@ function agentCone(g) {
 }
 function updateAgent(g, dt) {
   if (g.down) { // knocked out: tip forward, lie still, then get back up
-    g.downT += dt; g.cone.visible = false; g.mark.visible = false; g.fig.root.rotation.x = Math.min(1, g.downT / 0.28) * 1.5; g.fig.root.position.set(g.pos.x, 0.12, g.pos.z);
+    g.downT += dt; g.cone.visible = false; g.mark.visible = false; g.qmark.visible = false; g.fig.root.rotation.x = Math.min(1, g.downT / 0.28) * 1.5; g.fig.root.position.set(g.pos.x, 0.12, g.pos.z);
     if (g.downT > 25) { g.down = false; g.mode = 'patrol'; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
   }
-  g.t += dt; g.far = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) > 56 && g.mode !== 'chase';
-  if (g.mode === 'chase') { // run straight at the hero; walls, fences and cars stop them
-    const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = Math.hypot(dx, dz) || 1, sp = g.speed;
-    g.pos.x += dx / d * sp * dt; g.pos.z += dz / d * sp * dt;
+  g.t += dt; g.far = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) > 56 && g.mode === 'patrol';
+  const follow = (tx, tz, sp, dt2) => { // walk along the navigation path toward (tx, tz); walls, fences and cars stop them
+    g.repath -= dt2; if (g.repath <= 0) { g.path = navPath(NAV, g.pos.x, g.pos.z, tx, tz); g.repath = 0.4; }
+    let gx = tx, gz = tz; while (g.path.length && Math.hypot(g.path[0][0] - g.pos.x, g.path[0][1] - g.pos.z) < 0.5) g.path.shift(); if (g.path.length) { gx = g.path[0][0]; gz = g.path[0][1]; }
+    const dx = gx - g.pos.x, dz = gz - g.pos.z, d = Math.hypot(dx, dz) || 1; g.pos.x += dx / d * sp * dt2; g.pos.z += dz / d * sp * dt2;
     for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } }
     for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(g.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(g.pos.z, c.z + c.hz)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } }
-    let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); g.fig.root.visible = true; g.cone.visible = true;
-    g.ph += sp * 2.15 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 1, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); return;
+    let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-12 * dt2)); };
+  const show = (amp, sp) => { g.fig.root.visible = true; g.cone.visible = true; g.ph += sp * 2.1 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); };
+  if (g.mode === 'chase') { // they chase what they SEE; once you break line of sight they run to the last place they saw you, then search
+    const dP = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), los = dP < 16 && segHit(g.pos.x, g.pos.z, P.pos.x, P.pos.z) === Infinity; if (los) { g.lastX = P.pos.x; g.lastZ = P.pos.z; g.lost = 0; } else g.lost += dt;
+    if (los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
+    else follow(g.lastX, g.lastZ, g.speed, dt);
+    if (!los && Math.hypot(g.lastX - g.pos.x, g.lastZ - g.pos.z) < 1.0) { if (g.thug) g.remove = true; else { g.mode = 'search'; g.searchT = 3.4; g.mark.visible = false; } }
+    show(1, g.speed); return;
+  }
+  if (g.mode === 'search') { // lost you: stop, look around
+    g.searchT -= dt; g.yaw += Math.sin(g.t * 1.9) * 2.2 * dt; if (g.searchT <= 0) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.cool = 2.2; } show(0.12, 0.3); return;
+  }
+  if (g.mode === 'return') { // walk back to the patrol route (around walls, through gates)
+    follow(g.pts[g.wp][0], g.pts[g.wp][1], 2.8, dt); if (Math.hypot(g.pts[g.wp][0] - g.pos.x, g.pts[g.wp][1] - g.pos.z) < 1.2) g.mode = 'patrol'; show(0.6, 2.8); return;
   }
   const tgt = g.pts[g.wp], dx = tgt[0] - g.pos.x, dz = tgt[1] - g.pos.z, d = Math.hypot(dx, dz), v = 1.9;
   if (d < 0.25) { if (g.pp) { g.wp += g.dirn; if (g.wp >= g.pts.length || g.wp < 0) { g.dirn = -g.dirn; g.wp += 2 * g.dirn; } } else g.wp = (g.wp + 1) % g.pts.length; }
@@ -528,7 +592,7 @@ function updateAgent(g, dt) {
   if (g.far) { g.fig.root.visible = false; g.cone.visible = false; g.fig.root.position.set(g.pos.x, 0, g.pos.z); return; } g.fig.root.visible = true; g.cone.visible = true;
   g.ph += v * 2.0 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.55, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g);
 }
-function spawnThug() { const B = NAMEDB.AGENCY, x = B.cx, z = B.q.z0 - 1.2; makeAgent([[x, z], [x + 0.1, z]], { thug: true, mode: 'chase' }); toast('THE AGENCY SENT A THUG!', 2.4, true); }
+function spawnThug() { const B = NAMEDB.AGENCY, x = B.cx, z = B.q.z0 - 1.2; const tg = makeAgent([[x, z], [x + 0.1, z]], { thug: true, mode: 'chase' }); tg.lastX = P.pos.x; tg.lastZ = P.pos.z; toast('THE AGENCY SENT A THUG!', 2.4, true); }
 function agentSees(g, px, pz) {
   const dx = px - g.pos.x, dz = pz - g.pos.z, d = Math.hypot(dx, dz); if (d > CONE_R) return false;
   let da = Math.atan2(dx, dz) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) > CONE_HALF) return false;
@@ -653,17 +717,17 @@ function update(dt) {
         toast(g.thug ? 'THUG DOWN! +4 GEMS' : 'TAKEDOWN! +2 GEMS', 1.3); continue;
       } else if (P.inv <= 0 && g.cool <= 0 && !onPadA) { scatter(g.pos.x, g.pos.z, g.thug ? 'CRUSHED BY A THUG' : 'GRABBED BY AN AGENT'); if (!g.thug) { g.mode = 'patrol'; g.alert = 0; } g.cool = 3; continue; } // unarmed (or too few rounds): you cannot fight back
     }
-    if (g.mode === 'chase') { // keep running at you while they can see you; give up after 4 s (a thug 7 s) without sight, and never follow onto the Home pad
-      const los = dist < 16 && segHit(g.pos.x, g.pos.z, P.pos.x, P.pos.z) === Infinity; g.lost = los ? 0 : g.lost + dt;
-      if (g.lost > (g.thug ? 7 : 4) || onPadA) { if (g.thug) g.remove = true; else { g.mode = 'patrol'; g.alert = 0; g.cool = 2.5; g.mark.visible = false; g.mat.color.setHex(0xffe36a); g.mat.opacity = 0.32; } }
-      else { g.mark.visible = true; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.color.setHex(0xff5a4a); g.mat.opacity = 0.55; }
+    if (g.mode === 'chase') { // end the chase on the Home pad or after a long time without sight; otherwise the agent handles it
+      if (onPadA || g.lost > (g.thug ? 12 : 9)) { if (g.thug) g.remove = true; else { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.alert = 0; g.cool = 2.5; g.mark.visible = false; g.qmark.visible = false; g.mat.color.setHex(0xffe36a); g.mat.opacity = 0.32; } }
+      else { g.mark.visible = true; g.qmark.visible = false; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.color.setHex(0xff5a4a); g.mat.opacity = 0.55; }
       continue;
     }
+    if (g.mode === 'search') { g.qmark.visible = true; g.qmark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 6) * 0.08, g.pos.z); g.mat.color.setHex(0xffb347); g.mat.opacity = 0.45; } else { g.qmark.visible = false; }
     const seen = P.inv <= 0 && g.cool <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
-    if (g.alert > 0.4) { g.alert = 0; g.mode = 'chase'; g.lost = 0; P.heat = Math.min(3, P.heat + 1); for (const o of agents) if (g.group && o.group === g.group && !o.down) { o.mode = 'chase'; o.lost = 0; o.alert = 0; } toast(P.ammo > 0 ? 'SPOTTED! RUN INTO HIM TO TAKE HIM OUT' : 'SPOTTED! RUN, YOU HAVE NO GUN', 2.4, true); } }
+    if (g.alert > 0.4) { g.alert = 0; g.mode = 'chase'; g.lost = 0; g.lastX = P.pos.x; g.lastZ = P.pos.z; g.path = []; g.repath = 0; P.heat = Math.min(3, P.heat + 1); for (const o of agents) if (g.group && o.group === g.group && !o.down) { o.mode = 'chase'; o.lost = 0; o.alert = 0; o.lastX = P.pos.x; o.lastZ = P.pos.z; o.path = []; o.repath = 0; } toast(P.ammo > 0 ? 'SPOTTED! RUN INTO HIM TO TAKE HIM OUT' : 'SPOTTED! RUN, YOU HAVE NO GUN', 2.4, true); } }
   { const chasing = agents.some((a) => a.mode === 'chase' && !a.down); if (!chasing) P.heat = Math.max(0, P.heat - 0.1 * dt); P.thugCool = Math.max(0, P.thugCool - dt); // HEAT: +1 each time you are spotted, +0.6 per takedown; at 2 or more the Agency Base sends thugs (max 2)
     if (P.heat >= 2 && agents.filter((a) => a.thug).length < 2 && P.thugCool <= 0) { spawnThug(); P.thugCool = 12; } const hf = Math.floor(P.heat); if (hf !== P.heatShown) { P.heatShown = hf; hud(); }
-    for (let n = agents.length - 1; n >= 0; n--) if (agents[n].remove) { const a = agents[n]; scene.remove(a.fig.root, a.cone, a.mark); agents.splice(n, 1); } }
+    for (let n = agents.length - 1; n >= 0; n--) if (agents[n].remove) { const a = agents[n]; scene.remove(a.fig.root, a.cone, a.mark, a.qmark); agents.splice(n, 1); } }
   for (const c of crates) { if (!c.on) { c.respawn -= dt; if (c.respawn <= 0) { c.on = true; c.g.visible = true; } continue; } c.g.rotation.y += dt * 1.4; c.g.position.y = 0.42 + Math.sin(P.t * 2.6 + c.x) * 0.06;
     if (P.stun <= 0 && Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < 1.1 && P.ammo < 10) { P.ammo = Math.min(10, P.ammo + 3); c.on = false; c.g.visible = false; c.respawn = 60; hud(); toast(`ARMED! GUN ${P.ammo}`, 1.4); puff(c.x, 0.7, c.z, 0xf3c53a, 0, 1.6, 0, 0.5, 0.3, 0.7); } }
   for (const r of records) { if (!r.on) continue; r.spin.rotation.y += dt * 2; r.spin.position.y = 1.3 + Math.sin(P.t * 2.2 + r.i) * 0.12; r.ring.material.opacity = 0.5 + Math.sin(P.t * 4 + r.i) * 0.25; if (P.stun <= 0 && Math.hypot(r.x - P.pos.x, r.z - P.pos.z) < 1.5) collectRecord(r); }
@@ -693,7 +757,7 @@ update(1 / 60);
 let last = performance.now(), acc = 0; const FIX = 1 / 60;
 function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
 requestAnimationFrame(frame);
-window.__v2 = { records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
+window.__v2 = { NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
 </body>
 </html>
