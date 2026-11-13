@@ -595,7 +595,7 @@ function makeAgent(pts, o = {}) {
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, depthTest: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.renderOrder = 4; cone.frustumCulled = false; /* spec 19: cones read through walls */ scene.add(cone);
   fig.root.rotation.order = 'YXZ'; const dx0 = pts[1][0] - pts[0][0], dz0 = pts[1][1] - pts[0][1], L0 = Math.hypot(dx0, dz0) || 1, st = o.start || 0;
-  const g = { stun: 0, aim: 0, thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), qmark: bangSprite('?'), path: [], repath: 0, searchT: 0, lastX: 0, lastZ: 0, pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 5.8 : AGENT_CHASE }; g.qmark.visible = false; agents.push(g); return g;
+  const g = { eyesOn: true, eyeT: 1 + rnd() * 3, stun: 0, aim: 0, thug: !!o.thug, pp: !!o.pp, dirn: 1, group: o.group || 0, mode: o.mode || 'patrol', lost: 0, cool: 0, cone, down: false, downT: 0, mark: bangSprite(), qmark: bangSprite('?'), path: [], repath: 0, searchT: 0, lastX: 0, lastZ: 0, pts, wp: 1, pos: new THREE.Vector3(pts[0][0] + dx0 / L0 * st, 0, pts[0][1] + dz0 / L0 * st), yaw: Math.atan2(dx0, dz0), ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0, far: false, speed: o.thug ? 5.8 : AGENT_CHASE }; g.qmark.visible = false; agents.push(g); return g;
 }
 { const hN = (h) => h.c - h.w / 2 + SW / 2, hS = (h) => h.c + h.w / 2 - SW / 2, vW = (v) => v.c - v.w / 2 + SW / 2, vE = (v) => v.c + v.w / 2 - SW / 2, [J, Lg] = HS, [Ev, Sa] = VS;
   const MIDX = [vE(Ev) + 1.5, vW(Sa) - 1.5], WESTX = [1.5, vW(Ev) - 1.5], EASTX = [vE(Sa) + 1.5, W - 1.5]; let gid = 0;
@@ -616,6 +616,7 @@ function updateAgent(g, dt) {
     if (g.downT > 12) { const rs = respawnSpot(g); g.pos.x = rs[0]; g.pos.z = rs[1]; g.down = false; g.mode = 'patrol'; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
   }
   if (g.stun > 0) { g.stun -= dt; g.cone.visible = false; g.mark.visible = false; g.qmark.visible = false; g.fig.root.visible = true; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw + Math.sin(P.t * 30) * 0.12; return; }
+  if (g.mode === 'patrol') { g.eyeT -= dt; if (g.eyeT <= 0) { g.eyesOn = !g.eyesOn; g.eyeT = g.eyesOn ? 3 + rnd() * 2 : 2 + rnd() * 1.5; } } else g.eyesOn = true; // agents look around in bursts, they are not watching all the time
   g.t += dt; g.far = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) > 56 && g.mode === 'patrol';
   const follow = (tx, tz, sp, dt2) => { // walk along the navigation path toward (tx, tz); walls, fences and cars stop them
     g.repath -= dt2; if (g.repath <= 0) { g.path = navPath(NAV, g.pos.x, g.pos.z, tx, tz); g.repath = 0.4; }
@@ -628,11 +629,10 @@ function updateAgent(g, dt) {
   const show = (amp, sp) => { g.fig.root.visible = true; g.cone.visible = true; g.ph += sp * 2.1 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); };
   if (g.mode === 'chase') { // they chase what they SEE; once you break line of sight they run to the last place they saw you, then search
     const dP = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), los = P.invis <= 0 && dP < 16 && segHit(g.pos.x, g.pos.z, P.pos.x, P.pos.z) === Infinity; if (los) { g.lastX = P.pos.x; g.lastZ = P.pos.z; g.lost = 0; } else g.lost += dt;
-    if (!g.thug && los && dP < 7.5) { g.path = []; g.repath = 0.4; let da = Math.atan2(P.pos.x - g.pos.x, P.pos.z - g.pos.z) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); g.yaw += da * (1 - Math.exp(-14 * dt)); g.aim = (g.aim || 0) + dt; if (g.aim > 0.9) { g.aim = -0.7; agentFire(g); } g.holding = true; } // spec 13/18: agents hold their distance and shoot
-    else if (g.thug && los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
+    if (los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
     else follow(g.lastX, g.lastZ, g.speed, dt);
     if (!los && Math.hypot(g.lastX - g.pos.x, g.lastZ - g.pos.z) < 1.0) { if (g.thug) g.remove = true; else { g.mode = 'search'; g.searchT = 3.4; g.mark.visible = false; } }
-    show(g.holding ? 0.15 : 1, g.holding ? 0 : g.speed); g.holding = false; return;
+    show(1, g.speed); return;
   }
   if (g.mode === 'investigate') { // they heard it: walk over; at the turntables that is a raid
     g.invT += dt; const src = noiseSource(); if (!src || g.invT > 28) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.cool = 3; show(0.6, 2.8); return; }
@@ -651,7 +651,7 @@ function updateAgent(g, dt) {
   else { const nx = g.pos.x + dx / d * v * dt, nz = g.pos.z + dz / d * v * dt; const ox = g.pos.x, oz = g.pos.z; if (!agentBlocked(nx, nz)) { g.pos.x = nx; g.pos.z = nz; } else if (!agentBlocked(nx, g.pos.z)) g.pos.x = nx; else if (!agentBlocked(g.pos.x, nz)) g.pos.z = nz;
     if (Math.hypot(g.pos.x - ox, g.pos.z - oz) < 0.4 * v * dt) { g.stuck = (g.stuck || 0) + dt; if (g.stuck > 0.5) { g.stuck = 0; g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, tgt[0], tgt[1]); g.repath = 1.2; } } else g.stuck = 0; // jammed on a wall or corner: slide along it, then path around
     let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-6 * dt)); }
-  if (g.far) { g.fig.root.visible = false; g.cone.visible = false; g.fig.root.position.set(g.pos.x, 0, g.pos.z); return; } g.fig.root.visible = true; g.cone.visible = true;
+  if (g.far) { g.fig.root.visible = false; g.cone.visible = false; g.fig.root.position.set(g.pos.x, 0, g.pos.z); return; } g.fig.root.visible = true; g.cone.visible = g.eyesOn;
   g.ph += v * 2.0 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.55, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g);
 }
 function killAgent(g) {
@@ -942,8 +942,8 @@ function update(dt) {
   for (const g of agents) { updateAgent(g, dt); if (g.down || g.far) continue; g.cool = Math.max(0, g.cool - dt);
     const dist = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), onPadA = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r + 1;
     if (P.stun <= 0 && dist < 1.05) {
-      if (!g.thug) { killAgent(g); continue; } // spec 14: up close you win, automatically, no button
-      if (g.stun <= 0 && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && !onPadA) { scatter(g.pos.x, g.pos.z, 'CRUSHED BY A THUG'); g.cool = 3; continue; } // spec 16: a thug rushes you; blast him or run
+      if (!g.thug && g.mode !== 'chase') { killAgent(g); continue; } // an agent who has not spotted you goes down when you touch him
+      if (g.stun <= 0 && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && !onPadA) { scatter(g.pos.x, g.pos.z, g.thug ? 'CRUSHED BY A THUG' : 'CAUGHT BY AN AGENT'); if (!g.thug) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.alert = 0; } g.cool = 3; continue; } // they have to actually catch you // spec 16: a thug rushes you; blast him or run
     }
     if (g.stun > 0) continue;
     if (g.mode === 'chase' && !g.thug) for (const t of trucks) if (t.cd <= 0 && Math.hypot(t.x - g.pos.x, t.z - g.pos.z) < 13) { t.cd = 30; for (const o of agents) if (o.mode === 'chase' && !o.thug && !o.down && Math.hypot(t.x - o.pos.x, t.z - o.pos.z) < 16) { o.mode = 'taco'; o.tk = t; o.tacoT = 0; o.invT = 0; o.path = []; o.repath = 0; o.mark.visible = false; } toast('TACO TRUCK! THE AGENTS STOP TO EAT', 2, false); break; }
@@ -953,7 +953,7 @@ function update(dt) {
       continue;
     }
     if (g.mode === 'search' || g.mode === 'investigate') { g.qmark.visible = true; g.qmark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 6) * 0.08, g.pos.z); g.mat.color.setHex(0xffb347); g.mat.opacity = 0.45; } else { g.qmark.visible = false; }
-    const seen = P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
+    const seen = g.eyesOn && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
     if (g.alert > 0.4) { g.alert = 0; g.mode = 'chase'; g.lost = 0; g.lastX = P.pos.x; g.lastZ = P.pos.z; g.path = []; g.repath = 0; P.heat = Math.min(3, P.heat + 1); for (const o of agents) if (g.group && o.group === g.group && !o.down) { o.mode = 'chase'; o.lost = 0; o.alert = 0; o.lastX = P.pos.x; o.lastZ = P.pos.z; o.path = []; o.repath = 0; } toast('SPOTTED! RUN, OR GET BEHIND THEM', 2.4, true); } }
   { const chasing = agents.some((a) => a.mode === 'chase' && !a.down); if (!chasing) P.heat = Math.max(0, P.heat - 0.1 * dt); P.thugCool = Math.max(0, P.thugCool - dt); // HEAT: +1 each time you are spotted, +0.6 per takedown; at 2 or more the Agency Base sends thugs (max 2)
     if (P.heat >= 2 && agents.filter((a) => a.thug).length < 2 && P.thugCool <= 0) { spawnThug(); P.thugCool = 12; } const hf = Math.floor(P.heat); if (hf !== P.heatShown) { P.heatShown = hf; hud(); }
@@ -989,6 +989,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 l · no low c regen</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 m · agents must catch you</div>
 </body>
 </html>
