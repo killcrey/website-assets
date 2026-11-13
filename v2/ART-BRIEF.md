@@ -20,7 +20,7 @@ Give each real name, so the in-game block names and the Memories of Home tracks 
 ## 3. Characters (reference sheets only; the 3D figures are built in code)
 Front / side / back, A-pose, flat colours, big readable silhouette, chunky proportions (about 4.5 heads tall):
 - Hero astronaut (cream suit, orange shoulders, olive boots, blue knee pads, backpack with two tanks)
-- Patrol guard (navy uniform, cap, torch) and 2 more NPC types (street vendor, skater)
+- Agency agent (black suit, white shirt, black tie; the patrol enemy) and 2 more NPC types (street vendor, skater)
 - Optional: one boss / rival
 
 ## 4. UI / logo

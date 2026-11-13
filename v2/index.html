@@ -232,7 +232,7 @@ function segBox(ax, ay, az, bx, by, bz, b) { // does the camera->point segment p
 const seeThru = [];
 function updateFade(dt) {
   seeThru.length = 0; seeThru.push(P.pos.x, 1.0, P.pos.z); const near = (x, z) => Math.abs(x - P.pos.x) < 15 && Math.abs(z - P.pos.z) < 13; // only what is on screen near the player counts
-  for (const g of guards) if (near(g.pos.x, g.pos.z)) seeThru.push(g.pos.x, 1.0, g.pos.z); for (const it of items) if (it.on && it.g.visible && near(it.x, it.z)) seeThru.push(it.x, 0.6, it.z);
+  for (const g of agents) if (near(g.pos.x, g.pos.z)) seeThru.push(g.pos.x, 1.0, g.pos.z); for (const it of items) if (it.on && it.g.visible && near(it.x, it.z)) seeThru.push(it.x, 0.6, it.z);
   const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, k = 1 - Math.exp(-9 * dt);
   for (const b of buildings) {
     let occ = false; if (Math.abs(b.x - P.pos.x) < 40 && Math.abs(b.z - P.pos.z) < 40) for (let i = 0; i < seeThru.length && !occ; i += 3) if (segBox(cx, cy, cz, seeThru[i], seeThru[i + 1], seeThru[i + 2], b)) occ = true;
@@ -258,7 +258,7 @@ function updateTraffic(dt, T) {
 }
 
 // =====================================================================================
-// FIGURES (hero + patrol guards share one jointed rig and one animation function)
+// FIGURES (hero + patrol agents share one jointed rig and one animation function)
 // =====================================================================================
 const mm = {}; const FM = (hex, r = 0.8) => mm[hex + '_' + r] || (mm[hex + '_' + r] = new THREE.MeshStandardMaterial({ color: hex, roughness: r }));
 function makeFigure(pal, pack = true) {
@@ -335,7 +335,7 @@ const stack = []; // carried gems: {tier, mesh, p}
 const STACK_MAX = 24;
 
 // =====================================================================================
-// PATROL GUARDS (vision cone blocked by buildings, fences and booths)
+// PATROL AGENTS (vision cone blocked by buildings, fences and booths)
 // =====================================================================================
 function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against vision-blocking boxes, Infinity if clear
   let best = Infinity; const dx = x1 - x0, dz = z1 - z0;
@@ -348,19 +348,19 @@ function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against visio
   return best;
 }
 function bangSprite() { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
-const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, guards = [];
-const guardPal = { suit: 0x3a4a78, suit2: 0x2d3a63, accent: 0xf3c53a, boot: 0x1d1f27, pad: 0x1d1f27, skin: 0xa86e48, hair: 0x1b2342, glove: 0x1d1f27, cap: true };
-function makeGuard(i, j, rev) {
+const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, agents = [];
+const agentPal = { suit: 0x3a4a78, suit2: 0x2d3a63, accent: 0xf3c53a, boot: 0x1d1f27, pad: 0x1d1f27, skin: 0xa86e48, hair: 0x1b2342, glove: 0x1d1f27, cap: true };
+function makeAgent(i, j, rev) {
   const x0 = bx0(i), z0 = bz0(j), a = 1.5, pts = [[x0 + a, z0 + a], [x0 + B - a, z0 + a], [x0 + B - a, z0 + B - a], [x0 + a, z0 + B - a]]; if (rev) pts.reverse();
-  const fig = makeFigure(guardPal, false); scene.add(fig.root);
+  const fig = makeFigure(agentPal, false); scene.add(fig.root);
   const pos = new Float32Array((CONE_N + 2) * 3), idx = []; for (let k = 1; k <= CONE_N; k++) idx.push(0, k, k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
   fig.root.rotation.order = 'YXZ';
-  const g = { cone, down: false, downT: 0, mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; guards.push(g); return g;
+  const g = { cone, down: false, downT: 0, mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; agents.push(g); return g;
 }
-makeGuard(0, 0, false); makeGuard(1, 0, true); makeGuard(2, 0, false); makeGuard(1, 1, false); makeGuard(2, 1, true);
-function updateGuard(g, dt) {
+makeAgent(0, 0, false); makeAgent(1, 0, true); makeAgent(2, 0, false); makeAgent(1, 1, false); makeAgent(2, 1, true);
+function updateAgent(g, dt) {
   if (g.down) { // knocked out: tip forward, lie still, then get back up
     g.downT += dt; g.cone.visible = false; g.mark.visible = false; g.fig.root.rotation.x = Math.min(1, g.downT / 0.28) * 1.5; g.fig.root.position.set(g.pos.x, 0.12, g.pos.z);
     if (g.downT > 25) { g.down = false; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
@@ -372,7 +372,7 @@ function updateGuard(g, dt) {
   for (let k = 0; k <= CONE_N; k++) { const a = g.yaw - CONE_HALF + (2 * CONE_HALF) * k / CONE_N, t = segHit(gx, gz, gx + Math.sin(a) * CONE_R, gz + Math.cos(a) * CONE_R), r = CONE_R * (t === Infinity ? 1 : Math.min(1, t)); p[(k + 1) * 3] = gx + Math.sin(a) * r; p[(k + 1) * 3 + 1] = 0.3; p[(k + 1) * 3 + 2] = gz + Math.cos(a) * r; }
   g.geo.attributes.position.needsUpdate = true;
 }
-function guardSees(g, px, pz) {
+function agentSees(g, px, pz) {
   const dx = px - g.pos.x, dz = pz - g.pos.z, d = Math.hypot(dx, dz); if (d > CONE_R) return false;
   let da = Math.atan2(dx, dz) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) > CONE_HALF) return false;
   return segHit(g.pos.x, g.pos.z, px, pz) === Infinity;
@@ -430,16 +430,16 @@ function update(dt) {
   const s = animateFigure(heroRig, { ph: P.phase, t: P.t, amp, yawRate: P.yawRate, accF: ax * fwdX + az * fwdZ }, dt);
   heroRig.root.position.copy(P.pos); heroRig.root.rotation.y = P.yaw; heroRig.root.visible = P.inv <= 0 || Math.floor(P.t * 14) % 2 === 0;
   const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
-  // traffic, lights, guards
+  // traffic, lights, agents
   updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
-  for (const g of guards) { updateGuard(g, dt); if (g.down) continue;
-    if (P.stun <= 0 && Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 1.05) { // takedown: walk into a guard, no button
+  for (const g of agents) { updateAgent(g, dt); if (g.down) continue;
+    if (P.stun <= 0 && Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 1.05) { // takedown: walk into a agent, no button
       g.down = true; g.downT = 0; g.alert = 0; state.takedowns++; camera.userData.shake = Math.max(camera.userData.shake || 0, 0.18);
       for (let q = 0; q < 2; q++) { const a = q * 3.14 + rnd(); spawnGem(g.pos.x + Math.cos(a) * 0.9, g.pos.z + Math.sin(a) * 0.9, 1, true).life = 14; }
       for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; puff(g.pos.x, 0.9, g.pos.z, 0xffd34d, Math.cos(a) * 2.6, 1.6, Math.sin(a) * 2.6, 0.5, 0.2, 0.05); }
       toast('TAKEDOWN! +2 GEMS', 1.3); continue; }
-    const seen = P.inv <= 0 && guardSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
+    const seen = P.inv <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
     if (g.alert > 0.4) { g.alert = 0; scatter(g.pos.x, g.pos.z, 'SPOTTED'); } }
   // gems: pick up, bob, expire loose ones, respawn the rest
   for (let n = items.length - 1; n >= 0; n--) { const it = items[n];
@@ -464,7 +464,7 @@ update(1 / 60);
 let last = performance.now(), acc = 0; const FIX = 1 / 60;
 function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
 requestAnimationFrame(frame);
-window.__v2 = { buildings, updateGuard, P, update, items, stack, state, guards, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
+window.__v2 = { buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
 </script>
 </body>
 </html>

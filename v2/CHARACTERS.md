@@ -21,7 +21,7 @@ Build rule for all of them: same jointed rig as the hero, 4.5 heads tall, chunky
 - **Luz** (1.68): FROM GAME: cream blazer, rust top, green trousers, brown boots, a small radio/recorder in hand. Lines: "We never needed proof. We needed medicine." / "I was the first to identify the hum." PROPOSAL: calm, upright, the lore keeper; a faint ring of sound waves around her radio.
 
 ## The pressure (what you avoid or take down)
-- **The Agency suit** (1.85): FROM GAME: black suit, white shirt, black tie, neat dark hair, no emotion. Line: "We were just in the neighborhood. Wanted to check on our guys." Role in v2: **the patrol guard**. Replace my placeholder navy guard with this look (pale cone, "!" when alerted).
+- **The Agency suit** (1.85): FROM GAME: black suit, white shirt, black tie, neat dark hair, no emotion. Line: "We were just in the neighborhood. Wanted to check on our guys." Role in v2: **the patrol agent**. Replace my placeholder navy agent with this look (pale cone, "!" when alerted).
 - **The thug** (2.15): FROM GAME: huge, black tactical jacket and trousers, sunglasses, holster and pouches, fingerless gloves. Comes out of the **Agency van**. Role in v2: a slower, bigger, harder-to-sneak-past chaser; a takedown might need two hits or a side approach only.
 - **Agency van**: keep as a landmark vehicle that spawns thugs when it spots you.
 
