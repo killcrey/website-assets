@@ -249,12 +249,20 @@ const HSTY = ['stucco', 'sand', 'pink', 'teal', 'mural', 'brick'], ROOFC = [0x9a
 HOUSES.forEach((r, i) => { const B = addB(r, 1, HSTY[i % 6], null, { shop: false, roof: 'gable', roofColor: ROOFC[i % 4], h: 3.2 }); if (B.w > 6 && B.d > 6 && i % 3 !== 2) porch(B); });
 APTS.forEach((r, i) => addB(r, 3, ['brick', 'stucco', 'pink', 'teal'][i % 4], null, { shop: false }));
 const NAMEDB = {};
-NAMED.forEach((n, i) => { if (n[0] === 'BEATBOX') return; const [key, text, r, floors, style, face, o] = n, B = addB(r, floors, style, face, Object.assign({}, o)); NAMEDB[key] = B; if (text) { const top = o.h || floors * 3.3, sw = Math.min(8, (face === 'n' || face === 's' ? B.w : B.d) * 0.85); signOn(B, text, sw, 1.15, top - 0.8, SIGNBG[i % 4], SIGNFG[i % 4]); } });
+const REPLICA = { BEATBOX: 1, BODEGA: 1, FAROL: 1, TACO: 1 };
+NAMED.forEach((n, i) => { if (REPLICA[n[0]]) return; const [key, text, r, floors, style, face, o] = n, B = addB(r, floors, style, face, Object.assign({}, o)); NAMEDB[key] = B; if (text) { const top = o.h || floors * 3.3, sw = Math.min(8, (face === 'n' || face === 's' ? B.w : B.d) * 0.85); signOn(B, text, sw, 1.15, top - 0.8, SIGNBG[i % 4], SIGNFG[i % 4]); } });
 // BEAT BOX RECORDS: the exact replica art on a building as tall as the picture (7.8 m), so it is a building and not a billboard
 { const q = R([997, 812, 1140, 990]), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, bw = 7.4, bh = 7.78, bd = q.z1 - q.z0, tex = new THREE.TextureLoader().load('./barrio-logan/art-in/beatbox_front_flush.png'); tex.colorSpace = THREE.SRGBColorSpace;
   const front = new THREE.MeshBasicMaterial({ map: tex }), side = new THREE.MeshStandardMaterial({ color: 0xe9dfcc, roughness: 0.95 }), top = new THREE.MeshStandardMaterial({ color: 0x4a3f3a, roughness: 1 });
   const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), [side, side, top, top, front, side]); m.position.set(cx, bh / 2, cz); m.castShadow = m.receiveShadow = true; scene.add(m); solidBox(cx, cz, bw, bd, true);
   buildings.push({ m, h: bh, x: cx, z: cz, w: bw, d: bd, fade: 1, mats: [front, side, top] }); }
+// BODEGA / EL FAROL / TACO SHOP: the supplied art as a cut-out plane on the building's own front edge + a plain body behind it
+[['BODEGA', [1150, 812, 1296, 998], 'bodega_front_cut.webp', 12.6, 1.706, 11.5, 1], ['FAROL', [1308, 812, 1464, 998], 'farol_front_cut.webp', 14.6, 1.808, 14.1, 0.63], ['TACO', [1581, 813, 1760, 991], 'taco_front_cut.webp', 17.0, 2.36, 16.6, 0.83]].forEach(([key, rect, file, pw, asp, bw, hf]) => {
+  const q = R(rect), cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, ph = pw / asp, bh = ph * hf, bd = q.z1 - q.z0, tex = new THREE.TextureLoader().load('./barrio-logan/art-in/' + file); tex.colorSpace = THREE.SRGBColorSpace;
+  const art = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.4, side: THREE.DoubleSide }), side = new THREE.MeshStandardMaterial({ color: 0xe9dfcc, roughness: 0.95 }), top = new THREE.MeshStandardMaterial({ color: 0x4a3f3a, roughness: 1 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), [side, side, top, top, side, side]); m.position.set(cx, bh / 2, cz); m.castShadow = m.receiveShadow = true; scene.add(m); solidBox(cx, cz, bw, bd, true);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), art); pl.position.set(cx, ph / 2, q.z1 + 0.03); scene.add(pl);
+  buildings.push({ m, h: bh, x: cx, z: cz, w: bw, d: bd, fade: 1, mats: [art, side, top] }); });
 // church: one story, tall pointed roof and steeple
 { const q = R([2, 554, 175, 795]), w = q.x1 - q.x0, d = q.z1 - q.z0, cx = (q.x0 + q.x1) / 2, cz = (q.z0 + q.z1) / 2, bt = BT(cx, cz);
   bld(bt, cx, cz, w, d, 1, 'sand', 'e', { shop: false, roof: 'gable', rise: 4.4, h: 5.5, roofColor: 0x8a5a3a }); const tx = q.x1 - 1.9;
