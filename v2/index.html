@@ -40,7 +40,7 @@ const $ = (id) => document.getElementById(id);
 // RENDERER / SCENE
 // =====================================================================================
 let renderer;
-try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); }
+try { renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true, powerPreference: 'high-performance' }); }
 catch (e) { $('err').style.display = 'flex'; $('err').textContent = 'This browser blocked 3D graphics.'; throw e; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -281,9 +281,16 @@ function makeFigure(pal, pack = true) {
   const head = new THREE.Group(); head.position.set(0, 1.64, 0); body.add(head); J.head = head;
   const neck = m(new THREE.TorusGeometry(0.17, 0.045, 8, 18), steel, 0, 1.44, 0); neck.rotation.x = Math.PI / 2; body.add(neck);
   const skull = m(new THREE.SphereGeometry(0.2, 18, 14), skin); skull.scale.set(0.95, 1.05, 1); head.add(skull);
-  head.add(m(new THREE.SphereGeometry(0.215, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, 0.03, -0.015)); const fr = m(new THREE.BoxGeometry(0.3, 0.09, 0.12), hair, 0.02, 0.15, 0.15); fr.rotation.x = -0.3; head.add(fr);
+  head.add(m(new THREE.SphereGeometry(0.215, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, 0, 0.03, -0.015));
   if (pal.cap) head.add(m(new THREE.BoxGeometry(0.34, 0.04, 0.3), hair, 0, 0.17, 0.14));
-  for (const sx of [-1, 1]) { head.add(m(new THREE.SphereGeometry(0.03, 8, 6), FM(0x10131a, 0.3), sx * 0.075, 0.015, 0.185)); head.add(m(new THREE.SphereGeometry(0.06, 8, 6), skin, sx * 0.2, 0, 0)); }
+  if (pal.face) { // LOCKED FACE: the painted face from the original art, wrapped on the front of the head as a decal
+    const tex = new THREE.TextureLoader().load(pal.face); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const decal = m(new THREE.SphereGeometry(0.222, 28, 20, Math.PI / 2 - 0.75, 1.5, 0.4, 1.75), new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.35, roughness: 0.8 })); decal.scale.set(0.95, 1.05, 1); head.add(decal); decal.castShadow = false;
+    for (const sx of [-1, 1]) head.add(m(new THREE.SphereGeometry(0.06, 8, 6), skin, sx * 0.2, 0, 0));
+  } else {
+    const fr = m(new THREE.BoxGeometry(0.3, 0.09, 0.12), hair, 0.02, 0.15, 0.15); fr.rotation.x = -0.3; head.add(fr);
+    for (const sx of [-1, 1]) { head.add(m(new THREE.SphereGeometry(0.03, 8, 6), FM(0x10131a, 0.3), sx * 0.075, 0.015, 0.185)); head.add(m(new THREE.SphereGeometry(0.06, 8, 6), skin, sx * 0.2, 0, 0)); }
+  }
   for (const [k, sx] of [['L', 1], ['R', -1]]) {
     const sh = new THREE.Group(); sh.position.set(sx * 0.31, 1.4, 0); body.add(sh); sh.add(m(new THREE.SphereGeometry(0.125, 12, 10), orange));
     const up = cap(0.078, 0.14, cream); up.position.y = -0.19; sh.add(up); const el = new THREE.Group(); el.position.y = -0.36; sh.add(el);
@@ -306,7 +313,11 @@ function animateFigure(R, st, dt) {
   R.body.position.y = Math.cos(ph * 2) * 0.045 * amp + Math.sin(st.t * 2.1) * 0.006 * (1 - amp); R.body.scale.y = 1 + Math.sin(st.t * 2.1) * 0.01 * (1 - amp);
   return s;
 }
-const heroRig = makeFigure({ suit: 0xf3ddb0, suit2: 0xe2c690, accent: 0xd9602f, boot: 0x6d7a4c, pad: 0x4f7f99, skin: 0xb97a50, hair: 0x15171d, glove: 0xb8a47c }, true); heroRig.root.scale.setScalar(1.25); scene.add(heroRig.root);
+const heroRig = makeFigure({ suit: 0xf3ddb0, suit2: 0xe2c690, accent: 0xd9602f, boot: 0x6d7a4c, pad: 0x4f7f99, skin: 0xb97a50, hair: 0x15171d, glove: 0xb8a47c, face: './art/face_player.png' }, true); heroRig.root.scale.setScalar(1.25); scene.add(heroRig.root);
+{ const ghost = new THREE.MeshBasicMaterial({ color: 0x9ff0ff, transparent: true, opacity: 0.5, depthWrite: false, depthFunc: THREE.GreaterDepth, stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp });
+  const list = []; heroRig.root.traverse((o) => { if (o.isMesh) list.push(o); });
+  for (const o of list) { for (const mt of [].concat(o.material)) { mt.stencilWrite = true; mt.stencilRef = 1; mt.stencilFunc = THREE.AlwaysStencilFunc; mt.stencilZPass = THREE.ReplaceStencilOp; }
+    const gm = new THREE.Mesh(o.geometry, ghost); gm.renderOrder = 30; gm.castShadow = false; o.add(gm); } }
 
 // =====================================================================================
 // FX POOL, GEMS, STACK
@@ -379,6 +390,30 @@ function agentSees(g, px, pz) {
 }
 
 // =====================================================================================
+// THE ALIEN (occasional; if its beam catches you while you carry memories it takes the whole stack)
+// =====================================================================================
+const alien = { active: false, timer: 30, x: 0, z: 0, hold: 0, life: 0, leaving: 0 };
+{ const g = new THREE.Group(), mk = (geo, hex, em) => new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: hex, emissive: em || 0x000000, emissiveIntensity: 0.8, roughness: 0.4 }));
+  const dish = mk(new THREE.SphereGeometry(1, 20, 10), 0x9aa6b8); dish.scale.set(2.2, 0.55, 2.2); g.add(dish);
+  const dome = mk(new THREE.SphereGeometry(0.9, 16, 10, 0, 6.283, 0, 1.6), 0x66e08a, 0x22a050); dome.position.y = 0.25; g.add(dome);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283, l = mk(new THREE.SphereGeometry(0.14, 8, 6), 0xfff3b0, 0xffd34d); l.position.set(Math.cos(a) * 2.05, -0.05, Math.sin(a) * 2.05); g.add(l); }
+  g.visible = false; scene.add(g); alien.ufo = g;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.4, 8, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0x7dff9a, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); beam.visible = false; scene.add(beam); alien.beam = beam;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.8, 2.4, 28), new THREE.MeshBasicMaterial({ color: 0x7dff9a, transparent: true, opacity: 0.6, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.visible = false; scene.add(ring); alien.ring = ring; }
+const ALIEN_R = 2.1;
+function updateAlien(dt) {
+  const A = alien, nearPad = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r + 1.5;
+  if (!A.active) { if (stack.length >= 2) A.timer -= dt; if (A.timer <= 0) { A.active = true; A.life = 26; A.hold = 0; A.leaving = 0; const a = rnd() * 6.283; A.x = Math.max(-10, Math.min(W + 10, P.pos.x + Math.cos(a) * 34)); A.z = Math.max(-10, Math.min(D + 10, P.pos.z + Math.sin(a) * 34)); toast('ALIEN INCOMING! KEEP MOVING', 2.6, true); } return; }
+  A.life -= dt; const ufo = A.ufo; ufo.visible = A.beam.visible = A.ring.visible = true;
+  if (A.leaving > 0) { A.leaving += dt; ufo.position.y += dt * 9; A.beam.visible = A.ring.visible = false; if (A.leaving > 2.2) { A.active = false; ufo.visible = false; A.timer = rr(40, 70); } return; }
+  const dx = P.pos.x - A.x, dz = P.pos.z - A.z, d = Math.hypot(dx, dz) || 1, v = nearPad ? 0 : 4.6; A.x += dx / d * v * dt; A.z += dz / d * v * dt; if (nearPad) { A.x += (A.x - PAD.x) * 0.0; }
+  ufo.position.set(A.x, 7 + Math.sin(P.t * 2) * 0.25, A.z); ufo.rotation.y += dt * 1.2; A.beam.position.set(A.x, 3.5, A.z); A.ring.position.set(A.x, 0.28, A.z); A.ring.rotation.z += dt;
+  const inBeam = d < ALIEN_R && !nearPad && P.inv <= 0; A.hold = inBeam ? A.hold + dt : Math.max(0, A.hold - dt * 2); A.beam.material.opacity = 0.2 + Math.min(0.3, A.hold); 
+  if (A.hold > 0.45) { const n = stack.length; for (const g of stack) { puff(g.p.x, g.p.y, g.p.z, TIERS[g.tier].c, 0, 6, 0, 0.9, 0.3, 0.05); scene.remove(g.mesh); } stack.length = 0; hud(); A.hold = 0; A.leaving = 0.01; P.inv = 1.2; camera.userData.shake = 0.4; toast(n ? `ABDUCTED! THE ALIEN TOOK ${n}` : 'THE ALIEN FOUND NOTHING', 2.4, true); }
+  if (A.life <= 0) A.leaving = 0.01;
+}
+
+// =====================================================================================
 // INPUT
 // =====================================================================================
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 }, keys = {}; const joy = $('joy'), knob = joy.querySelector('i');
@@ -405,7 +440,7 @@ try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
 function hud() { const val = stack.reduce((a, g) => a + TIERS[g.tier].v, 0); $('hud-a').innerHTML = `CARRYING <b>${stack.length}</b>${stack.length ? ` <i>+${val}</i>` : ''}<br>BANKED <b>${state.banked}</b>`; }
 hud();
-const MAXV = 6.4, ACC = 28; // near-instant start/stop (the reference games have no acceleration ramp)
+const dbg = {}; const MAXV = 6.4, ACC = 28; // near-instant start/stop (the reference games have no acceleration ramp)
 function scatter(fromX, fromZ, why) {
   const lost = stack.length;
   for (const g of stack) { scene.remove(g.mesh); let x, z, n = 0; do { const a = rnd() * 6.283, r = rr(1.2, 3.6); x = P.pos.x + Math.cos(a) * r; z = P.pos.z + Math.sin(a) * r; } while (blocked(x, z, 0.5) && n++ < 8); if (n >= 8) { x = P.pos.x; z = P.pos.z; } spawnGem(x, z, g.tier, true); }
@@ -431,7 +466,7 @@ function update(dt) {
   heroRig.root.position.copy(P.pos); heroRig.root.rotation.y = P.yaw; heroRig.root.visible = P.inv <= 0 || Math.floor(P.t * 14) % 2 === 0;
   const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
   // traffic, lights, agents
-  updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
+  updateAlien(dt); updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
   for (const g of agents) { updateAgent(g, dt); if (g.down) continue;
     if (P.stun <= 0 && Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 1.05) { // takedown: walk into a agent, no button
@@ -458,13 +493,14 @@ function update(dt) {
   const tgx = P.pos.x + P.vel.x * 0.28, tgz = P.pos.z + P.vel.z * 0.28, kc = 1 - Math.exp(-5.5 * dt); camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
   const sh = camera.userData.shake || 0; camera.userData.shake = Math.max(0, sh - dt);
   camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, CAMY + (Math.random() - 0.5) * sh * 0.5, camF.z + CAMZ); camera.lookAt(camF.x, 0.8, camF.z);
+  if (dbg.cam) { camera.position.set(...dbg.cam.p); camera.lookAt(...dbg.cam.t); } // test hook: free camera for close-ups
   updateFade(dt); sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
 }
 update(1 / 60);
 let last = performance.now(), acc = 0; const FIX = 1 / 60;
 function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
 requestAnimationFrame(frame);
-window.__v2 = { buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
+window.__v2 = { dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
 </script>
 </body>
 </html>

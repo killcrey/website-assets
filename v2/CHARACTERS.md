@@ -28,10 +28,10 @@ Build rule for all of them: same jointed rig as the hero, 4.5 heads tall, chunky
 ## Not in the game yet
 - **Armando**: listed in the story (Christopher, Juan Carlos, Armando, Eduardo, Luz) but no character art or role exists in the game. Needs a look and a part.
 
-## Questions to fine-tune (answer any, in any order)
-1. Is the player astronaut "Frankie" (the Father's line)? What is Pancho's real name?
-2. Does each crew member keep their one ability (refill / invisible / cool) as a power in v2?
-3. Is the Agency the only enemy, or are there neighbourhood-specific threats (gang, cops, rivals)?
-4. Which faces/hair/skin tones are locked from the painted art, and which may change?
-5. Where does Armando fit?
-6. Should the hero get a real face and a distinct nickname, or stay a silent astronaut?
+## DECISIONS (from Christopher, 2026-11-12)
+1. The name is **Francisco** (Frankie to his father). The painted Pancho / the player line up with this; confirm which on-screen character carries it.
+2. **Yes**: each crew member keeps their one ability (refill / invisible / cool) as a power.
+3. The Agency is **not** the only enemy. Add an **occasional alien that can take everything you are carrying** (built: a saucer with a beam that appears every 40 to 70 s while you carry 2+ memories, hunts you, abducts the whole stack if it beams you for 0.45 s, cannot enter the Home pad area; it does not touch banked memories).
+4. **Faces are LOCKED.** Every character's face is the painted face from the old art, wrapped on the 3D head as a decal (done for the hero: `v2/art/face_player.png`, cropped from `3d/art/sprites/player_front.webp`). The body is chunky 3D, the face is the original painting.
+5. **No Armando.** Out of the game.
+6. Still open: does the hero get a nickname, or stay the silent astronaut?
