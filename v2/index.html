@@ -139,15 +139,15 @@ function facade(style, cols, floors, shop) {
 }
 const matCache = {}; const fmat = (style, cols, floors, shop) => { const k = style + cols + floors + shop; return matCache[k] || (matCache[k] = new THREE.MeshStandardMaterial({ map: facade(style, cols, floors, shop), roughness: 0.9 })); };
 const roofMat = new THREE.MeshStandardMaterial({ color: 0x6c6a66, roughness: 1 });
-const FACE_IDX = { e: 0, w: 1, s: 4, n: 5 };
+const FACE_IDX = { e: 0, w: 1, s: 4, n: 5 }, buildings = [];
 function canvasSign(text, w, h, bg, fg) { const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w); const g = c.getContext('2d'); if (bg) { g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height); } g.fillStyle = fg; g.font = `900 ${Math.round(c.height * 0.6)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, c.width / 2, c.height * 0.54); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t, transparent: !bg }); }
 // a textured building is one mesh; its roof trim goes to the block batch
 function bld(bt, x, z, w, d, floors, style, face) {
   const h = floors * 3.3, long = (face === 'n' || face === 's') ? w : d, cols = Math.max(2, Math.round(long / 2.6));
-  const front = fmat(style, cols, floors, true), side = fmat(style, 2, floors, false), mats = [side, side, roofMat, roofMat, side, side]; mats[FACE_IDX[face]] = front;
+  const front = fmat(style, cols, floors, true).clone(), side = fmat(style, 2, floors, false).clone(), roof = roofMat.clone(), mats = [side, side, roof, roof, side, side]; mats[FACE_IDX[face]] = front;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats); m.position.set(x, h / 2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
-  bt.box(w + 0.5, 0.45, d + 0.5, new THREE.Color(STYLES[style].trim).getHex(), x, h + 0.2, z); bt.box(1, 0.7, 1, 0x7a7a7a, x + w * 0.2, h + 0.8, z - d * 0.15); bt.box(1.2, 0.5, 0.8, 0x7a7a7a, x - w * 0.15, h + 0.7, z + d * 0.18);
-  solidBox(x, z, w, d, true); return { m, h };
+  bt.box(1, 0.7, 1, 0x7a7a7a, x + w * 0.2, h + 0.35, z - d * 0.15); // rooftop unit
+  solidBox(x, z, w, d, true); const b = { m, h, x, z, w, d, fade: 1, mats: [front, side, roof] }; buildings.push(b); return b;
 }
 
 // ---------- props (all go into the block batch) ----------
@@ -224,6 +224,21 @@ const carBody = new THREE.InstancedMesh(carBodyGeo, new THREE.MeshStandardMateri
 carBody.castShadow = carTrim.castShadow = true; carBody.frustumCulled = carTrim.frustumCulled = false; scene.add(carBody, carTrim);
 { let k = 0; for (const L of lanes) for (const c of L.cars) carBody.setColorAt(k++, new THREE.Color(c.col)); carBody.instanceColor.needsUpdate = true; }
 const carList = [], _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0);
+function segBox(ax, ay, az, bx, by, bz, b) { // does the camera->point segment pass through this building's box?
+  let t0 = 0, t1 = 1; const lo = [b.x - b.w / 2 - 0.3, 0, b.z - b.d / 2 - 0.3], hi = [b.x + b.w / 2 + 0.3, b.h, b.z + b.d / 2 + 0.3], a = [ax, ay, az], d = [bx - ax, by - ay, bz - az];
+  for (let i = 0; i < 3; i++) { if (Math.abs(d[i]) < 1e-9) { if (a[i] < lo[i] || a[i] > hi[i]) return false; } else { let u = (lo[i] - a[i]) / d[i], v = (hi[i] - a[i]) / d[i]; if (u > v) { const q = u; u = v; v = q; } t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) return false; } }
+  return t0 < 0.999;
+}
+const seeThru = [];
+function updateFade(dt) {
+  seeThru.length = 0; seeThru.push(P.pos.x, 1.0, P.pos.z); const near = (x, z) => Math.abs(x - P.pos.x) < 15 && Math.abs(z - P.pos.z) < 13; // only what is on screen near the player counts
+  for (const g of guards) if (near(g.pos.x, g.pos.z)) seeThru.push(g.pos.x, 1.0, g.pos.z); for (const it of items) if (it.on && it.g.visible && near(it.x, it.z)) seeThru.push(it.x, 0.6, it.z);
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, k = 1 - Math.exp(-9 * dt);
+  for (const b of buildings) {
+    let occ = false; if (Math.abs(b.x - P.pos.x) < 40 && Math.abs(b.z - P.pos.z) < 40) for (let i = 0; i < seeThru.length && !occ; i += 3) if (segBox(cx, cy, cz, seeThru[i], seeThru[i + 1], seeThru[i + 2], b)) occ = true;
+    b.fade += ((occ ? 0.14 : 1) - b.fade) * k; const ghost = b.fade < 0.985; for (const m of b.mats) { m.opacity = b.fade; m.transparent = ghost; m.depthWrite = !ghost; }
+  }
+}
 function updateTraffic(dt, T) {
   const gx = greenX(T), gz = greenZ(T); let k = 0; carList.length = 0;
   for (const L of lanes) {
@@ -341,10 +356,15 @@ function makeGuard(i, j, rev) {
   const pos = new Float32Array((CONE_N + 2) * 3), idx = []; for (let k = 1; k <= CONE_N; k++) idx.push(0, k, k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
   const mat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }); const cone = new THREE.Mesh(geo, mat); cone.frustumCulled = false; scene.add(cone);
-  const g = { mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; guards.push(g); return g;
+  fig.root.rotation.order = 'YXZ';
+  const g = { cone, down: false, downT: 0, mark: bangSprite(), pts, wp: 1, pos: new THREE.Vector3(pts[0][0], 0, pts[0][1]), yaw: 0, ph: rnd() * 6, alert: 0, fig, geo, mat, t: 0 }; guards.push(g); return g;
 }
 makeGuard(0, 0, false); makeGuard(1, 0, true); makeGuard(2, 0, false); makeGuard(1, 1, false); makeGuard(2, 1, true);
 function updateGuard(g, dt) {
+  if (g.down) { // knocked out: tip forward, lie still, then get back up
+    g.downT += dt; g.cone.visible = false; g.mark.visible = false; g.fig.root.rotation.x = Math.min(1, g.downT / 0.28) * 1.5; g.fig.root.position.set(g.pos.x, 0.12, g.pos.z);
+    if (g.downT > 25) { g.down = false; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
+  }
   g.t += dt; const tgt = g.pts[g.wp], dx = tgt[0] - g.pos.x, dz = tgt[1] - g.pos.z, d = Math.hypot(dx, dz), v = 1.9;
   if (d < 0.25) g.wp = (g.wp + 1) % g.pts.length; else { g.pos.x += dx / d * v * dt; g.pos.z += dz / d * v * dt; let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-6 * dt)); }
   g.ph += v * 2.0 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.55, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw;
@@ -380,7 +400,7 @@ function onBank(total) { if (!audioReady) return; const k = TRACKS.reduce((a, t,
 // GAME STATE + UPDATE
 // =====================================================================================
 const P = { pos: new THREE.Vector3(PAD.x + 4, 0, PAD.z + 5), vel: new THREE.Vector3(), yaw: Math.PI, yawRate: 0, phase: 0, t: 0, r: 0.38, stepSide: 0, inv: 0, stun: 0, bankT: 0 };
-const state = { banked: 0, bankedGems: 0, clock: 0, place: '' };
+const state = { banked: 0, bankedGems: 0, takedowns: 0, clock: 0, place: '' };
 try { state.banked = Math.max(0, parseInt(localStorage.getItem('v2banked') || '0', 10) || 0); } catch (e) { /* no storage */ }
 let toastT = 0; function toast(s, sec = 2.4, bad = false) { const t = $('toast'); t.textContent = s; t.classList.toggle('bad', bad); t.classList.add('on'); toastT = sec; }
 function hud() { const val = stack.reduce((a, g) => a + TIERS[g.tier].v, 0); $('hud-a').innerHTML = `CARRYING <b>${stack.length}</b>${stack.length ? ` <i>+${val}</i>` : ''}<br>BANKED <b>${state.banked}</b>`; }
@@ -413,7 +433,13 @@ function update(dt) {
   // traffic, lights, guards
   updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
-  for (const g of guards) { updateGuard(g, dt); const seen = P.inv <= 0 && guardSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
+  for (const g of guards) { updateGuard(g, dt); if (g.down) continue;
+    if (P.stun <= 0 && Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 1.05) { // takedown: walk into a guard, no button
+      g.down = true; g.downT = 0; g.alert = 0; state.takedowns++; camera.userData.shake = Math.max(camera.userData.shake || 0, 0.18);
+      for (let q = 0; q < 2; q++) { const a = q * 3.14 + rnd(); spawnGem(g.pos.x + Math.cos(a) * 0.9, g.pos.z + Math.sin(a) * 0.9, 1, true).life = 14; }
+      for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; puff(g.pos.x, 0.9, g.pos.z, 0xffd34d, Math.cos(a) * 2.6, 1.6, Math.sin(a) * 2.6, 0.5, 0.2, 0.05); }
+      toast('TAKEDOWN! +2 GEMS', 1.3); continue; }
+    const seen = P.inv <= 0 && guardSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
     if (g.alert > 0.4) { g.alert = 0; scatter(g.pos.x, g.pos.z, 'SPOTTED'); } }
   // gems: pick up, bob, expire loose ones, respawn the rest
   for (let n = items.length - 1; n >= 0; n--) { const it = items[n];
@@ -431,14 +457,14 @@ function update(dt) {
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   const tgx = P.pos.x + P.vel.x * 0.28, tgz = P.pos.z + P.vel.z * 0.28, kc = 1 - Math.exp(-5.5 * dt); camF.x += (tgx - camF.x) * kc; camF.z += (tgz - camF.z) * kc;
   const sh = camera.userData.shake || 0; camera.userData.shake = Math.max(0, sh - dt);
-  camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, 15.5 * CAMK + (Math.random() - 0.5) * sh * 0.5, camF.z + 13.5 * CAMK); camera.lookAt(camF.x, 0.8, camF.z);
-  sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
+  camera.position.set(camF.x + (Math.random() - 0.5) * sh * 0.5, 17 * CAMK + (Math.random() - 0.5) * sh * 0.5, camF.z + 11 * CAMK); camera.lookAt(camF.x, 0.8, camF.z);
+  updateFade(dt); sun.position.set(P.pos.x + 14, 28, P.pos.z + 10); sun.target.position.set(P.pos.x, 0, P.pos.z); sun.target.updateMatrixWorld(); stepFx(dt);
 }
 update(1 / 60);
 let last = performance.now(), acc = 0; const FIX = 1 / 60;
 function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - last) / 1000); last = now; while (acc >= FIX) { update(FIX); acc -= FIX; } renderer.render(scene, camera); }
 requestAnimationFrame(frame);
-window.__v2 = { P, update, items, stack, state, guards, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
+window.__v2 = { buildings, updateGuard, P, update, items, stack, state, guards, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, THEMES, W, D, colliders };
 </script>
 </body>
 </html>
