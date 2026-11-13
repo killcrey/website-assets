@@ -48,6 +48,20 @@ STUCCO HOUSE with porch: sand stucco walls, a small covered porch with two pilla
 APARTMENT BLOCK: pale stucco in sand and cream, repeating balconies with thin iron railings on floors 2 and 3, a small recessed entrance on floor 1
 ```
 
+
+## PROMPT 2B: the everyday low-rise buildings (MOST of the neighbourhood: homes and one-story shops, not downtown)
+Attach `new_lowrise_types.png` (rough sketches) with these. Give each as TWO images: the front facade, and a plain side wall. Also make a matching ROOF texture for the two houses (pitched roof tiles, seamless, top-down).
+```
+Make a flat FACADE TEXTURE, straight-on, no text, no people, same flat toy-city style as my reference. Building type: ONE-STORY BUILDING. A normal single-storey commercial building with a flat roof and a parapet band on top, four large shop windows, one door, a plain worn wall in a warm colour from my palette. Aspect about 7:3. Make a second matching image of a plain side wall (one window).
+```
+```
+Make a flat FACADE TEXTURE, straight-on, no text, no people. Building type: SMALL HOUSE WITH PORCH. A small single-storey house with a covered front porch (two posts and a porch beam), one window, one front door, stucco walls in a warm colour from my palette, and a low pitched-roof gable above. Aspect about 3:2. Make a second image of the plain side wall with one window, and a seamless top-down roof-tile texture.
+```
+```
+Make a flat FACADE TEXTURE, straight-on, no text, no people. Building type: LARGER HOUSE. A larger two-storey family house with a pitched roof, four upstairs windows, two big ground-floor bay windows with a front door between them, a small balcony above the door, stucco walls in a warm colour from my palette. Aspect about 1:1. Make a second image of the plain side wall with two windows per floor, and a seamless top-down roof-tile texture.
+```
+Ask for 2 or 3 colour variants of each house so a street of homes does not look copied.
+
 ## PROMPT 3: original mural panels (flat, wall art; respectful, in the Chicano mural tradition, NOT copies of real murals)
 ```
 Make an ORIGINAL mural panel, flat and straight-on, 2:1 wide, in the visual tradition of Chicano murals (bold colour blocks, strong outlines are allowed here, symbolic imagery). Theme: a lone astronaut floating between stacked parallel Earths ("layers"), warm sun behind, hands reaching up. Do not copy any existing mural. No text.
