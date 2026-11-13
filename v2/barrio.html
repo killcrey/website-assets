@@ -925,7 +925,7 @@ function update(dt) {
   P.boosting = P.lowC > 0 && !P.tired && L > 0.6; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
   const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k; } else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
   const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.min(1.2, Math.max(0, P.stun - dt)); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); state.warnCd = Math.max(0, (state.warnCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
-  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 5.5 * dt); else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
+  { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 1.1 * dt); /* sprinting is the core of the game: ~90 s of nonstop sprint from full */ else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
   for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
     if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
   P.pos.x = Math.max(0.8 - EXT, Math.min(W + EXT - 0.8, P.pos.x)); P.pos.z = Math.max(0.8 - EXT, Math.min(D + EXT - 0.8, P.pos.z)); // the ring road is walkable
@@ -989,6 +989,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 i · no buttons</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 j · long sprint</div>
 </body>
 </html>
