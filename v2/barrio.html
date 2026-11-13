@@ -17,7 +17,8 @@
   #playlist button.on { background: #ffb347; color: #2a1200; }
   #playlist span { display: block; margin-top: 6px; padding: 7px 9px; opacity: .45; }
   #hud-music { top: calc(max(12px, env(safe-area-inset-top)) + 76px); right: 12px; font-size: 12px; opacity: 0; transition: opacity .5s; }
-  #toast { left: 50%; top: 24%; transform: translate(-50%, 0) scale(.9); opacity: 0; font-size: 19px; text-align: center; transition: opacity .25s, transform .25s; background: rgba(255, 150, 40, .94); color: #2a1200; text-shadow: none; white-space: nowrap; }
+  #toast { left: 50%; top: 24%; transform: translate(-50%, 0) scale(.9); opacity: 0; font-size: 19px; text-align: center; transition: opacity .25s, transform .25s; background: rgba(255, 150, 40, .94); color: #2a1200; text-shadow: none; white-space: normal; width: max-content; max-width: 90vw; line-height: 1.25; box-sizing: border-box; }
+  @media (max-width: 700px) { #toast { font-size: 13px; padding: 7px 12px; top: 20%; } }
   #toast.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
   #toast.bad { background: rgba(230, 60, 60, .95); color: #fff; }
   #joy { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 3px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); display: none; pointer-events: none; }
@@ -846,6 +847,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 e · edge road</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 f · toast fit</div>
 </body>
 </html>
