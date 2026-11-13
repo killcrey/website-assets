@@ -95,3 +95,7 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - Occlusion test uses the building's full height incl. gable roof (`b.top`); all 49 buildings verified to fade with the player right behind them.
 - Juan Carlos' boon: hero materials drop to 20% opacity while `P.invis > 0`.
 - Agents: patrol slides along walls and re-paths via A* if jammed >0.5 s; chase/return skip a node and re-plan after 0.4 s without progress. Replica building colliders span the whole lot (a 1 m sliver beside El Farol trapped an agent).
+
+## Real cause of "buildings don't go transparent" (2026-11-13)
+- three.js bakes an OPAQUE define into a material's shader when `transparent` is false; flipping `transparent` at runtime without `material.needsUpdate = true` leaves it rendering opaque even at opacity 0.14. `updateFade` now sets `needsUpdate` when a building flips between solid and ghost. (Beat Box only worked by luck.) Verified with the player standing north of the Logan Ave shops: both roofs go see-through.
+- Corner tag in the game shows the build ("build 11-13 d").

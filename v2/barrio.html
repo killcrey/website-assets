@@ -396,7 +396,7 @@ function updateFade(dt) {
   const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, k = 1 - Math.exp(-9 * dt);
   for (const b of buildings) {
     let occ = false; if (Math.abs(b.x - P.pos.x) < 40 && Math.abs(b.z - P.pos.z) < 40) for (let i = 0; i < seeThru.length && !occ; i += 3) if (segBox(cx, cy, cz, seeThru[i], seeThru[i + 1], seeThru[i + 2], b)) occ = true;
-    b.fade += ((occ ? 0.14 : 1) - b.fade) * k; const ghost = b.fade < 0.985; for (const m of b.mats) { m.opacity = b.fade; m.transparent = ghost; m.depthWrite = !ghost; }
+    b.fade += ((occ ? 0.14 : 1) - b.fade) * k; const ghost = b.fade < 0.985, flip = ghost !== !!b.gh; b.gh = ghost; for (const m of b.mats) { m.opacity = b.fade; m.transparent = ghost; m.depthWrite = !ghost; if (flip) m.needsUpdate = true; } // three bakes 'opaque' into the shader, so flipping transparent needs a recompile
   }
 }
 function updateTraffic(dt, T) {
@@ -839,6 +839,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 c · buildings fade</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 d · fade fix</div>
 </body>
 </html>
