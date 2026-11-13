@@ -99,3 +99,6 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 ## Real cause of "buildings don't go transparent" (2026-11-13)
 - three.js bakes an OPAQUE define into a material's shader when `transparent` is false; flipping `transparent` at runtime without `material.needsUpdate = true` leaves it rendering opaque even at opacity 0.14. `updateFade` now sets `needsUpdate` when a building flips between solid and ghost. (Beat Box only worked by luck.) Verified with the player standing north of the Logan Ave shops: both roofs go see-through.
 - Corner tag in the game shows the build ("build 11-13 d").
+
+## Ring road + sidewalks around the whole map (2026-11-13, on request)
+- 7 m ring (1.2 sidewalk | 4.6 asphalt | 1.2 sidewalk) outside the map edge on all four sides; the existing streets run into it (`EXT` 18 -> 7, street sidewalks clipped to the map, inner ring sidewalk broken at street mouths). Centre dashes on the ring. Player clamp widened by `EXT`. Cars now loop -7..W+7 only. Agents' nav grid still covers just the map (they chase straight in from its edge). No colliders on the ring; nothing is placed on it.

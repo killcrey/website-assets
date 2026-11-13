@@ -105,17 +105,24 @@ const solidBox = (x, z, w, d, vis = true) => solid(x - w / 2, x + w / 2, z - d /
 
 // ---------- ground, streets, crossings ----------
 const outer = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0xa9c48e, roughness: 1 })); outer.rotation.x = -Math.PI / 2; outer.position.set(W / 2, -0.03, D / 2); outer.receiveShadow = true; scene.add(outer);
-const roads = new Batch(), ASPH = 0x3b4150, EXT = 18, CONC = 0xd9d2c3;
+const roads = new Batch(), ASPH = 0x3b4150, EXT = 7, CONC = 0xd9d2c3;
 const gaps = (streets, lo, hi) => { const out = []; let a = lo; for (const st of streets) { out.push([a, st.c - st.w / 2]); a = st.c + st.w / 2; } out.push([a, hi]); return out; };
 for (const h of HS) { const aw = h.w - 2 * SW; roads.box(W + EXT * 2, 0.06, aw, ASPH, W / 2, 0.03, h.c);
-  for (const [a, b] of gaps(VS, -EXT, W + EXT)) for (const sd of [-1, 1]) roads.box(b - a, 0.18, SW, CONC, (a + b) / 2, 0.09, h.c + sd * (aw / 2 + SW / 2));
-  for (let x = -EXT + 2; x < W + EXT; x += 4) if (!VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 1)) roads.box(2, 0.01, 0.22, 0xf3c53a, x, 0.065, h.c); }
+  for (const [a, b] of gaps(VS, 0, W)) for (const sd of [-1, 1]) roads.box(b - a, 0.18, SW, CONC, (a + b) / 2, 0.09, h.c + sd * (aw / 2 + SW / 2));
+  for (let x = 2; x < W; x += 4) if (!VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 1)) roads.box(2, 0.01, 0.22, 0xf3c53a, x, 0.065, h.c); }
 for (const v of VS) { const aw = v.w - 2 * SW; roads.box(aw, 0.06, D + EXT * 2, ASPH, v.c, 0.031, D / 2);
-  for (const [a, b] of gaps(HS, -EXT, D + EXT)) for (const sd of [-1, 1]) roads.box(SW, 0.18, b - a, CONC, v.c + sd * (aw / 2 + SW / 2), 0.09, (a + b) / 2);
-  for (let z = -EXT + 2; z < D + EXT; z += 4) if (!HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 1)) roads.box(0.22, 0.01, 2, 0xf3c53a, v.c, 0.066, z); }
+  for (const [a, b] of gaps(HS, 0, D)) for (const sd of [-1, 1]) roads.box(SW, 0.18, b - a, CONC, v.c + sd * (aw / 2 + SW / 2), 0.09, (a + b) / 2);
+  for (let z = 2; z < D; z += 4) if (!HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 1)) roads.box(0.22, 0.01, 2, 0xf3c53a, v.c, 0.066, z); }
 for (const v of VS) for (const h of HS) { const aw = h.w - 2 * SW, vaw = v.w - 2 * SW; // zebra crossings on all four arms
   for (const sx of [-1, 1]) for (let k = -Math.floor(aw / 2.3); k <= Math.floor(aw / 2.3); k++) roads.box(3, 0.012, 0.8, 0xefefef, v.c + sx * (v.w / 2 + 1.7), 0.067, h.c + k * 1.15);
   for (const sz of [-1, 1]) for (let k = -Math.floor(vaw / 2.3); k <= Math.floor(vaw / 2.3); k++) roads.box(0.8, 0.012, 3, 0xefefef, v.c + k * 1.15, 0.067, h.c + sz * (h.w / 2 + 1.7)); }
+// the ring road + sidewalks around the whole map, so the player is never scraping along the outer buildings (the streets run into it)
+{ const RW = EXT, box = (x0, z0, x1, z1, h, col, y) => roads.box(x1 - x0, h, z1 - z0, col, (x0 + x1) / 2, y, (z0 + z1) / 2), asp = (x0, z0, x1, z1) => box(x0, z0, x1, z1, 0.06, ASPH, 0.03), sw = (x0, z0, x1, z1) => box(x0, z0, x1, z1, 0.18, CONC, 0.09);
+  asp(-RW, -RW, W + RW, 0); asp(-RW, D, W + RW, D + RW); asp(-RW, -RW, 0, D + RW); asp(W, -RW, W + RW, D + RW);
+  for (const [a, b] of gaps(VS, -SW, W + SW)) { sw(a, -SW, b, 0); sw(a, D, b, D + SW); } for (const [a, b] of gaps(HS, 0, D)) { sw(-SW, a, 0, b); sw(W, a, W + SW, b); } // inner walk, broken where a street joins
+  sw(-RW, -RW, W + RW, -RW + SW); sw(-RW, D + RW - SW, W + RW, D + RW); sw(-RW, -RW, -RW + SW, D + RW); sw(W + RW - SW, -RW, W + RW, D + RW); // outer walk
+  const mid = RW / 2; for (let x = 2 - RW; x < W + RW; x += 4) if (!VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 1)) { roads.box(2, 0.01, 0.22, 0xf3c53a, x, 0.065, -mid); roads.box(2, 0.01, 0.22, 0xf3c53a, x, 0.065, D + mid); }
+  for (let z = 2 - RW; z < D + RW; z += 4) if (!HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 1)) { roads.box(0.22, 0.01, 2, 0xf3c53a, -mid, 0.065, z); roads.box(0.22, 0.01, 2, 0xf3c53a, W + mid, 0.065, z); } }
 roads.build();
 
 // ---------- traffic lights (two shared materials, flipped by the phase clock) ----------
@@ -775,7 +782,7 @@ function update(dt) {
   { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 5.5 * dt); else P.lowC = Math.min(100, P.lowC + (onPadE ? 50 : L < 0.2 ? 9 : 4) * dt); if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
   for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
     if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
-  P.pos.x = Math.max(0.8, Math.min(W - 0.8, P.pos.x)); P.pos.z = Math.max(0.8, Math.min(D - 0.8, P.pos.z));
+  P.pos.x = Math.max(0.8 - EXT, Math.min(W + EXT - 0.8, P.pos.x)); P.pos.z = Math.max(0.8 - EXT, Math.min(D + EXT - 0.8, P.pos.z)); // the ring road is walkable
   const sp = Math.hypot(P.vel.x, P.vel.z), amp = Math.min(sp / (MAXV * 1.05), 1);
   const oy = P.yaw; if (sp > 0.35 && P.stun <= 0) { let d = Math.atan2(P.vel.x, P.vel.z) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); P.yaw += d * (1 - Math.exp(-26 * dt)); }
   let yr = P.yaw - oy; yr = Math.atan2(Math.sin(yr), Math.cos(yr)); P.yawRate += (yr / dt - P.yawRate) * (1 - Math.exp(-14 * dt));
@@ -839,6 +846,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 d · fade fix</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 e · edge road</div>
 </body>
 </html>
