@@ -19,6 +19,7 @@
   #hud-music { top: calc(max(12px, env(safe-area-inset-top)) + 76px); right: 12px; font-size: 12px; opacity: 0; transition: opacity .5s; }
   #mini { position: fixed; left: max(10px, env(safe-area-inset-left)); bottom: max(86px, calc(env(safe-area-inset-bottom) + 70px)); width: 132px; height: 104px; border-radius: 10px; background: rgba(8, 18, 42, .62); border: 2px solid rgba(127, 240, 255, .45); z-index: 4; pointer-events: none; }
   #helpbtn { position: fixed; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%); width: 38px; height: 38px; border-radius: 50%; border: 2px solid #fff; background: rgba(8, 18, 42, .6); color: #fff; font: 900 20px system-ui; z-index: 6; }
+  #hitflash { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255, 30, 30, 0), rgba(255, 30, 30, .6) 85%); }
   #flash { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255, 211, 77, .55), rgba(255, 211, 77, 0) 70%); transition: opacity .6s; }
   #toast { left: 50%; top: 24%; transform: translate(-50%, 0) scale(.9); opacity: 0; font-size: 19px; text-align: center; transition: opacity .25s, transform .25s; background: rgba(255, 150, 40, .94); color: #2a1200; text-shadow: none; white-space: normal; width: max-content; max-width: 90vw; line-height: 1.25; box-sizing: border-box; }
   @media (max-width: 700px) { #toast { font-size: 13px; padding: 7px 12px; top: 20%; } }
@@ -41,7 +42,7 @@
 <div class="chip" id="hud-music"></div>
 
 <div id="playlist"></div>
-<canvas id="mini" width="132" height="104"></canvas><button id="helpbtn" type="button">?</button><div id="flash"></div>
+<canvas id="mini" width="132" height="104"></canvas><button id="helpbtn" type="button">?</button><div id="flash"></div><div id="hitflash"></div>
 <div class="chip" id="toast"></div>
 <div id="joy"><i></i></div>
 <div id="lowc">LOW C<div><i id="lowc-bar"></i></div></div>
@@ -616,7 +617,8 @@ function updateAgent(g, dt) {
     if (g.downT > 12) { const rs = respawnSpot(g); g.pos.x = rs[0]; g.pos.z = rs[1]; g.down = false; g.mode = 'patrol'; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
   }
   if (g.stun > 0) { g.stun -= dt; g.cone.visible = false; g.mark.visible = false; g.qmark.visible = false; g.fig.root.visible = true; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw + Math.sin(P.t * 30) * 0.12; return; }
-  if (g.mode === 'patrol') { g.eyeT -= dt; if (g.eyeT <= 0) { g.eyesOn = !g.eyesOn; g.eyeT = g.eyesOn ? 3 + rnd() * 2 : 2 + rnd() * 1.5; } } else g.eyesOn = true; // agents look around in bursts, they are not watching all the time
+  if (g.mode === 'patrol') g.eyesOn = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 13; else g.eyesOn = true; // their eyes only 'switch on' when you are close: you sense them before they can see you
+  if (g.mode !== 'chase' && g.laser) g.laser.visible = false;
   g.t += dt; g.far = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) > 56 && g.mode === 'patrol';
   const follow = (tx, tz, sp, dt2) => { // walk along the navigation path toward (tx, tz); walls, fences and cars stop them
     g.repath -= dt2; if (g.repath <= 0) { g.path = navPath(NAV, g.pos.x, g.pos.z, tx, tz); g.repath = 0.4; }
@@ -629,10 +631,11 @@ function updateAgent(g, dt) {
   const show = (amp, sp) => { g.fig.root.visible = true; g.cone.visible = true; g.ph += sp * 2.1 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); };
   if (g.mode === 'chase') { // they chase what they SEE; once you break line of sight they run to the last place they saw you, then search
     const dP = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), los = P.invis <= 0 && dP < 16 && segHit(g.pos.x, g.pos.z, P.pos.x, P.pos.z) === Infinity; if (los) { g.lastX = P.pos.x; g.lastZ = P.pos.z; g.lost = 0; } else g.lost += dt;
-    if (los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
+    if (!g.thug && los && dP < 6.2) { g.path = []; g.repath = 0.4; let da = Math.atan2(P.pos.x - g.pos.x, P.pos.z - g.pos.z) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); g.yaw += da * (1 - Math.exp(-14 * dt)); g.aim = (g.aim || 0) + dt; if (g.aim > 1.0) { g.aim = -0.9; agentFire(g); } g.holding = true; } // aim first: a red laser line + '!' for a full second, then the shot
+    else if (los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
     else follow(g.lastX, g.lastZ, g.speed, dt);
     if (!los && Math.hypot(g.lastX - g.pos.x, g.lastZ - g.pos.z) < 1.0) { if (g.thug) g.remove = true; else { g.mode = 'search'; g.searchT = 3.4; g.mark.visible = false; } }
-    show(1, g.speed); return;
+    show(g.holding ? 0.15 : 1, g.holding ? 0 : g.speed); showLaser(g, !!g.holding && g.aim > 0); if (!g.holding) g.aim = 0; g.holding = false; return;
   }
   if (g.mode === 'investigate') { // they heard it: walk over; at the turntables that is a raid
     g.invT += dt; const src = noiseSource(); if (!src || g.invT > 28) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.cool = 3; show(0.6, 2.8); return; }
@@ -661,7 +664,16 @@ function killAgent(g) {
   for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; puff(g.pos.x, 0.9, g.pos.z, 0xffd34d, Math.cos(a) * 2.6, 1.6, Math.sin(a) * 2.6, 0.5, 0.2, 0.05); } hud();
 }
 function respawnSpot(g) { const far = []; for (const o of agents) for (const q of o.pts) if (Math.hypot(q[0] - P.pos.x, q[1] - P.pos.z) > 24) far.push(q); const q = far.length ? far[Math.floor(rnd() * far.length)] : g.pts[0]; return q; }
+const laserMat = new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false }), streakMat = new THREE.MeshBasicMaterial({ color: 0xfff2a0, depthTest: false, depthWrite: false }), bxg = new THREE.BoxGeometry(1, 1, 1), streaks = [];
+function aimLine(mesh, x0, y0, z0, x1, y1, z1, w) { const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, L = Math.hypot(dx, dy, dz) || 1; mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); mesh.scale.set(w, w, L); mesh.lookAt(x1, y1, z1); }
+function showLaser(g, on) { if (!g.laser) { g.laser = new THREE.Mesh(bxg, laserMat); g.laser.renderOrder = 20; g.laser.visible = false; scene.add(g.laser); } g.laser.visible = on; if (on) aimLine(g.laser, g.pos.x, 1.2, g.pos.z, P.pos.x, 1.1, P.pos.z, 0.14 + Math.min(0.2, (g.aim || 0) * 0.2)); }
+function stepStreaks(dt) { for (let i = streaks.length - 1; i >= 0; i--) { const q = streaks[i]; q.t -= dt; if (q.t <= 0) { scene.remove(q.m); streaks.splice(i, 1); } else q.m.scale.x = q.m.scale.y = 0.45 * (q.t / 0.18); } }
+function hitFlash() { const f = $('hitflash'); f.style.transition = 'none'; f.style.opacity = 1; requestAnimationFrame(() => { f.style.transition = 'opacity .7s'; f.style.opacity = 0; }); }
 function agentFire(g) {
+  const m = new THREE.Mesh(bxg, streakMat); m.renderOrder = 21; scene.add(m); aimLine(m, g.pos.x, 1.2, g.pos.z, P.pos.x, 1.1, P.pos.z, 0.45); streaks.push({ m, t: 0.18 }); puff(g.pos.x + Math.sin(g.yaw) * 0.6, 1.3, g.pos.z + Math.cos(g.yaw) * 0.6, 0xfff2a0, 0, 0, 0, 0.18, 0.9, 0.1); // muzzle flash
+  if (P.inv > 0 || P.invis > 0 || P.stun > 0.3) return; hitFlash(); camera.userData.shake = 0.3; shotDown(); return;
+}
+function agentFireOld(g) {
   for (let k = 1; k <= 5; k++) puff(g.pos.x + (P.pos.x - g.pos.x) * k / 5, 1.2, g.pos.z + (P.pos.z - g.pos.z) * k / 5, 0xfff0a0, 0, 0, 0, 0.18, 0.12, 0.05);
   if (P.inv > 0 || P.invis > 0 || P.stun > 0.3) return; shotDown();
 }
@@ -924,7 +936,7 @@ function update(dt) {
   let L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; L = 1; } if (L < 0.12 || P.stun > 0) { ix = iz = 0; }
   P.boosting = P.lowC > 0 && !P.tired && L > 0.6; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
   const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k; } else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
-  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.min(1.2, Math.max(0, P.stun - dt)); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); state.warnCd = Math.max(0, (state.warnCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
+  const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.min(1.2, Math.max(0, P.stun - dt)); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); stepStreaks(dt); state.warnCd = Math.max(0, (state.warnCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
   { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 1.1 * dt); /* sprinting is the core of the game: ~90 s of nonstop sprint from full */ /* no regen: Low C only comes back at the power-up ring, from Christopher / Pancho's dad / the duet */ if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
   for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(P.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(P.pos.z, c.z1)); let dx = P.pos.x - cx, dz = P.pos.z - cz, d = Math.hypot(dx, dz);
     if (d < P.r) { if (d < 1e-5) { dx = 0; dz = 1; d = 1; } const push = P.r - d; P.pos.x += dx / d * push; P.pos.z += dz / d * push; const n = dx / d, m = dz / d, vn = P.vel.x * n + P.vel.z * m; if (vn < 0) { P.vel.x -= vn * n; P.vel.z -= vn * m; } } }
@@ -989,6 +1001,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 m · agents must catch you</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 n · visible shots</div>
 </body>
 </html>
