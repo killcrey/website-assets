@@ -960,8 +960,8 @@ const deckRing = new THREE.Mesh(new THREE.RingGeometry(DECK.r - 0.3, DECK.r, 40)
 { const t = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), canvasSign('DROP RECORDS HERE', 3.4, 0.9, null, '#ffd34d')); t.rotation.x = -Math.PI / 2; t.position.set(DECK.x, 0.28, DECK.z + 2.3); scene.add(t); }
 const INSIDE_N = 56;
 const LAWN = (() => { // flood the open ground around the plaza; wherever it meets open street/alley (not a wall or an existing fence) the copper fence has to go
-  const N = buildNav(0.25), { NX, NZ, blocked: bl, CS } = N, X0 = 77, X1 = 110, Z0 = 55, Z1 = 87.5;
-  const inLawn = (x, z) => x >= X0 && x <= X1 && z >= Z0 && z <= Z1 && !HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 0.2) && !VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 0.2);
+  const N = buildNav(0.25), { NX, NZ, blocked: bl, CS } = N, X0 = 77, X1 = 99.7, Z0 = 64.8, Z1 = 77.1;
+  const inLawn = (x, z) => x >= X0 && x <= X1 && z >= Z0 && z <= Z1 && (z >= 69 || x >= 86.3) /* the drawn L-shape: the yard in front of the plaza plus the west strip */ && !HS.some((h) => Math.abs(z - h.c) < h.w / 2 + 0.2) && !VS.some((v) => Math.abs(x - v.c) < v.w / 2 + 0.2);
   const seen = new Uint8Array(NX * NZ), q = [Math.floor(70.3 / CS) * NX + Math.floor(93.4 / CS)], cells = [], eX = new Map(), eZ = new Map(); seen[q[0]] = 1;
   while (q.length) { const c = q.pop(), i = c % NX, j = (c / NX) | 0; cells.push([(i + 0.5) * CS, (j + 0.5) * CS]);
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= NX || b >= NZ || bl[b * NX + a]) continue; const X = (a + 0.5) * CS, Z = (b + 0.5) * CS;
@@ -1182,6 +1182,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { LAWN, GATE, party, plzOk, REBELS, FENCE, COILS, HEARTS, TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 z8 · alerts + patrols</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-14 z9 · fence on drawn lines</div>
 </body>
 </html>
