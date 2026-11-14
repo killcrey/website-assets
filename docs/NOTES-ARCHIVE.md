@@ -230,3 +230,6 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
   - prepared + thief recovery, loud: 8 songs at 154 s, rebels 12 -> 2 and fence 12 -> 5 by minute 4; max 8, average 3.6, 40 thefts, no win.
   - prepared + thief recovery, QUIET: 11 songs at 165 s with zero thefts until ~5 min, then the same collapse; 12th song only at 1034 s; no win.
 - Raid schedule (code): the timer starts when 3 songs are banked: first raid after 70 s, then every max(32, 90 - 5n) s, halved after 90 s of LOUD (quiet: half speed). Size = round((n-1) * 0.625) agents plus 1 thug from 7 songs and 3 thugs from 10; up to 14 raiders at once. Final rush (12 songs): 3 waves at 0/14/28 s of 4 agents + 2 thugs each, win when 30 s have passed and no raider is left.
+
+## Barrio Logan z24 (2026-11-14): rebels keep a garrison and never chase far
+- Rebels engage only agents within 4.5 m of the fence (or inside it); agents still approaching are ignored. At most half of the active rebels may be deployed at once (`maxOut`), except while an agent is inside the fence (then everyone). Pursuit leash: give up when the agent is > 7 m from the fence or the rebel > 8 m. 120 s test, 9 songs, 10 rebels, big waves: max 5 rebels out at once, none farther than 3.3 m from the fence (before: up to ~15 m, whole groups).
