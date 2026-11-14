@@ -152,3 +152,12 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - Fight limit `REBEL_FIGHTS = 3`: each won fight counts for every rebel on the team; at 3 he is "WORN OUT" (`killRebel(r, true)`, tag says WORN OUT, no overrun alarm), respawns as a free rebel with `fights = 0`. His ring turns orange on his last fight.
 - Pack chase: previously needed the leader's own line of sight within 16 m and skipped `investigate`/raider agents, so a chaser that fell behind, or agents already heading for the house, never joined. Now while any chaser has seen you in the last 3 s: every agent within 26 m of him OR within 12 m of YOU joins (investigating ones included, not thieves/fighters).
 - Gotcha hit while patching: a trailing `// comment` appended to the middle of the one-line scuffle statement commented out the rest of the line (the fights silently stopped). Use `/* */` inside those long lines.
+
+## Barrio Logan z13 (2026-11-14): scoring + rebel power indicator
+- Rebel power: a 3-cell bar over every recruited rebel (`PWR_TEX`, green 3 / yellow 2 / red 1 = fights left of `REBEL_FIGHTS`); hidden when free/arrested/dead.
+- Score (`addScore(n, why, quiet)`, `state.score`, `state.tally`; HUD line "SCORE", floating "+n LABEL" popups in `#scorepops`, floor at 0):
+  - Earn: song banked +500; party points every second = songs banked x (LOUD 1.0 / QUIET 0.4) (ties the volume button to score: loud earns 2.5x but agents hear farther); takedown +100; rebel recruited +50; fence panel +75; rebels win a fight +60; escape a chase (6+ s hunted, then none) +100; recover a stolen song +300.
+  - Lose: life -100; song stolen for good -150; rebel arrested -50 (worn-out is free); fence panel torn down -50.
+  - Win bonus: 3000 + 500/life left + 50/fence panel standing + speed (up to 2000, linear to 30 min).
+- End screens (`scoreBlock`) show the score, per-category breakdown and best. Saved locally only: `v2_barrio_best` and `v2_barrio_scores` (top 10: {s, won, d, t}). The score and tally also survive the trip to the 2D game (`saveBarrio`/`applyResume`). Name entry / online leaderboard is the later step: `scoreBlock` is the single place to hook it.
+- `window.__v2` now also exports `loseLife, winGame, addScore, scoreBlock` for tests.
