@@ -161,3 +161,14 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
   - Win bonus: 3000 + 500/life left + 50/fence panel standing + speed (up to 2000, linear to 30 min).
 - End screens (`scoreBlock`) show the score, per-category breakdown and best. Saved locally only: `v2_barrio_best` and `v2_barrio_scores` (top 10: {s, won, d, t}). The score and tally also survive the trip to the 2D game (`saveBarrio`/`applyResume`). Name entry / online leaderboard is the later step: `scoreBlock` is the single place to hook it.
 - `window.__v2` now also exports `loseLife, winGame, addScore, scoreBlock` for tests.
+
+## Barrio Logan z14 (2026-11-14): calmer chase, fence count, no traffic jams, party walk-ins, baskets, alarm, big alerts
+- Pack chase cut way down: max 4 hunters at once (non-thug); only patrol/return/search agents can be pulled in (not ones heading for the house); within 8 m of the chaser or 5 m of you; each candidate rolls 50% once per 2 s. No more map-wide sharing of your position.
+- Fence numbers: `FENCE.health()` counts a half-chewed panel as half; HUD `state.wires` is synced every frame (`FENCE.sync`), so it drops while panels are being chewed. A coil builds a missing panel first, else REPAIRS the most damaged one (+40). `FENCE.full()` (all alive + full hp) replaces the old count>=max for coil spawning/minimap. Fence state (hp per panel) now survives the trip to the 2D game (`saveBarrio`/`applyResume`), which previously restored the number but not the panels.
+- Traffic: cars no longer brake for agents (`OBST` has no agents); each frame an agent overlapping a car box is nudged out. The jam was a deadlock: the car braked for the agent, the agent (patrol line) could not walk through the car.
+- Party walk-ins: `partySeen(g)` — any patrol/return agent inside the lawn or within 9 m of DECK (with 1+ songs banked) goes straight to `investigate`, regardless of volume or cooldown. Quiet mode had made the noise radius ~1-3 m so agents strolled through.
+- Hearing circle is a filled translucent disc (+ ring); the minimap circle is filled too. Both sit at y 0.32-0.34 (lower was hidden under the ground).
+- `bigAlert(txt, sub, kind, pri, sec)`: big flashing centre banner (#big), priority-gated. Used for out of Low C (and <15), raid, alien, thug, life lost, song stolen, car hit, power-ring alarm.
+- Power ring alarm: refuelling at POWER (when Low C < 90, 25 s cooldown) sounds a siren (WebAudio), flashes the ring red, shows a big alert and sends the 6 nearest free agents (within 75 m) to chase to the ring (`g.alarm`; cleared when they see you; not counted for the ESCAPES score).
+- Fruit baskets: 14 active of 26 spots (min spacing 14 m), +35 Low C each (only picked up when Low C < 95), respawn after 60 s at a different spot, orange dots on the minimap.
+- Rebel arrests: only `killRebel(r)` via a LOST scuffle (team of rebels vs one agent/thug; odds by team size), plus worn-out (3 fights, no arrest penalty).
