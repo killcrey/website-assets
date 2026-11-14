@@ -211,12 +211,12 @@ function buildNav(Rr, pred) {
   return { CS, NX, NZ, blocked };
 }
 function navComponents(N) { return navAnalyze(N).pockets; }
-function navAnalyze(N) { // flood fill: component ids, the biggest open area, and the pockets cut off from it
+function navAnalyze(N, minArea = 2.5) { // flood fill: component ids, the biggest open area, and the pockets cut off from it
   const { NX, NZ, blocked, CS } = N, comp = new Int32Array(NX * NZ).fill(-1), sizes = [], cent = []; let nc = 0;
   for (let s0 = 0; s0 < NX * NZ; s0++) { if (blocked[s0] || comp[s0] >= 0) continue; const q = [s0]; comp[s0] = nc; let n = 0, sx = 0, sz = 0;
     while (q.length) { const c = q.pop(); n++; const i = c % NX, j = (c / NX) | 0; sx += i; sz += j; for (const k of [c + 1, c - 1, c + NX, c - NX]) { if (k < 0 || k >= NX * NZ) continue; if ((k === c + 1 && i + 1 >= NX) || (k === c - 1 && i === 0)) continue; if (!blocked[k] && comp[k] < 0) { comp[k] = nc; q.push(k); } } }
     sizes.push(n); cent.push([(sx / n + 0.5) * CS, (sz / n + 0.5) * CS]); nc++; }
-  const main = sizes.indexOf(Math.max(...sizes)); return { comp, main, pockets: sizes.map((n, k) => ({ k, area: n * CS * CS, cx: cent[k][0], cz: cent[k][1] })).filter((p) => p.k !== main && p.area > 2.5) };
+  const main = sizes.indexOf(Math.max(...sizes)); return { comp, main, pockets: sizes.map((n, k) => ({ k, area: n * CS * CS, cx: cent[k][0], cz: cent[k][1] })).filter((p) => p.k !== main && p.area > minArea) };
 }
 function navOpen(N, x, z) { const i = Math.floor(x / N.CS), j = Math.floor(z / N.CS); return i >= 0 && j >= 0 && i < N.NX && j < N.NZ && !N.blocked[j * N.NX + i]; }
 function navLine(N, x0, z0, x1, z1) { const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.25); for (let k = 0; k <= n; k++) if (!navOpen(N, x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n)) return false; return true; }
@@ -356,7 +356,7 @@ const FRUNS = [];
 function cutGate(run, t) { const hw = 0.95, parts = []; if (t - hw - run.s > 0.45) parts.push([run.s, t - hw]); if (run.e - (t + hw) > 0.45) parts.push([t + hw, run.e]); run.alive = false; run.col.on = false;
   for (const [s0, e0] of parts) { const L = e0 - s0, mid = (s0 + e0) / 2, col = run.ax === 'x' ? solidBox(mid, run.fixed, L, 0.2, false) : solidBox(run.fixed, mid, 0.2, L, false); FRUNS.push({ ax: run.ax, fixed: run.fixed, s: s0, e: e0, col, alive: true }); } }
 window.__gatesCut = 0;
-for (let iter = 0; iter < 10; iter++) { const fenceCols = new Set(FRUNS.filter((r) => r.alive).map((r) => r.col)), Nall = buildNav(0.62), Noth = buildNav(0.62, (c) => !fenceCols.has(c)), A = navAnalyze(Nall); window.__pocketsLeft = A.pockets.length; if (!A.pockets.length) break;
+for (let iter = 0; iter < 10; iter++) { const fenceCols = new Set(FRUNS.filter((r) => r.alive).map((r) => r.col)), Nall = buildNav(0.5), Noth = buildNav(0.5, (c) => !fenceCols.has(c)), A = navAnalyze(Nall, 0.25); window.__pocketsLeft = A.pockets.length; if (!A.pockets.length) break;
   const { NX, NZ, CS, blocked } = Nall; let cuts = 0;
   for (const p of A.pockets) { // cheapest way out of the pocket: open cells cost 0, fence cells 1, anything else 80
     const cost = (k) => !blocked[k] ? 0.001 : (!Noth.blocked[k] ? 1 : 80), dist = new Float32Array(NX * NZ).fill(1e9), par = new Int32Array(NX * NZ).fill(-1), heap = []; const push = (d, k) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const pa = (i - 1) >> 1; if (heap[pa][0] <= heap[i][0]) break; [heap[pa], heap[i]] = [heap[i], heap[pa]]; i = pa; } }; const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { let l = 2 * i + 1, r = l + 1, m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
@@ -586,7 +586,7 @@ function segHit(x0, z0, x1, z1) { // first hit (0..1) of a segment against visio
   return best;
 }
 function bangSprite(ch = '!') { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e63c3c'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '900 96px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 64, 70); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.9, 0.9, 1); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; }
-const CONE_N = 13, CONE_R = 8.5, CONE_HALF = 0.55, agents = [];
+const CONE_N = 13, CONE_R = 5.2, CONE_HALF = 0.46, agents = [];
 const agentPal = LOOKS.agent;
 const AGENT_CHASE = 6.0; // a little slower than the hero (6.8, 8.8 boosted), faster than a hero weighed down by a big stack
 function makeAgent(pts, o = {}) {
@@ -1024,6 +1024,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 r · crowd people</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 s · smaller cones</div>
 </body>
 </html>
