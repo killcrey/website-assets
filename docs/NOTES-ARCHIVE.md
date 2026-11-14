@@ -238,3 +238,10 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - First raid 120 s after 3 songs are banked (was 70), and that first countdown no longer speeds up with loud play (`state.wavesSpawned`); later raids still halve their interval after 90 s of LOUD. Verified: first raid at exactly 120 s.
 - Waves ~30% smaller: agents = round((n-1) * 0.4375) (8 songs: 3, was 4), thugs 1 from 7 songs and 2 from 10 (was 3). Final rush: 3 waves of 3 agents + 1 thug (was 4 + 2).
 - Water bottles and coil pickups have a light column; their minimap dots are bigger and pulse.
+
+## Barrio Logan z26 (2026-11-14): playability re-test found a pathfinding bug
+- `navPath` (A*) gave up after 9000 expansions with a linear-scan open list and returned [] for any long route around buildings (e.g. house -> map edge); callers then walked straight at the target and stalled on walls. This hit agents returning/chasing over long distances, Christopher, rebels, and the bot. Now a binary heap, 30000-expansion cap, and when the cap is hit it returns a partial path toward the closest point reached (callers re-plan). Long routes now resolve in ~10-30 ms.
+- Playability bot after the tuning (perfect-routing bot, 12 rebels + full fence at start, recovers thieves, invulnerable, never repairs/refuels):
+  - quiet: WON at 5:45 (12th song at 4:42, 1 theft, 11/12 rebels and the full fence still standing).
+  - loud: peaked at 10 songs (3:29), then thefts snowballed; no win in 13 min. (Before the tuning + pathing fix: loud max 8, quiet never won in 25 min.)
+  - Quiet also kept thefts to ~1 per 5 min vs ~3 per min loud.
