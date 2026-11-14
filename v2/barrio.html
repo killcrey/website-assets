@@ -10,6 +10,7 @@
   .chip { position: fixed; padding: 7px 12px; border-radius: 14px; background: rgba(20, 28, 50, .66); color: #fff; font-weight: 800; letter-spacing: .04em; text-shadow: 0 1px 0 rgba(0,0,0,.35); pointer-events: none; }
   #hud-a { top: max(12px, env(safe-area-inset-top)); left: 12px; font-size: 15px; line-height: 1.35; }
   #hud-a b { color: #7ff0ff; } #hud-a i { font-style: normal; color: #ffd34d; }
+  #skyfx { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; mix-blend-mode: screen; display: none; }
   #big { position: fixed; left: 50%; top: 21%; transform: translateX(-50%); z-index: 9; pointer-events: none; text-align: center; display: none; width: max-content; max-width: 90vw; }
   #big .t { font: 900 clamp(15px, 3.6vw, 24px)/1.15 system-ui, sans-serif; letter-spacing: .1em; color: #ff3b6b; text-shadow: 0 0 6px currentColor, 0 0 16px currentColor; padding: 5px 16px; border-radius: 12px; background: rgba(8, 10, 30, .25); border: 2px solid currentColor; box-shadow: 0 0 14px currentColor, inset 0 0 10px rgba(255, 255, 255, .1); display: inline-block; animation: bigflash .5s infinite alternate; }
   #big .s { max-width: 90vw; margin-top: 5px; font: 800 clamp(11px, 2.8vw, 15px)/1.2 system-ui, sans-serif; color: #fff; text-shadow: 0 0 6px #000; background: rgba(8, 10, 30, .3); padding: 3px 10px; border-radius: 8px; display: inline-block; }
@@ -54,7 +55,7 @@
 </head>
 <body>
 <div id="stage"></div>
-<div class="chip" id="hud-a"></div><div id="scorepops"></div><div id="big"></div>
+<div class="chip" id="hud-a"></div><div id="scorepops"></div><canvas id="skyfx"></canvas><div id="big"></div>
 <div class="chip" id="hud-place">HOME BASE BLOCK</div>
 <div class="chip" id="hud-list">♪ 0/12</div>
 <div class="chip" id="hud-music"></div>
@@ -798,6 +799,7 @@ function updateTear(dt) { // Low C full opens the rip for 60 s: stand in the cir
   const inRing = Math.hypot(P.pos.x - TEAR.x, P.pos.z - (TEAR.z + 2.8)) < 2.0; if (inRing && !(TEAR.cool > 0)) { TEAR.dwell += dt; if (TEAR.dwell >= 5) { saveBarrio(); state.paused = true; TEAR.go('../?from=barrio'); } } else TEAR.dwell = Math.max(0, TEAR.dwell - dt * 2); }
 function updateBanner() { const b = $('banner'); let txt = '', cls = ''; const dHouse = Math.hypot(P.pos.x - DECK.x, P.pos.z - DECK.z);
   if (state.overrun > 0 && dHouse > 16 && !state.over && !state.won) { txt = 'THE PARTY IS BEING OVERRUN. GET BACK AND HELP!'; cls = 'red'; }
+  else if (state.final && !state.won) { const F = state.final; txt = F.t <= 30 ? `DEFEND THE DJ!  ${Math.max(0, Math.ceil(30 - F.t))}s` : 'FINISH OFF THE LAST AGENTS'; cls = 'red'; }
   else if (TEAR.on) { const m = Math.floor(TEAR.t / 60), sc = Math.floor(TEAR.t % 60); txt = TEAR.dwell > 0.1 ? `LIFTOFF IN ${Math.max(1, 5 - Math.floor(TEAR.dwell))}` : `ROCKET LEAVING EARTH  ${m}:${String(sc).padStart(2, '0')}  \u2022  GET TO THE TEAR IN THE PARK`; cls = 'purple'; }
   if (txt !== b.dataset.t) { b.dataset.t = txt; b.textContent = txt; } b.className = cls; b.style.display = txt ? 'block' : 'none'; }
 function applyResume() { const sv = (() => { try { return new URLSearchParams(location.search).has('resume') ? JSON.parse(localStorage.getItem('v2_barrio_pause')) : null; } catch (e) { return null; } })();
@@ -1072,6 +1074,24 @@ const FLOOR_PAL = [[[0.11, 0.16, 0.33], [0.29, 0.16, 0.39]], [[0.1, 0.5, 0.55], 
 const NEON = [[1, 0.2, 0.45], [0.2, 1, 0.9], [1, 0.9, 0.2], [0.65, 0.2, 1], [0.25, 1, 0.45], [0.25, 0.55, 1]];
 function houseLevel(n) { return n >= 11 ? 4 : n >= 8 ? 3 : n >= 5 ? 2 : n >= 3 ? 1 : 0; }
 let _hc = new THREE.Color();
+// ---------- THE SKY (songs 9-12): the camera looks down at the city, so the 'sky' is the far end of the view: the fog and background change colour, and a glowing grid fades in over the top of the screen down to the horizon ----------
+const SKYBASE = new THREE.Color(SKY), SKYFX = { v: 0, t: 0, fr: 0 }, SKYPAL = [[0.72, 0.4, 1], [1, 0.3, 0.7], [0.2, 0.9, 1], [1, 0.8, 0.3]], hemiL = scene.children.find((o) => o.isHemisphereLight), _skc = new THREE.Color(), _skt = new THREE.Color(), _skh = new THREE.Color(0xdff2ff);
+function updateSky(dt) {
+  const n = state.final ? 12 : gotRec.size, tgt = n >= 12 ? 1 : n === 11 ? 0.8 : n === 10 ? 0.55 : n === 9 ? 0.3 : 0; /* tied to the records: steal one and it steps down, bring it back and it returns */
+  SKYFX.v += (tgt - SKYFX.v) * Math.min(1, 1.6 * dt); SKYFX.t += dt; const v = SKYFX.v, cv = $('skyfx');
+  if (v < 0.01) { if (cv.style.display !== 'none') { cv.style.display = 'none'; scene.background.copy(SKYBASE); scene.fog.color.copy(SKYBASE); if (hemiL) hemiL.color.setHex(0xdff2ff); } return; }
+  let r, g, b; if (v < 0.7) { const k = Math.min(1, Math.max(0, (v - 0.3) / 0.3)), A = SKYPAL[0], B = SKYPAL[1]; r = A[0] + (B[0] - A[0]) * k; g = A[1] + (B[1] - A[1]) * k; b = A[2] + (B[2] - A[2]) * k; }
+  else { const ph = SKYFX.t * (n >= 12 ? 1.4 : 0.4), i = Math.floor(ph) % 4, k = ph - Math.floor(ph), A = SKYPAL[i], B = SKYPAL[(i + 1) % 4]; r = A[0] + (B[0] - A[0]) * k; g = A[1] + (B[1] - A[1]) * k; b = A[2] + (B[2] - A[2]) * k; }
+  _skc.setRGB(r, g, b); _skt.copy(SKYBASE).lerp(_skc, v * 0.6); scene.background.copy(_skt); scene.fog.color.copy(_skt); if (hemiL) hemiL.color.copy(_skh).lerp(_skc, v * 0.25);
+  cv.style.display = 'block'; cv.style.opacity = n >= 12 ? (0.8 + 0.2 * Math.sin(SKYFX.t * 8)).toFixed(2) : n === 11 ? (0.88 + 0.12 * Math.sin(SKYFX.t * 4)).toFixed(2) : '1';
+  if ((SKYFX.fr++ & 1) === 1) return; const W2 = Math.ceil(innerWidth / 2), H2 = Math.ceil(innerHeight / 2); if (cv.width !== W2 || cv.height !== H2) { cv.width = W2; cv.height = H2; }
+  const c = cv.getContext('2d'), col = Math.round(r * 255) + ',' + Math.round(g * 255) + ',' + Math.round(b * 255); c.clearRect(0, 0, W2, H2);
+  const gr = c.createLinearGradient(0, 0, 0, H2); gr.addColorStop(0, 'rgba(' + col + ',' + (0.55 * v).toFixed(3) + ')'); gr.addColorStop(0.5, 'rgba(' + col + ',' + (0.16 * v).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(' + col + ',0)'); c.fillStyle = gr; c.fillRect(0, 0, W2, H2);
+  const gA = Math.min(1, Math.max(0, (v - 0.35) / 0.3)); if (gA <= 0) return; const pulse = n >= 11 ? 0.7 + 0.3 * Math.sin(SKYFX.t * (n >= 12 ? 8 : 4)) : 1, HH = H2 * 0.72, vpx = W2 / 2, vpy = -H2 * 0.1;
+  c.save(); c.lineWidth = 2; c.shadowColor = 'rgb(' + col + ')'; c.shadowBlur = 10;
+  for (let k = -13; k <= 13; k++) { const x1 = vpx + k * W2 * 0.12, lg = c.createLinearGradient(vpx, vpy, x1, HH); lg.addColorStop(0, 'rgba(' + col + ',' + (1 * gA * pulse).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(' + col + ',0)'); c.strokeStyle = lg; c.beginPath(); c.moveTo(vpx + k * 2, vpy); c.lineTo(x1, HH); c.stroke(); }
+  const off = (SKYFX.t * 0.22) % 1; for (let k = 0; k < 14; k++) { const u = (k + off) / 14, y = HH * Math.pow(u, 1.8); if (y < 1) continue; c.strokeStyle = 'rgba(' + col + ',' + (1 * gA * pulse * Math.pow(1 - u, 0.7)).toFixed(3) + ')'; c.beginPath(); c.moveTo(0, y); c.lineTo(W2, y); c.stroke(); }
+  c.restore(); }
 function updateHouseFx(dt) { const n = state.final ? 12 : gotRec.size, lvl = houseLevel(n), t = P.t;
   if (lvl > HOUSE.lvl) { const msg = ['', 'A DISCO BALL DROPS. THE FLOOR TURNS TEAL', 'SPOTLIGHTS SWEEP THE HOUSE. THE FLOOR GOES PINK', 'THE FLOOR GOES GOLD AND PULSES', 'THE WHOLE BLOCK IS SHAKING. RAINBOW FLOOR'][lvl]; if (msg) toast(msg, 2.4); } HOUSE.lvl = lvl;
   for (let i = 0; i < HOUSE.nx; i++) for (let j = 0; j < HOUSE.nz; j++) { const id = j * HOUSE.nx + i; if (lvl >= 4) { const c = NEON[(i + j + Math.floor(t * 5)) % 6]; _hc.setRGB(c[0], c[1], c[2]); } else { const pr = FLOOR_PAL[lvl][(i + j) % 2]; _hc.setRGB(pr[0], pr[1], pr[2]); if (lvl >= 3) _hc.multiplyScalar(0.8 + 0.2 * Math.sin(t * 6 + (i + j) * 0.7)); else if (lvl >= 1) _hc.multiplyScalar(0.85 + 0.15 * Math.sin(t * 3 + (i + j) * 0.5)); } HOUSE.tiles.setColorAt(id, _hc); } HOUSE.tiles.instanceColor.needsUpdate = true;
@@ -1192,7 +1212,7 @@ function update(dt) {
   heroRig.root.position.copy(P.pos); heroRig.root.rotation.y = P.yaw; heroRig.root.visible = P.inv <= 0 || Math.floor(P.t * 14) % 2 === 0;
   const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, P.boosting ? 0x7ff0ff : 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
   // traffic, lights, agents
-  updateAlien(dt); updateCrew(dt); updateHints(dt); updateHub(dt); updateTear(dt); updateBanner(); updateHearts(dt); updateDJ(dt); updateRebels(dt); updateWaves(dt); updateHouseFx(dt); updateCoils(dt); updateBaskets(dt); updateGetEm(dt); drawMini(dt); { const c = stack.find((g) => g.rec !== undefined); if (c && !state.reveal && !(state.hintT > 0)) drawArrows([{ x: DECK.x, z: DECK.z, col: '#ffd34d' }]); } updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
+  updateAlien(dt); updateCrew(dt); updateHints(dt); updateHub(dt); updateTear(dt); updateBanner(); updateHearts(dt); updateDJ(dt); updateRebels(dt); updateWaves(dt); updateHouseFx(dt); updateSky(dt); updateCoils(dt); updateBaskets(dt); updateGetEm(dt); drawMini(dt); { const c = stack.find((g) => g.rec !== undefined); if (c && !state.reveal && !(state.hintT > 0)) drawArrows([{ x: DECK.x, z: DECK.z, col: '#ffd34d' }]); } updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   P.carT = Math.max(0, (P.carT || 0) - dt); for (const g of agents) { if (g.down) continue; for (const c of carList) { const ex = g.pos.x - c.x, ez = g.pos.z - c.z, ox = c.hx + 0.5 - Math.abs(ex), oz = c.hz + 0.5 - Math.abs(ez); if (ox > 0 && oz > 0) { if (ox < oz) g.pos.x += (ex < 0 ? -1 : 1) * ox; else g.pos.z += (ez < 0 ? -1 : 1) * oz; } } } /* cars never brake for agents; an agent in a car's way just gets nudged aside, so no traffic jams */
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { if (P.carT > 0) { P.carT = 0; scatter(c.x, c.z, 'RUN OVER'); loseLife('HIT BY A CAR AGAIN'); } else { P.lowC = 0; P.carT = 60; P.inv = 1.8; P.stun = 0.28; { const dx = P.pos.x - c.x, dz = P.pos.z - c.z, dd = Math.hypot(dx, dz) || 1; P.vel.x = dx / dd * 9; P.vel.z = dz / dd * 9; } camera.userData.shake = 0.45; hitFlash(); toast('HIT BY A CAR! LOW C EMPTY. ONE MORE HIT AND YOU ARE DOWN', 3, true); bigAlert('HIT BY A CAR!', 'LOW C EMPTY. ONE MORE HIT AND YOU ARE DOWN', 'red', 3, 3); } break; } }
   for (const g of agents) if (g.mode === 'thief' && g.carry !== undefined && P.stun <= 0 && Math.hypot(g.pos.x - P.pos.x, g.pos.z - P.pos.z) < 1.7) { const i = g.carry; if (g.carryMesh) scene.remove(g.carryMesh); g.carryMesh = null; g.carry = undefined; bankRecord(i); addScore(300, 'RECOVERED'); state.raids = Math.max(0, state.raids - 1); hud(); g.mode = 'flee'; g.fleeT = 4; { const ax = g.pos.x - DECK.x, az = g.pos.z - DECK.z, al = Math.hypot(ax, az) || 1; g.fx = g.pos.x + ax / al * 35; g.fz = g.pos.z + az / al * 35; } g.path = []; g.repath = 0; g.cool = 12; toast('YOU TOOK THE RECORD BACK!', 2.2); } /* only the player can, never a rebel */
@@ -1255,6 +1275,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { agentSees, segHit, BASKETS, POWER, powerAlarm, bigAlert, loseLife, winGame, addScore, scoreBlock, LAWN, GATE, party, plzOk, REBELS, FENCE, COILS, HEARTS, TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-14 z17 · coils stay</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-14 z18 · sky grid</div>
 </body>
 </html>

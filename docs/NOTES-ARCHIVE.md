@@ -190,3 +190,8 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 
 ## Barrio Logan z17 (2026-11-14): killed agents always drop a coil, and it stays
 - `dropCoil` no longer skips when the fence is complete and loose coils no longer expire (cap 30, oldest removed). Walking onto one when the fence is full (or you carry 3 coils) shows "YOU DON'T NEED THEM RIGHT NOW" (3 s cooldown); otherwise you pick it up.
+
+## Barrio Logan z18 (2026-11-14): the sky at songs 9-12, and the final countdown
+- The camera never sees the real sky (pitch ~50 deg down, 36 deg fov), so the "sky" is the far end of the view: `updateSky` tints `scene.background`, `scene.fog` (what the far ground fades to) and the hemisphere light, and a full-screen half-res canvas (`#skyfx`, blend mode screen) adds a top-down colour wash plus a glowing perspective grid (radial lines from a vanishing point above the top edge + scrolling horizontal lines compressing toward the horizon) fading out at ~72% of screen height.
+- Tied to `gotRec.size` (12 during the final), eased at 1.6/s both ways: <=8 none; 9 faint violet; 10 stronger pink-violet and the grid appears; 11 colour cycles slowly (0.4 colours/s), grid pulses at ~0.6 Hz; 12 cycles fast (1.4/s) and the canvas pulses ~1.3 Hz (smooth sine, not a hard strobe). Records stolen -> steps back down, off at 8 or fewer; returned -> comes back. Verified 6 -> 11 -> 9 -> 6 -> 11.
+- Final: the red banner now counts "DEFEND THE DJ! 29s" (3 raid waves at 0/14/28 s, win when 30 s have passed and no raiders are left), then "FINISH OFF THE LAST AGENTS".
