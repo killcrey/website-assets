@@ -195,3 +195,15 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - The camera never sees the real sky (pitch ~50 deg down, 36 deg fov), so the "sky" is the far end of the view: `updateSky` tints `scene.background`, `scene.fog` (what the far ground fades to) and the hemisphere light, and a full-screen half-res canvas (`#skyfx`, blend mode screen) adds a top-down colour wash plus a glowing perspective grid (radial lines from a vanishing point above the top edge + scrolling horizontal lines compressing toward the horizon) fading out at ~72% of screen height.
 - Tied to `gotRec.size` (12 during the final), eased at 1.6/s both ways: <=8 none; 9 faint violet; 10 stronger pink-violet and the grid appears; 11 colour cycles slowly (0.4 colours/s), grid pulses at ~0.6 Hz; 12 cycles fast (1.4/s) and the canvas pulses ~1.3 Hz (smooth sine, not a hard strobe). Records stolen -> steps back down, off at 8 or fewer; returned -> comes back. Verified 6 -> 11 -> 9 -> 6 -> 11.
 - Final: the red banner now counts "DEFEND THE DJ! 29s" (3 raid waves at 0/14/28 s, win when 30 s have passed and no raiders are left), then "FINISH OFF THE LAST AGENTS".
+
+## Barrio Logan z19 (2026-11-14): no arrests, rebels guard the fence area, thief must clear the fence line, Eddie, alien search, fence-attack look
+- Arrests removed: a lost fight costs every rebel on the team 3 fights of power (worn out at 10, tag WORN OUT); the ARRESTED tag/toast and the -50 score are gone.
+- Rebels' priority is the fence area: threats are processed closest-to-DECK first; engagement range 40 m of DECK / 30 m of GATE; an agent inside the lawn needs 3 rebels (thug 4), searches all rebels within 90 m and may take rebels away from agents who are outside the lawn; scuffle starts at 3 m. 90 s test (9 songs, 8 rebels, big wave): max 3 agents inside the fence at once, 12 s total.
+- Thief gets away only when `!LAWN.has` AND > 9 m from DECK (past the fence line, not off the dance floor).
+- Records blink on the minimap (alpha 0.4-1 at ~1.5 Hz).
+- Eduardo: heat = 0, loudT = 0, thugs removed, `state.eddieClear` (heat bar forced to 0) until `state.heard` (an agent investigates because of the party/raid/walk-in) or `P.heat > 0.05` (you get spotted).
+- Raid alert wording: "FROM ALL SIDES" -> "INCOMING" (not every side gets an agent).
+- Dead/removed agents: their raid ring (`rring`) and laser are hidden when they go down and removed from the scene when the agent is removed (the ring used to outlive the body).
+- Fence attack: no red any more: gold light beacon over the panel + amber warning triangle, amber diamond on the minimap, orange toast; the attacker's own red raid ring is hidden while he chews.
+- Loose coils vanish after 120 s (blink in the last 8 s).
+- Alien: hunts what it sees; if you are hidden/invisible or on the home pad it flies to the last place it saw you, and leaves after 5 s ("THE ALIEN LOST YOU AND LEFT"). Verified 5.0 s for both.
