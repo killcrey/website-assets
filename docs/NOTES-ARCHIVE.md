@@ -187,3 +187,6 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - Fruit baskets always set Low C to 100 (picked up at any level).
 - Fence panels are now vision-blocking (`col.vis = true`): `agentSees`/chase line of sight/cones stop at the fence. Verified true -> false with the panel on.
 - `window.__v2` also exports `agentSees, segHit`.
+
+## Barrio Logan z17 (2026-11-14): killed agents always drop a coil, and it stays
+- `dropCoil` no longer skips when the fence is complete and loose coils no longer expire (cap 30, oldest removed). Walking onto one when the fence is full (or you carry 3 coils) shows "YOU DON'T NEED THEM RIGHT NOW" (3 s cooldown); otherwise you pick it up.
