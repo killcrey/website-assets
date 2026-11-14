@@ -287,7 +287,7 @@ NAMED.forEach((n, i) => { if (REPLICA[n[0]]) return; const [key, text, r, floors
   const CB = bld(bt, cx, cz, w, d, 1, 'sand', 'e', { shop: false, roof: 'gable', rise: 4.4, h: 5.5, roofColor: 0x8a5a3a }), tb = CB.rb; const tx = q.x1 - 1.9;
   tb.box(3.2, 11, 3.2, 0xe9dfcf, tx, 5.5, cz); tb.add('cone', 0x7a4a3a, tx, 14.2, cz, 2.4, 6.4, 2.4); tb.box(0.14, 1.6, 0.14, 0xf3c53a, tx, 17.9, cz); tb.box(0.9, 0.14, 0.14, 0xf3c53a, tx, 17.7, cz); solidBox(tx, cz, 3.2, 3.2, true); }
 // Home Base plaza + the power-up pad in front of the Astronaut School
-{ const q = R([884, 648, 984, 757]), bt = BT(PAD.x, PAD.z); bt.box(q.x1 - q.x0 + 0.6, 0.12, q.z1 - q.z0 + 0.6, 0xd9d2c3, (q.x0 + q.x1) / 2, 0.06, (q.z0 + q.z1) / 2); benchP(bt, q.x0 + 2, q.z0 + 1.3, 0); benchP(bt, q.x1 - 2, q.z0 + 1.3, 0); bt.box(3.4, 1.0, 1.4, 0x1c2a48, q.x1 - 2.4, 0.7, q.z1 - 1.2); bt.cyl(0.5, 0.2, 0x7ff0ff, q.x1 - 3.5, 1.3, q.z1 - 1.5); bt.cyl(0.5, 0.2, 0x7ff0ff, q.x1 - 1.3, 1.3, q.z1 - 1.5); }
+{ const q = R([884, 648, 984, 757]), bt = BT(PAD.x, PAD.z); bt.box(q.x1 - q.x0 + 0.6, 0.12, q.z1 - q.z0 + 0.6, 0xd9d2c3, (q.x0 + q.x1) / 2, 0.06, (q.z0 + q.z1) / 2); benchP(bt, q.x0 + 2, q.z0 + 1.3, 0); benchP(bt, q.x1 - 2, q.z0 + 1.3, 0); bt.box(3.4, 1.0, 1.4, 0x1c2a48, (q.x0 + q.x1) / 2, 0.7, q.z0 + 2.2); bt.cyl(0.5, 0.2, 0x7ff0ff, (q.x0 + q.x1) / 2 - 1.1, 1.3, q.z0 + 1.9); bt.cyl(0.5, 0.2, 0x7ff0ff, (q.x0 + q.x1) / 2 + 1.1, 1.3, q.z0 + 1.9); }
 { const t = new THREE.Mesh(new THREE.CircleGeometry(PAD.r, 36), new THREE.MeshBasicMaterial({ color: 0x1c2a48 })); t.rotation.x = -Math.PI / 2; t.position.set(PAD.x, 0.235, PAD.z); scene.add(t); }
 const padRing = new THREE.Mesh(new THREE.RingGeometry(PAD.r - 0.35, PAD.r, 40), new THREE.MeshBasicMaterial({ color: 0x7ff0ff, transparent: true, opacity: 0.9, side: THREE.DoubleSide })); padRing.rotation.x = -Math.PI / 2; padRing.position.set(PAD.x, 0.25, PAD.z); scene.add(padRing);
 { const t = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), canvasSign('HOME', 3.2, 1.2, null, '#7ff0ff')); t.rotation.x = -Math.PI / 2; t.position.set(PAD.x, 0.26, PAD.z); scene.add(t); }
@@ -677,7 +677,7 @@ function grabUpdate(dt) {
 }
 function loseLife(why) { if (state.over || state.won) return; state.lives--; hud(); if (state.lives <= 0) { gameOver('YOU RAN OUT OF LIVES.', 'Everything starts over.'); return; } toast(`${why}  \u2022  ${state.lives} ${state.lives === 1 ? 'LIFE' : 'LIVES'} LEFT`, 2.6, true); }
 function raidFx(g, on) { if (!g.rring) { g.rring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.25, 26), new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false, blending: THREE.AdditiveBlending })); g.rring.rotation.x = -Math.PI / 2; g.rring.renderOrder = 8; g.rring.visible = false; scene.add(g.rring); }
-  g.rring.visible = on; if (!on) return; state.overrun = 8; g.rring.position.set(g.pos.x, 0.42, g.pos.z); g.rring.scale.setScalar(1 + Math.sin(P.t * 12) * 0.25); g.mat.color.setHex(0xff2a2a); g.mat.opacity = 0.6; if (!(state.raidWarn > 0)) { state.raidWarn = 10; toast('AGENTS ARE RAIDING THE PARTY!', 2.2, true); } }
+  g.rring.visible = on; if (!on) return; if (Math.hypot(DECK.x - g.pos.x, DECK.z - g.pos.z) < 4) state.overrun = 8; /* an agent is AT the turntables: the defense failed */ g.rring.position.set(g.pos.x, 0.42, g.pos.z); g.rring.scale.setScalar(1 + Math.sin(P.t * 12) * 0.25); g.mat.color.setHex(0xff2a2a); g.mat.opacity = 0.6; if (!(state.raidWarn > 0)) { state.raidWarn = 10; toast('AGENTS ARE MOVING ON THE PARTY', 2.2, true); } }
 function killAgent(g) { dropCoil(g.pos.x, g.pos.z);
   g.down = true; g.downT = 0; g.alert = 0; g.mode = 'patrol'; g.stun = 0; g.found = false; state.takedowns++; camera.userData.shake = 0;
   const seen = agents.some((o) => o !== g && !o.down && !o.far && Math.hypot(o.pos.x - g.pos.x, o.pos.z - g.pos.z) < CONE_R * 1.4 && segHit(o.pos.x, o.pos.z, g.pos.x, g.pos.z) === Infinity);
@@ -718,7 +718,7 @@ const GATE = { x: 93.4, z: 76 }, FENCE_MAX = 10, FENCE = { panels: [], max: FENC
   count() { return this.panels.filter((q) => q.alive).length; },
   defended(q) { return REBELS.some((r) => (r.mode === 'post' || r.mode === 'run') && r.ko <= 0 && Math.hypot(r.pos.x - q.x, r.pos.z - q.z) < 16); },
   addPanel() { const q = this.panels.find((m) => !m.alive); if (!q) { toast('THE HOUSE FENCE IS COMPLETE', 1.6); return; } q.alive = true; q.hp = this.hpMax; q.g.children[0].scale.y = 1; q.g.visible = true; q.col.on = true; q.ghost.visible = false; state.wires = this.count(); hud(); toast(`FENCE UP: ${state.wires}/${this.max}`, 2.2); },
-  breakPanel(q) { q.alive = false; q.g.visible = false; q.col.on = false; q.ghost.visible = true; state.overrun = 8; state.wires = this.count(); hud(); toast('AGENTS TORE DOWN A FENCE PANEL!', 2.2, true); } };
+  breakPanel(q) { q.alive = false; q.g.visible = false; q.col.on = false; q.ghost.visible = true; state.wires = this.count(); hud(); toast('AGENTS TORE DOWN A FENCE PANEL!', 2.2, true); } };
 // ---------- THE BODEGA HUB (spec 32-34, 37): Pancho and his dad behind the bodega, copper wires, the front circle ----------
 LOOKS.pancho = Object.assign({}, LOOKS.eduardo, { suit: 0xd9602f, suit2: 0xb34c22, skin: 0xb97a50 }); LOOKS.dad = Object.assign({}, LOOKS.eduardo, { suit: 0xb8b2a0, suit2: 0x9d9784, skin: 0xa98666, hair: 0xcfcfcf });
 const HUB = { vol: [90.6, 73.4], pancho: [122.3, 80.2], hint: [119.4, 77.4], wire: [124.0, 77.6], dad: [114.6, 77.6], circle: [126.4, 100.0] };
@@ -811,7 +811,7 @@ function updateHints(dt) { // pointers: Luz's reveal (every loose record) and Pa
 }
 function noiseSource() { // spec 20/22/24: the grid hears songs. A carried song makes YOU loud; banked songs and the party make the HOUSE loud. Music down quiets both.
   if (state.won || state.over || state.faraday) return null; const mul = state.musicDown ? 0.4 : 1, run = Math.hypot(P.vel.x, P.vel.z) > 3.2 ? 4 : 0;
-  if (gotRec.size > 0 && !(state.inside > 0)) return { x: DECK.x, z: DECK.z, r: (7 + gotRec.size * 1.5 + party.n * 0.06) * mul * (1 + Math.min(1, state.loudT / 90)), deck: true };
+  if (gotRec.size > 0 && !(state.inside > 0)) return { x: DECK.x, z: DECK.z, r: (gotRec.size <= 2 ? 0.2 : gotRec.size <= 4 ? 0.6 : 1) * (7 + gotRec.size * 1.5 + party.n * 0.06) * mul * (1 + Math.min(1, state.loudT / 90)), deck: true };
   return null;
 }
 function failFinal() { // the peak party is broken up: four songs go back out, you can always build it again
@@ -949,8 +949,8 @@ $('hud-list').addEventListener('click', () => { const p = $('playlist'); p.style
 renderList();
 function onBank() { /* music now comes from records you bring home */ }
 // ---------- THE TURNTABLES + THE PARTY (spec 9, 10, 44) ----------
-const DECK = { x: 95.7, z: 74.2, r: 2.8 }; solidBox(DECK.x, DECK.z, 3.4, 1.4, false);
-const platters = [94.6, 96.8].map((x) => { const g = new THREE.Group(), d = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.3 })), l = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 16), new THREE.MeshBasicMaterial({ color: 0xff8a3a })), ar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.7), new THREE.MeshStandardMaterial({ color: 0xc9c9d4 })); ar.position.set(0.5, 0.1, 0.1); ar.rotation.y = 0.5; g.add(d, l); g.position.set(x, 1.48, DECK.z - 0.3); scene.add(g); const arm = ar; arm.position.set(x + 0.45, 1.55, DECK.z - 0.1); scene.add(arm); return g; });
+const DECK = { x: 93.4, z: 67.3, r: 2.8 }; solidBox(DECK.x, DECK.z, 3.4, 1.4, false);
+const platters = [92.3, 94.5].map((x) => { const g = new THREE.Group(), d = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.3 })), l = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 16), new THREE.MeshBasicMaterial({ color: 0xff8a3a })), ar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.7), new THREE.MeshStandardMaterial({ color: 0xc9c9d4 })); ar.position.set(0.5, 0.1, 0.1); ar.rotation.y = 0.5; g.add(d, l); g.position.set(x, 1.48, DECK.z - 0.3); scene.add(g); const arm = ar; arm.position.set(x + 0.45, 1.55, DECK.z - 0.1); scene.add(arm); return g; });
 const deckRing = new THREE.Mesh(new THREE.RingGeometry(DECK.r - 0.3, DECK.r, 40), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.7, side: THREE.DoubleSide })); deckRing.rotation.x = -Math.PI / 2; deckRing.position.set(DECK.x, 0.27, DECK.z + 0.3); scene.add(deckRing);
 { const t = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), canvasSign('DROP RECORDS HERE', 3.4, 0.9, null, '#ffd34d')); t.rotation.x = -Math.PI / 2; t.position.set(DECK.x, 0.28, DECK.z + 2.3); scene.add(t); }
 const PLZ0 = R([884, 648, 984, 757]), plzc = [(PLZ0.x0 + PLZ0.x1) / 2, (PLZ0.z0 + PLZ0.z1) / 2], plzOk = (x, z) => { const dx = Math.abs(x - plzc[0]), dz = Math.abs(z - plzc[1]), hw = (PLZ0.x1 - PLZ0.x0) / 2, hh = (PLZ0.z1 - PLZ0.z0) / 2, inside = dx < hw - 0.9 && dz < hh - 0.9 && !(Math.abs(x - DECK.x) < 2.8 && Math.abs(z - DECK.z) < 2.2), outside = dx > hw + 2.0 || dz > hh + 2.0; if (Math.hypot(x - HUB.vol[0], z - HUB.vol[1]) < 3.0 || Math.hypot(x - GATE.x, z - GATE.z) < 3.2) return false; return inside || outside; };
@@ -1055,11 +1055,11 @@ function updateCoils(dt) { const full = FENCE.count() >= FENCE.max;
 const raiders = () => agents.filter((a) => a.raider && !a.down && !a.remove);
 function spawnRaid(nA, nT, label) { const B = NAMEDB.AGENCY; for (let k = 0; k < nA + nT; k++) { const x = B.cx + (k % 5 - 2) * 1.6, z = B.q.z0 - 1.4 - Math.floor(k / 5) * 1.6, g = makeAgent([[x, z], [x + 0.1, z]], { thug: k >= nA, mode: 'investigate' }); g.raider = true; g.invT = 0; g.cool = 0; g.scCd = 0; }
   toast(`${label}: ${nA} AGENTS${nT ? ' + ' + nT + ' THUG' + (nT > 1 ? 'S' : '') : ''} HEAD FOR THE PARTY`, 3.2, true); }
-const waveSize = (n) => ({ a: 1 + Math.floor(n * 0.45), t: n >= 10 ? 2 : n >= 6 ? 1 : 0 });
+const waveSize = (n) => ({ a: Math.max(1, Math.floor((n - 1) * 0.5)), t: n >= 10 ? 2 : n >= 7 ? 1 : 0 });
 function updateWaves(dt) { // every song makes the party louder: bigger and more frequent attacks
   if (state.won || state.over) return; const n = gotRec.size;
   if (state.final) { const F = state.final; F.t += dt; while (F.spawned < 3 && F.t >= F.spawned * 14) { spawnRaid(4, 2, 'THE FINAL ATTACK'); F.spawned++; } if (F.spawned >= 3 && F.t > 30 && raiders().length === 0) { state.final = null; winGame(); } return; }
-  if (n < 1) return; state.waveT = (state.waveT === undefined ? 30 : state.waveT) - dt * (1 + Math.min(1, state.loudT / 90)); if (state.waveT <= 0) { state.waveT = Math.max(30, 75 - 4 * n); if (raiders().length < 14) { const w = waveSize(n); spawnRaid(w.a, w.t, 'AGENCY RAID'); } } }
+  if (n < 3) { state.waveT = undefined; return; } state.waveT = (state.waveT === undefined ? 70 : state.waveT) - dt * (1 + Math.min(1, state.loudT / 90)); if (state.waveT <= 0) { state.waveT = Math.max(32, 90 - 5 * n); if (raiders().length < 14) { const w = waveSize(n); spawnRaid(w.a, w.t, 'AGENCY RAID'); } } }
 function startFinal() { if (state.final || state.won) return; state.final = { t: 0, spawned: 0, breaches: 0 }; party.n = PARTY_MAX; for (const q of party.list) if (!q.arrived) { q.x = q.tx + (rnd() - 0.5) * 60; q.z = q.tz + (rnd() - 0.5) * 60; } toast('THE WHOLE NEIGHBORHOOD WAKES UP! THE AGENCY SENDS EVERYTHING!', 4.5, true); }
 const WIN = { on: false };
 function winGame() { if (WIN.on) return; WIN.on = true; state.won = true; for (const a of agents) { a.fig.root.visible = false; a.cone.visible = false; a.mark.visible = false; a.qmark.visible = false; } agents.length = 0; alien.active = false; alien.timer = 1e9; party.n = PARTY_MAX; for (const q of party.list) if (!q.arrived) { q.x = q.tx + (rnd() - 0.5) * 60; q.z = q.tz + (rnd() - 0.5) * 60; }
@@ -1157,6 +1157,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { GATE, party, plzOk, REBELS, FENCE, COILS, HEARTS, TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 z4 · dj + coils</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 z5 · grace + dj back</div>
 </body>
 </html>
