@@ -179,3 +179,11 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - Alien: no longer takes your items. At 0.45 s in the beam it teleports you to one of the 6 farthest open spots from the house (>40 m from where you stood), keeps your stack, drops chasers, "YOU GOT ABDUCTED!" big alert. Alien speed 5.4 -> 7.0: you outrun it only with Low C (8.8); on foot (~6.6 carrying) it catches you. Verified: gap stays 25 m with Low C, caught without it.
 - Rebels: `REBEL_FIGHTS` 3 -> 6, power bar has one cell per fight, and a resting rebel (not fighting) recovers one fight every 40 s. (Declared before `PWR_TEX` — TDZ otherwise.)
 - Big alert restyled: small neon pill, ~25% opaque background, flashing opacity (red = neon red-pink, warn = neon yellow), 15-24 px type at 21% from top.
+
+## Barrio Logan z16 (2026-11-14): DJ on the home circle, floor colours, 10-fight rebels, full-fill baskets, fence blocks sight
+- DJ desk + DJ moved from the north of the dance floor to the centre, on the HOME circle: `DECK` = (93.4, 70.3, r 3.4) (was z 67.3, r 2.8); static desk and platters follow `PAD.z`; DJ stands 1.05 m behind the desk. The HOME word moved to the south edge of the floor (`PAD.z + 4.2`). `LAWN`'s flood fill used to start at the pad centre, which is now inside the desk collider (that crashed the page: empty fence defs); it now seeds at z 73.
+- Dance floor colour by party level (`FLOOR_PAL`): 0-2 songs indigo, 3-4 teal, 5-7 pink, 8-10 gold (pulsing), 11-12 rainbow cycle.
+- Rebels: `REBEL_FIGHTS` = 10 (bar scaled, orange ring when 3 or fewer left); recover 1 fight per 40 s resting.
+- Fruit baskets always set Low C to 100 (picked up at any level).
+- Fence panels are now vision-blocking (`col.vis = true`): `agentSees`/chase line of sight/cones stop at the fence. Verified true -> false with the panel on.
+- `window.__v2` also exports `agentSees, segHit`.
