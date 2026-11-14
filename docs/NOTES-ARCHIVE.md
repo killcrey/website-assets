@@ -213,3 +213,9 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - A lost fight now costs only the rebel nearest the agent (+3 fights; worn out at 10); winners still each take +1.
 - Christopher (`boon: 'guide'`): on meeting, he says follow me, walks to the nearest uncollected record (waits when you are > 10 m behind), stops within 2.6 m ("CHRISTOPHER: HERE IT IS"), then roams on. 75 s cooldown (others 40-75) and long waits (10-24 s) make him rarer. No more Low C from him (the duet with Juan Carlos still gives full Low C). Verified: led to the nearest record in 8 s.
 - Fruit baskets: +50 Low C (cap 100), no longer full.
+
+## Barrio Logan z21 (2026-11-14): water bottles, rebels stay home, power-ring grace, taco traffic
+- Water: 22 bottles on 30 spots (min spacing 11 m, respawn 50 s elsewhere), blue dots on the minimap. Carry up to 4 (`P.water`, HUD "WATER n/4", lost with a life). Touching a recruited rebel (post/run, within 1.8 m) who has any fights used refuels him completely (`fights = 0`) and uses one bottle (+20 score "REBEL REFUELED"); no bottle is spent on a full-power rebel.
+- Rebels engage only agents within 9 m of the fence rectangle (`lawnDist`, rect 77-99.7 x 64.8-77.1), and give up the pursuit if the agent is > 14 m out or the rebel > 16 m out (was 40 m of DECK / 30 m of GATE).
+- Power ring refills at 22 Low C/s (was 45) and the alarm fires after you have gained 25 points of Low C there (`P.powGain`), about 1.2 s; arriving at 100% never sets it off.
+- Taco trucks: the 4 stationary ones are gone (no agent-distraction any more; help/alert text updated). Exactly 3 lane cars are taco trucks (`c.taco`, a separate mesh `makeTacoTruck` follows the lane, the instanced car is scaled to 0), so never more than 3.
