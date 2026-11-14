@@ -207,3 +207,9 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - Fence attack: no red any more: gold light beacon over the panel + amber warning triangle, amber diamond on the minimap, orange toast; the attacker's own red raid ring is hidden while he chews.
 - Loose coils vanish after 120 s (blink in the last 8 s).
 - Alien: hunts what it sees; if you are hidden/invisible or on the home pad it flies to the last place it saw you, and leaves after 5 s ("THE ALIEN LOST YOU AND LEFT"). Verified 5.0 s for both.
+
+## Barrio Logan z20 (2026-11-14): 20 rebels with couples, lost fight hurts one rebel, Christopher guides, baskets +50
+- `REBEL_MAX` 12 -> 20: 6 couples + 8 loners on the map (first 6 groups on the map edges, group spacing 14 m, HUD shows n/20, 20 lawn posts at 2.4 m spacing). A couple's follower (`r.buddy`, the higher index) tracks its leader at ~1.1 m while both are free; recruiting one leaves the other wandering alone. Free rebels roam up to 26 m per hop, every 4-9 s, 2.0 m/s.
+- A lost fight now costs only the rebel nearest the agent (+3 fights; worn out at 10); winners still each take +1.
+- Christopher (`boon: 'guide'`): on meeting, he says follow me, walks to the nearest uncollected record (waits when you are > 10 m behind), stops within 2.6 m ("CHRISTOPHER: HERE IT IS"), then roams on. 75 s cooldown (others 40-75) and long waits (10-24 s) make him rarer. No more Low C from him (the duet with Juan Carlos still gives full Low C). Verified: led to the nearest record in 8 s.
+- Fruit baskets: +50 Low C (cap 100), no longer full.
