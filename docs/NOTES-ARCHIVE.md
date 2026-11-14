@@ -233,3 +233,8 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 
 ## Barrio Logan z24 (2026-11-14): rebels keep a garrison and never chase far
 - Rebels engage only agents within 4.5 m of the fence (or inside it); agents still approaching are ignored. At most half of the active rebels may be deployed at once (`maxOut`), except while an agent is inside the fence (then everyone). Pursuit leash: give up when the agent is > 7 m from the fence or the rebel > 8 m. 120 s test, 9 songs, 10 rebels, big waves: max 5 rebels out at once, none farther than 3.3 m from the fence (before: up to ~15 m, whole groups).
+
+## Barrio Logan z25 (2026-11-14): difficulty tuning
+- First raid 120 s after 3 songs are banked (was 70), and that first countdown no longer speeds up with loud play (`state.wavesSpawned`); later raids still halve their interval after 90 s of LOUD. Verified: first raid at exactly 120 s.
+- Waves ~30% smaller: agents = round((n-1) * 0.4375) (8 songs: 3, was 4), thugs 1 from 7 songs and 2 from 10 (was 3). Final rush: 3 waves of 3 agents + 1 thug (was 4 + 2).
+- Water bottles and coil pickups have a light column; their minimap dots are bigger and pulse.
