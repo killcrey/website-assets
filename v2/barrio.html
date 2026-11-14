@@ -18,7 +18,6 @@
   #playlist span { display: block; margin-top: 6px; padding: 7px 9px; opacity: .45; }
   #hud-music { top: calc(max(12px, env(safe-area-inset-top)) + 76px); right: 12px; font-size: 12px; opacity: 0; transition: opacity .5s; }
   #mini { position: fixed; left: max(10px, env(safe-area-inset-left)); bottom: max(86px, calc(env(safe-area-inset-bottom) + 70px)); width: 132px; height: 104px; border-radius: 10px; background: rgba(8, 18, 42, .62); border: 2px solid rgba(127, 240, 255, .45); z-index: 4; pointer-events: none; }
-  #helpbtn { position: fixed; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%); width: 38px; height: 38px; border-radius: 50%; border: 2px solid #fff; background: rgba(8, 18, 42, .6); color: #fff; font: 900 20px system-ui; z-index: 6; }
   #hitflash { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255, 30, 30, 0), rgba(255, 30, 30, .6) 85%); }
   #flash { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255, 211, 77, .55), rgba(255, 211, 77, 0) 70%); transition: opacity .6s; }
   #toast { left: 50%; top: 24%; transform: translate(-50%, 0) scale(.9); opacity: 0; font-size: 19px; text-align: center; transition: opacity .25s, transform .25s; background: rgba(255, 150, 40, .94); color: #2a1200; text-shadow: none; white-space: normal; width: max-content; max-width: 90vw; line-height: 1.25; box-sizing: border-box; }
@@ -42,7 +41,7 @@
 <div class="chip" id="hud-music"></div>
 
 <div id="playlist"></div>
-<canvas id="mini" width="132" height="104"></canvas><button id="helpbtn" type="button">?</button><div id="flash"></div><div id="hitflash"></div>
+<canvas id="mini" width="132" height="104"></canvas><div id="flash"></div><div id="hitflash"></div>
 <div class="chip" id="toast"></div>
 <div id="joy"><i></i></div>
 <div id="lowc">LOW C<div><i id="lowc-bar"></i></div></div>
@@ -614,8 +613,9 @@ function agentCone(g) {
 function updateAgent(g, dt) {
   if (g.down) { // knocked out: tip forward, lie still, then get back up
     g.downT += dt; g.cone.visible = false; g.mark.visible = false; g.qmark.visible = false; g.fig.root.rotation.x = Math.min(1, g.downT / 0.28) * 1.5; g.fig.root.position.set(g.pos.x, 0.12, g.pos.z);
-    if (g.downT > 12) { const rs = respawnSpot(g); g.pos.x = rs[0]; g.pos.z = rs[1]; g.down = false; g.mode = 'patrol'; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
+    if (g.downT > 12) { const rs = respawnSpot(g); g.pos.x = rs[0]; g.pos.z = rs[1]; g.down = false; g.found = false; g.mode = 'patrol'; g.alert = 0; g.cone.visible = true; g.fig.root.rotation.x = 0; g.fig.root.position.set(g.pos.x, 0, g.pos.z); puff(g.pos.x, 0.8, g.pos.z, 0xffffff, 0, 1.2, 0, 0.5, 0.3, 0.9); } return;
   }
+  if (g.grabbing) { g.cone.visible = false; g.fig.root.visible = true; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.1, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); return; }
   if (g.stun > 0) { g.stun -= dt; g.cone.visible = false; g.mark.visible = false; g.qmark.visible = false; g.fig.root.visible = true; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw + Math.sin(P.t * 30) * 0.12; return; }
   if (g.mode === 'patrol') g.eyesOn = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z) < 13; else g.eyesOn = true; // their eyes only 'switch on' when you are close: you sense them before they can see you
   if (g.mode !== 'chase' && g.laser) g.laser.visible = false;
@@ -657,10 +657,16 @@ function updateAgent(g, dt) {
   if (g.far) { g.fig.root.visible = false; g.cone.visible = false; g.fig.root.position.set(g.pos.x, 0, g.pos.z); return; } g.fig.root.visible = true; g.cone.visible = g.eyesOn;
   g.ph += v * 2.0 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp: 0.55, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g);
 }
+function grabStart(g) { P.grab = { g, t: 1.0 }; g.grabbing = true; toast(g.thug ? 'THE THUG HAS YOU! DRAG AWAY!' : 'GRABBED! DRAG AWAY!', 1.1, true); }
+function grabUpdate(dt) {
+  const G = P.grab; if (!G) return; G.t -= dt; const g = G.g, d = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z);
+  if (g.down || d > 2.3) { g.grabbing = false; g.cool = 2.5; g.stun = 0.9; P.inv = Math.max(P.inv, 0.8); P.grab = null; toast('YOU BROKE FREE', 1.2); return; }
+  if (G.t <= 0) { g.grabbing = false; g.cool = 3; P.grab = null; scatter(g.pos.x, g.pos.z, g.thug ? 'CRUSHED BY A THUG' : 'CAUGHT BY AN AGENT'); P.heat = Math.max(0, P.heat - 1); P.invis = Math.max(P.invis, 3); if (!g.thug) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.alert = 0; } } // you get back up right here, briefly unseen, with a little less heat
+}
 function killAgent(g) {
-  g.down = true; g.downT = 0; g.alert = 0; g.mode = 'patrol'; g.stun = 0; state.takedowns++; camera.userData.shake = 0;
+  g.down = true; g.downT = 0; g.alert = 0; g.mode = 'patrol'; g.stun = 0; g.found = false; state.takedowns++; camera.userData.shake = 0;
   const seen = agents.some((o) => o !== g && !o.down && !o.far && Math.hypot(o.pos.x - g.pos.x, o.pos.z - g.pos.z) < CONE_R * 1.4 && segHit(o.pos.x, o.pos.z, g.pos.x, g.pos.z) === Infinity);
-  if (seen) { P.heat = Math.min(3, P.heat + 0.6); toast('ANOTHER AGENT SAW THAT!', 1.5, true); } else toast('CLEAN. NOBODY SAW', 1.2);
+  if (seen) { g.found = true; P.heat = Math.min(3, P.heat + 0.6); toast('ANOTHER AGENT SAW THAT!', 1.5, true); } else toast('CLEAN. NOBODY SAW', 1.2);
   for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; puff(g.pos.x, 0.9, g.pos.z, 0xffd34d, Math.cos(a) * 2.6, 1.6, Math.sin(a) * 2.6, 0.5, 0.2, 0.05); } hud();
 }
 function respawnSpot(g) { const far = []; for (const o of agents) for (const q of o.pts) if (Math.hypot(q[0] - P.pos.x, q[1] - P.pos.z) > 24) far.push(q); const q = far.length ? far[Math.floor(rnd() * far.length)] : g.pts[0]; return q; }
@@ -729,8 +735,8 @@ function drawMini(dt) { miniT -= dt; if (miniT > 0) return; miniT = 0.1; const w
   const dot = (x, z, c, r = 2.2) => { mctx.fillStyle = c; mctx.beginPath(); mctx.arc(sx(x), sz(z), r, 0, 7); mctx.fill(); };
   dot(DECK.x, DECK.z, '#ffd34d', 3.4); for (const r of records) if (r.on) dot(r.x, r.z, '#ffe98a', 1.8); for (const c of CREW) dot(c.pos.x, c.pos.z, c.css, 1.8); for (const a of agents) if (!a.down && (a.mode === 'chase' || a.mode === 'investigate')) dot(a.pos.x, a.pos.z, '#ff4a4a', 2.2); dot(TEAR.x, TEAR.z, TEAR.on ? '#b06bff' : 'rgba(0,0,0,0)', 2.6); dot(P.pos.x, P.pos.z, '#ffffff', 2.8); }
 function flashBank() { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 1; requestAnimationFrame(() => { f.style.transition = 'opacity .8s'; f.style.opacity = 0; }); }
-{ const ov = document.createElement('div'); ov.id = 'help'; ov.style.cssText = 'position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(8,12,34,.9);color:#fff;font:600 15px/1.45 system-ui,sans-serif;padding:20px;overflow:auto'; ov.innerHTML = '<div style="max-width:440px"><div style="font:900 24px system-ui;margin-bottom:10px">HOW TO PLAY</div><b>Goal:</b> find the 12 records of Memories of Home, carry them one at a time to the turntables at the house. Every song grows the party. At 12 the whole block dances.<br><br><b>Move:</b> drag anywhere. Walk only. Walls stop you.<br><b>LOW C</b> is your sprint fuel (push the stick far). It does NOT refill by itself. Find the orange POWER ring by the Astronaut School, or Christopher (half), Pancho’s dad (full), or both crew together (duet).<br><b>VOLUME circle</b> (west side of the house): step on it to turn the music down so the grid hears less; step on it again to turn it up.<br><b>Agents</b> shoot from range (you lose the record) but go down if you touch them unseen. <b>HEAT</b> ★ 1–3: at 2 the Agency sends a thug who rushes you. You cannot hurt him: sprint, hide in the back room, or lead him to a taco truck.<br><b>Raids:</b> an agent at the turntables takes a song back. 3 raids and the house is shut down.<br><b>Crew</b> roam the map: Juan Carlos (cloak), Eduardo (heat zero), Christopher, Luz (shows records). Pancho (behind the bodega) gives a hint or copper wire for the house. Taco trucks distract agents. The back room hides you.<br><br><button id="help-close" style="font:800 17px system-ui;padding:12px 26px;border-radius:12px;border:0;background:#ffd34d;color:#2a1200">GOT IT</button></div>'; document.body.appendChild(ov);
-  const set = (on) => { ov.style.display = on ? 'flex' : 'none'; state.paused = on; }; $('helpbtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); set(true); }); $('help-close').addEventListener('click', () => set(false)); }
+{ const ov = document.createElement('div'); ov.id = 'help'; ov.style.cssText = 'position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(8,12,34,.9);color:#fff;font:600 15px/1.45 system-ui,sans-serif;padding:20px;overflow:auto'; ov.innerHTML = '<div style="max-width:440px"><div style="font:900 24px system-ui;margin-bottom:10px">HOW TO PLAY</div><b>Goal:</b> find the 12 records of Memories of Home, carry them one at a time to the turntables at the house. Every song grows the party. At 12 the whole block dances.<br><br><b>Move:</b> drag anywhere. Walk only. Walls stop you.<br><b>LOW C</b> is your sprint fuel (push the stick far). It does NOT refill by itself. Find the orange POWER ring by the Astronaut School, or Christopher (half), Pancho’s dad (full), or both crew together (duet).<br><b>VOLUME circle</b> (west side of the house): step on it to turn the music down so the grid hears less; step on it again to turn it up.<br><b>Agents</b> notice you (a “?”), then alert (“!”): a pink laser line aims at you for a second, then they shoot. Sneak up from behind, or while they have not noticed you, and one touch takes him down. If a hunter grabs you, drag away within a second. <b>HEAT</b> ★ 1–3: at 2 the Agency sends a thug who rushes you. You cannot hurt him: sprint, hide in the back room, or lead him to a taco truck.<br><b>Raids:</b> an agent at the turntables takes a song back. 3 raids and the house is shut down.<br><b>Crew</b> roam the map: Juan Carlos (cloak), Eduardo (heat zero), Christopher, Luz (shows records). Pancho (behind the bodega) gives a hint or copper wire for the house. Taco trucks distract agents. The back room hides you.<br><br><div style="font:800 17px system-ui;color:#ffd34d">TAP ANYWHERE TO START</div></div>'; document.body.appendChild(ov);
+  const set = (on) => { ov.style.display = on ? 'flex' : 'none'; state.paused = on; }; ov.addEventListener('pointerdown', () => { if (ov.style.display === 'flex') { set(false); try { localStorage.setItem('v2_help_seen', '1'); } catch (e) { /* no storage */ } } }); try { if (!localStorage.getItem('v2_help_seen')) setTimeout(() => set(true), 400); } catch (e) { /* no storage */ } }
 // ---------- THE HOUSE (spec 44): string lights and a dance floor around the turntables ----------
 function buildHouse() { const q = R([884, 648, 984, 757]), bt = new Batch(), cols = [0xff5a4a, 0xffd34d, 0x4fe6ff, 0xff6ad5, 0x7dff9a];
   for (const [x, z] of [[q.x0 + 0.5, q.z0 + 0.6], [q.x1 - 0.5, q.z0 + 0.6], [q.x0 + 0.5, q.z1 - 0.6], [q.x1 - 0.5, q.z1 - 0.6]]) bt.box(0.14, 4.2, 0.14, 0x4a3f3a, x, 2.1, z);
@@ -940,7 +946,7 @@ function update(dt) {
   P.t += dt; state.clock += dt;
   let ix = stick.x, iz = stick.y; if (keys['a'] || keys['arrowleft']) ix -= 1; if (keys['d'] || keys['arrowright']) ix += 1; if (keys['w'] || keys['arrowup']) iz -= 1; if (keys['s'] || keys['arrowdown']) iz += 1;
   let L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; L = 1; } if (L < 0.12 || P.stun > 0) { ix = iz = 0; }
-  P.boosting = P.lowC > 0 && !P.tired && L > 0.6; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
+  grabUpdate(dt); P.boosting = P.lowC > 0 && !P.tired && L > 0.6 && !P.grab; const slow = 1 - Math.min(0.34, stack.length * 0.014), spd = MAXV * slow * (P.boosting ? BOOST : 1) * (P.grab ? 0.55 : 1), tx = ix * spd, tz = iz * spd, k = 1 - Math.exp(-ACC * dt);
   const ovx = P.vel.x, ovz = P.vel.z; if (P.stun <= 0) { P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k; } else { P.vel.x *= Math.exp(-4 * dt); P.vel.z *= Math.exp(-4 * dt); }
   const ax = (P.vel.x - ovx) / dt, az = (P.vel.z - ovz) / dt; const px0 = P.pos.x, pz0 = P.pos.z; P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.inv = Math.max(0, P.inv - dt); P.stun = Math.min(1.2, Math.max(0, P.stun - dt)); P.blastCd = Math.max(0, (P.blastCd || 0) - dt); stepStreaks(dt); state.warnCd = Math.max(0, (state.warnCd || 0) - dt); for (const t of trucks) t.cd = Math.max(0, t.cd - dt);
   { const onPadE = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r; if (P.boosting) P.lowC = Math.max(0, P.lowC - 1.1 * dt); /* sprinting is the core of the game: ~90 s of nonstop sprint from full */ /* no regen: Low C only comes back at the power-up ring, from Christopher / Pancho's dad / the duet */ if (P.lowC <= 0) P.tired = true; else if (P.tired && P.lowC >= 30) P.tired = false; const bar = $('lowc-bar'); bar.style.width = P.lowC + '%'; bar.style.background = P.tired ? '#ff7a6a' : P.boosting ? '#ffffff' : '#7ff0ff'; }
@@ -959,20 +965,22 @@ function update(dt) {
   if (P.inv <= 0) for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)); if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < P.r) { scatter(c.x, c.z, 'CLIPPED BY A CAR'); break; } }
   for (const g of agents) { updateAgent(g, dt); if (g.down || g.far) continue; g.cool = Math.max(0, g.cool - dt);
     const dist = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), onPadA = Math.hypot(P.pos.x - PAD.x, P.pos.z - PAD.z) < PAD.r + 1;
-    if (P.stun <= 0 && dist < 1.05) {
-      if (!g.thug && g.mode !== 'chase') { killAgent(g); continue; } // an agent who has not spotted you goes down when you touch him
-      if (g.stun <= 0 && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && !onPadA) { scatter(g.pos.x, g.pos.z, g.thug ? 'CRUSHED BY A THUG' : 'CAUGHT BY AN AGENT'); if (!g.thug) { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.alert = 0; } g.cool = 3; continue; } // they have to actually catch you // spec 16: a thug rushes you; blast him or run
+    if (P.stun <= 0 && dist < 1.25) {
+      let da = Math.atan2(P.pos.x - g.pos.x, P.pos.z - g.pos.z) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); const behind = Math.abs(da) > 1.9;
+      if (!g.thug && g.mode !== 'chase' && (behind || g.alert < 0.25)) { killAgent(g); continue; } // from behind or unseen: down, no button
+      if ((g.mode === 'chase' || g.thug) && g.stun <= 0 && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && !onPadA && !P.grab) grabStart(g); // a hunter has you: 1 s to drag away
     }
     if (g.stun > 0) continue;
-    if (g.mode === 'chase' && !g.thug) for (const t of trucks) if (t.cd <= 0 && Math.hypot(t.x - g.pos.x, t.z - g.pos.z) < 13) { t.cd = 30; for (const o of agents) if (o.mode === 'chase' && !o.thug && !o.down && Math.hypot(t.x - o.pos.x, t.z - o.pos.z) < 16) { o.mode = 'taco'; o.tk = t; o.tacoT = 0; o.invT = 0; o.path = []; o.repath = 0; o.mark.visible = false; } toast('TACO TRUCK! THE AGENTS STOP TO EAT', 2, false); break; }
+    if (g.mode === 'chase') for (const t of trucks) if (t.cd <= 0 && Math.hypot(t.x - g.pos.x, t.z - g.pos.z) < 13) { t.cd = 30; for (const o of agents) if (o.mode === 'chase' && !o.down && Math.hypot(t.x - o.pos.x, t.z - o.pos.z) < 16) { o.mode = 'taco'; o.tk = t; o.tacoT = 0; o.invT = 0; o.path = []; o.repath = 0; o.mark.visible = false; } toast('TACO TRUCK! THE AGENTS STOP TO EAT', 2, false); break; }
     if (g.mode === 'chase') { // end the chase on the Home pad or after a long time without sight; otherwise the agent handles it
       if (onPadA || g.lost > (g.thug ? 12 : 9)) { if (g.thug) g.remove = true; else { g.mode = 'return'; g.path = navPath(NAV, g.pos.x, g.pos.z, g.pts[g.wp][0], g.pts[g.wp][1]); g.repath = 1.2; g.alert = 0; g.cool = 2.5; g.mark.visible = false; g.qmark.visible = false; g.mat.color.setHex(0xffe36a); g.mat.opacity = 0.32; } }
       else { g.mark.visible = true; g.qmark.visible = false; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.color.setHex(0xff5a4a); g.mat.opacity = 0.55; }
       continue;
     }
-    if (g.mode === 'search' || g.mode === 'investigate') { g.qmark.visible = true; g.qmark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 6) * 0.08, g.pos.z); g.mat.color.setHex(0xffb347); g.mat.opacity = 0.45; } else { g.qmark.visible = false; }
-    const seen = g.eyesOn && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = g.alert > 0.02; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
-    if (g.alert > 0.4) { g.alert = 0; g.mode = 'chase'; g.lost = 0; g.lastX = P.pos.x; g.lastZ = P.pos.z; g.path = []; g.repath = 0; P.heat = Math.min(3, P.heat + 1); for (const o of agents) if (g.group && o.group === g.group && !o.down) { o.mode = 'chase'; o.lost = 0; o.alert = 0; o.lastX = P.pos.x; o.lastZ = P.pos.z; o.path = []; o.repath = 0; } toast('SPOTTED! RUN, OR GET BEHIND THEM', 2.4, true); } }
+    if (g.mode === 'search' || g.mode === 'investigate' || (g.alert > 0.02 && g.mode !== 'chase')) { g.qmark.visible = true; g.qmark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 6) * 0.08, g.pos.z); g.mat.color.setHex(0xffb347); g.mat.opacity = 0.45; } else { g.qmark.visible = false; }
+    const seen = g.eyesOn && P.inv <= 0 && P.invis <= 0 && g.cool <= 0 && agentSees(g, P.pos.x, P.pos.z); g.alert = seen ? g.alert + dt : Math.max(0, g.alert - dt * 1.5); g.mat.color.setHex(g.alert > 0.02 ? 0xff5a4a : 0xffe36a); g.mark.visible = false; g.mark.position.set(g.pos.x, 2.6 + Math.sin(P.t * 18) * 0.05, g.pos.z); g.mat.opacity = 0.3 + Math.min(0.35, g.alert);
+    if (g.alert > 0.6) { g.alert = 0; g.mode = 'chase'; g.lost = 0; g.lastX = P.pos.x; g.lastZ = P.pos.z; g.path = []; g.repath = 0; P.heat = Math.min(3, P.heat + 1); for (const o of agents) if (g.group && o.group === g.group && !o.down) { o.mode = 'chase'; o.lost = 0; o.alert = 0; o.lastX = P.pos.x; o.lastZ = P.pos.z; o.path = []; o.repath = 0; } toast('SPOTTED! RUN, OR GET BEHIND THEM', 2.4, true); } }
+  for (const b of agents) if (b.down && !b.found) for (const o of agents) if (!o.down && !o.far && !o.thug && Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z) < 6 && segHit(o.pos.x, o.pos.z, b.pos.x, b.pos.z) === Infinity) { b.found = true; P.heat = Math.min(3, P.heat + 0.6); toast('AN AGENT FOUND A BODY!', 1.8, true); break; }
   { const chasing = agents.some((a) => a.mode === 'chase' && !a.down); if (!chasing) P.heat = Math.max(0, P.heat - 0.1 * dt); P.thugCool = Math.max(0, P.thugCool - dt); // HEAT: +1 each time you are spotted, +0.6 per takedown; at 2 or more the Agency Base sends thugs (max 2)
     if (P.heat >= 2 && agents.filter((a) => a.thug).length < 2 && P.thugCool <= 0) { spawnThug(); P.thugCool = 12; } const hf = Math.floor(P.heat); if (hf !== P.heatShown) { P.heatShown = hf; hud(); }
     for (let n = agents.length - 1; n >= 0; n--) if (agents[n].remove) { const a = agents[n]; scene.remove(a.fig.root, a.cone, a.mark, a.qmark); agents.splice(n, 1); } }
@@ -1007,6 +1015,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 p · powers always work</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 q · new agent model</div>
 </body>
 </html>
