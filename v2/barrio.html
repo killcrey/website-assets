@@ -631,7 +631,7 @@ function updateAgent(g, dt) {
   const show = (amp, sp) => { g.fig.root.visible = true; g.cone.visible = true; g.ph += sp * 2.1 * dt; animateFigure(g.fig, { ph: g.ph, t: g.t, amp, yawRate: 0, accF: 0 }, dt); g.fig.root.position.copy(g.pos); g.fig.root.rotation.y = g.yaw; agentCone(g); };
   if (g.mode === 'chase') { // they chase what they SEE; once you break line of sight they run to the last place they saw you, then search
     const dP = Math.hypot(P.pos.x - g.pos.x, P.pos.z - g.pos.z), los = P.invis <= 0 && dP < 16 && segHit(g.pos.x, g.pos.z, P.pos.x, P.pos.z) === Infinity; if (los) { g.lastX = P.pos.x; g.lastZ = P.pos.z; g.lost = 0; } else g.lost += dt;
-    if (!g.thug && los && dP < 6.2) { g.path = []; g.repath = 0.4; let da = Math.atan2(P.pos.x - g.pos.x, P.pos.z - g.pos.z) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); g.yaw += da * (1 - Math.exp(-14 * dt)); g.aim = (g.aim || 0) + dt; if (g.aim > 1.0) { g.aim = -0.9; agentFire(g); } g.holding = true; } // aim first: a red laser line + '!' for a full second, then the shot
+    if (!g.thug && los && dP < 4.6) { g.path = []; g.repath = 0.4; let da = Math.atan2(P.pos.x - g.pos.x, P.pos.z - g.pos.z) - g.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); g.yaw += da * (1 - Math.exp(-14 * dt)); g.aim = (g.aim || 0) + dt; if (g.aim > 1.0) { g.aim = -0.9; agentFire(g); } g.holding = true; } // aim first: a red laser line + '!' for a full second, then the shot
     else if (los && dP < 6) { g.path = []; g.repath = 0.4; const dx = P.pos.x - g.pos.x, dz = P.pos.z - g.pos.z, d = dP || 1; g.pos.x += dx / d * g.speed * dt; g.pos.z += dz / d * g.speed * dt; for (const c of colliders) { if (!c.on) continue; const cx = Math.max(c.x0, Math.min(g.pos.x, c.x1)), cz = Math.max(c.z0, Math.min(g.pos.z, c.z1)); let ex = g.pos.x - cx, ez = g.pos.z - cz, e = Math.hypot(ex, ez); if (e < 0.5) { if (e < 1e-5) { ex = 0; ez = 1; e = 1; } g.pos.x += ex / e * (0.5 - e); g.pos.z += ez / e * (0.5 - e); } } let dd = Math.atan2(dx, dz) - g.yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); g.yaw += dd * (1 - Math.exp(-14 * dt)); }
     else follow(g.lastX, g.lastZ, g.speed, dt);
     if (!los && Math.hypot(g.lastX - g.pos.x, g.lastZ - g.pos.z) < 1.0) { if (g.thug) g.remove = true; else { g.mode = 'search'; g.searchT = 3.4; g.mark.visible = false; } }
@@ -1024,6 +1024,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 s · smaller cones</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-13 t · shorter shots</div>
 </body>
 </html>
