@@ -53,6 +53,7 @@ Full write-ups live in `docs/NOTES-ARCHIVE.md` (not auto-loaded). Before changin
 - Boss/anomaly system
 - Leaderboard hardening SQL is drafted but not applied
 - No test suite exists and none is planned — verification is manual, via the Browser tools against the local static server and/or the live domain.
+- 2D <-> Barrio hand-off (2026-11-15): Barrio Logan (`v2/barrio.html`) replaced `3d/` in the 2D game's flow; see the archive
 - `3d/` prototype (2026-10-22)
 - 3D movement playtests + movement model (2026-11-05)
 - The Source -> sky level -> 3D, no choices (2026-11-05)

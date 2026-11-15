@@ -245,3 +245,8 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
   - quiet: WON at 5:45 (12th song at 4:42, 1 theft, 11/12 rebels and the full fence still standing).
   - loud: peaked at 10 songs (3:29), then thefts snowballed; no win in 13 min. (Before the tuning + pathing fix: loud max 8, quiet never won in 25 min.)
   - Quiet also kept thefts to ~1 per 5 min vs ~3 per min loud.
+
+## 2D <-> Barrio Logan hand-off replaces the 3D game (2026-11-15, on request)
+- `v2/barrio.html` took the place of `3d/` in the 2D game's flow (`3d/` is no longer linked from `index.html`, files left in place). Links already in `index.html` (commit dd3a000): START ON EARTH -> `./v2/barrio.html`; catching the sky-level logo saves the run (`saveRunForReturn`, `layers_2d_save`), flashes white and goes to `./v2/barrio.html?resume=1` (in Barrio `?resume` restores *Barrio's own* paused game, `v2_barrio_pause`, if one exists; with none it starts fresh). Barrio has no start screen of its own, so the old `?go=1` auto-start isn't needed.
+- The missing half, added now: Barrio's Tear (`TEAR.go('../?from=barrio')`) lands on the 2D page, and `readRunSave` now accepts `?from=barrio` as well as the old `?resume=1`, so the saved run comes back through the RETURNING TO SHIP countdown with full lives and the 111,111 bonus exactly as it did from 3D. A visit with no fresh save (START ON EARTH, then the Tear) just shows the normal launch screen.
+- Verified headless: logo catch -> `/v2/barrio.html?resume=1` loads (save kept); `/?from=barrio` -> countdown -> resumed with 3 lives, +111,111, save deleted; no save -> launch screen; no console errors. Not verified on a phone or through Barrio's real Tear (needs Low C full + 5 s in the ring).
