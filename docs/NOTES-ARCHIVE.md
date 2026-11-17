@@ -250,3 +250,12 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - `v2/barrio.html` took the place of `3d/` in the 2D game's flow (`3d/` is no longer linked from `index.html`, files left in place). Links already in `index.html` (commit dd3a000): START ON EARTH -> `./v2/barrio.html`; catching the sky-level logo saves the run (`saveRunForReturn`, `layers_2d_save`), flashes white and goes to `./v2/barrio.html?resume=1` (in Barrio `?resume` restores *Barrio's own* paused game, `v2_barrio_pause`, if one exists; with none it starts fresh). Barrio has no start screen of its own, so the old `?go=1` auto-start isn't needed.
 - The missing half, added now: Barrio's Tear (`TEAR.go('../?from=barrio')`) lands on the 2D page, and `readRunSave` now accepts `?from=barrio` as well as the old `?resume=1`, so the saved run comes back through the RETURNING TO SHIP countdown with full lives and the 111,111 bonus exactly as it did from 3D. A visit with no fresh save (START ON EARTH, then the Tear) just shows the normal launch screen.
 - Verified headless: logo catch -> `/v2/barrio.html?resume=1` loads (save kept); `/?from=barrio` -> countdown -> resumed with 3 lives, +111,111, save deleted; no save -> launch screen; no console errors. Not verified on a phone or through Barrio's real Tear (needs Low C full + 5 s in the ring).
+
+## Barrio z28 (2026-11-16) — rebel stamina, cooler, playtest #5 fixes
+- Rebel drain root cause: street agents beaten by rebels returned 15 s later (105 fights in 2.5 min). Beaten non-raiders now ignore party noise 60 s (`g.cool = 60`).
+- A won fight costs only the nearest rebel 1 fight; posted rebels recover 1 fight / 10 s (25 s elsewhere). Odds: agent [0,.4,.8,.93,.98], thug [0,.12,.4,.75,.95].
+- Cooler: touching home (<4.5 m of DECK) banks carried water (max 12); every 3 s it refuels the most tired rebel (≥2 fights). Hand refuel range 3.6 m.
+- Final rush: rebels at home reset to full; party breaks on the 3rd breach (was 2nd).
+- GET HIM only when the player is >100° behind the agent, agent has 0 alert and isn't investigating. Laser aim 1.6 s (was 1.0).
+- LOW C label "SPRINT FUEL"; HEAT hint text; death screen lists causes; build label z28.
+- Bot (invincible, no recruiting): loud prepared WON 5:12 and 5:19, 0 thefts (was collapsing at 6–9 songs).
