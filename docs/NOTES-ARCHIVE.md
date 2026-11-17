@@ -263,3 +263,8 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 ## Barrio z29 (2026-11-16) — crew moments
 - Every crew boon: crew-colored screen flash, big crew-colored alert ("LUZ: RECORDS REVEALED!"), double shockwave ring + burst at the player, light camera shake.
 - Lasting powers get an aura ring + light beam while active: Juan Carlos invisibility and Luz reveal on the player, Christopher on himself while guiding. Eduardo sends a 40 m heat-clear wave.
+
+## Barrio z30 (2026-11-16) — Pancho energy drinks, sky grid removed
+- Sky perspective grid removed (distracting); the colored sky glow at songs 9-12 stays.
+- Pancho walks park (near 36,128) <-> his spot behind the bodega (HUB.pancho), off the street (route points are off asphalt: a street spot let cars push him off the map). Stays 60 s at the bodega; full cycle ~170 s.
+- While he is there: 3 green energy-drink cans (minimap green dots). Carry up to 3; at home each drink takes 5 fights off every rebel at the party (3 drinks = full). Lost on a life loss.
