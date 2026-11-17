@@ -13,8 +13,12 @@
   #skyfx { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; mix-blend-mode: screen; display: none; }
   #big { position: fixed; left: 50%; top: 21%; transform: translateX(-50%); z-index: 9; pointer-events: none; text-align: center; display: none; width: max-content; max-width: 90vw; }
   #big .t { font: 900 clamp(15px, 3.6vw, 24px)/1.15 system-ui, sans-serif; letter-spacing: .1em; color: #ff3b6b; text-shadow: 0 0 6px currentColor, 0 0 16px currentColor; padding: 5px 16px; border-radius: 12px; background: rgba(8, 10, 30, .25); border: 2px solid currentColor; box-shadow: 0 0 14px currentColor, inset 0 0 10px rgba(255, 255, 255, .1); display: inline-block; animation: bigflash .5s infinite alternate; }
-  #big .s { max-width: 90vw; margin-top: 5px; font: 800 clamp(11px, 2.8vw, 15px)/1.2 system-ui, sans-serif; color: #fff; text-shadow: 0 0 6px #000; background: rgba(8, 10, 30, .3); padding: 3px 10px; border-radius: 8px; display: inline-block; }
+  #big.crew .s { background: rgba(8, 10, 30, .7); }
+#big .s { max-width: 90vw; margin-top: 5px; font: 800 clamp(11px, 2.8vw, 15px)/1.2 system-ui, sans-serif; color: #fff; text-shadow: 0 0 6px #000; background: rgba(8, 10, 30, .3); padding: 3px 10px; border-radius: 8px; display: inline-block; }
   #big.warn .t { color: #e8ff3a; }
+#big.crew .t { color: var(--cc, #7ff0ff); background: rgba(8, 10, 30, .78); text-shadow: 0 0 8px currentColor; animation: none; transform-origin: center; animation: crewpop .45s ease-out; }
+@keyframes crewpop { 0% { transform: scale(1.8); opacity: 0; } 60% { transform: scale(.95); opacity: 1; } 100% { transform: scale(1); } }
+#crewflash { position: fixed; inset: 0; z-index: 3; pointer-events: none; opacity: 0; }
   @keyframes bigflash { from { opacity: .5; } to { opacity: 1; } }
   #scorepops { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 172px; z-index: 5; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
   .spop { font: 900 14px system-ui, sans-serif; color: #ffd34d; text-shadow: 0 1px 3px #000; animation: spop 1.9s forwards; white-space: nowrap; } .spop.neg { color: #ff7a7a; }
@@ -62,7 +66,7 @@
 
 <div id="playlist"></div>
 <canvas id="mini" width="132" height="104"></canvas><div id="flash"></div><div id="hitflash"></div>
-<div id="alerts"><div id="banner"></div><div id="getem">GET HIM. HE IS NOT LOOKING</div></div><div id="toasts"></div><button id="volbtn" type="button"><i>🔊</i><b>LOUD</b><small>HEARD 0m</small></button>
+<div id="crewflash"></div><div id="alerts"><div id="banner"></div><div id="getem">GET HIM. HE IS NOT LOOKING</div></div><div id="toasts"></div><button id="volbtn" type="button"><i>🔊</i><b>LOUD</b><small>HEARD 0m</small></button>
 <div id="joy"><i></i></div>
 <div id="lowc">LOW C <span style="font-weight:600;opacity:.75">SPRINT FUEL</span><div><i id="lowc-bar"></i></div></div>
 <div class="chip" id="hint">DRAG TO MOVE<br>COLLECT MEMORIES, CARRY THEM HOME</div>
@@ -918,6 +922,15 @@ for (const c of CREW) { const fig = makeFigure(LOOKS[c.key], false); fig.root.sc
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48; const cg = cv.getContext('2d'); cg.font = '900 32px system-ui, sans-serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle'; cg.lineWidth = 6; cg.strokeStyle = 'rgba(10,14,30,.85)'; cg.strokeText(c.name, 128, 26); cg.fillStyle = c.css; cg.fillText(c.name, 128, 26);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; c.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthTest: false })); c.tag.scale.set(3.4, 0.64, 1); c.tag.renderOrder = 11; scene.add(c.tag); }
 const invRing = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.05, 28), new THREE.MeshBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: 0.8, side: THREE.DoubleSide })); invRing.rotation.x = -Math.PI / 2; invRing.visible = false; scene.add(invRing);
+const CREWFX = [];
+function crewRing(x, z, col, r1, life, y = 0.3) { const m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.renderOrder = 5; scene.add(m); CREWFX.push({ m, t: 0, life, r1, kind: 'wave' }); }
+function crewAura(col, getPos, alive) { const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.25, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 5; scene.add(m); const b = makeBeam(col); scene.add(b); CREWFX.push({ m, b, t: 0, getPos, alive, kind: 'aura' }); }
+function updateCrewFx(dt) { for (let i = CREWFX.length - 1; i >= 0; i--) { const f = CREWFX[i]; f.t += dt;
+    if (f.kind === 'wave') { const k = f.t / f.life, r = 0.5 + f.r1 * (1 - Math.pow(1 - Math.min(1, k), 2)); f.m.scale.setScalar(r); f.m.material.opacity = 0.9 * (1 - k); if (k >= 1) { scene.remove(f.m); CREWFX.splice(i, 1); } continue; }
+    if (!f.alive()) { scene.remove(f.m); scene.remove(f.b); CREWFX.splice(i, 1); continue; } const p = f.getPos(); f.m.position.set(p.x, 0.32, p.z); f.m.scale.setScalar(1 + Math.sin(f.t * 6) * 0.12); f.m.rotation.z += dt * 1.5; f.b.position.set(p.x, 0, p.z); } }
+function crewMoment(c, title, sub) { const f = $('crewflash'); if (f) { f.style.background = `radial-gradient(circle, ${c.css}00 30%, ${c.css}aa 100%)`; f.style.transition = 'none'; f.style.opacity = 1; requestAnimationFrame(() => { f.style.transition = 'opacity 1.2s'; f.style.opacity = 0; }); }
+  const el = $('big'); if (el) el.style.setProperty('--cc', c.css); bigAlert(title, sub, 'crew', 3, 3.4); camera.userData.shake = Math.max(camera.userData.shake || 0, 0.18);
+  crewRing(P.pos.x, P.pos.z, c.glow, 9, 1.1); crewRing(P.pos.x, P.pos.z, c.glow, 5, 0.8, 0.5); for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283; puff(P.pos.x + Math.cos(a) * 0.6, 0.6, P.pos.z + Math.sin(a) * 0.6, c.glow, Math.cos(a) * 3, 2.5, Math.sin(a) * 3, 0.8, 0.35, 0.05); } }
 function applyBoon(c) { let msg; state.met = state.met || new Set(); state.met.add(c.key);
   if (c.boon === 'invisible') { P.invis = 20; msg = 'INVISIBLE FOR 20s'; for (const a of agents) if (a.mode === 'chase' && !a.thug) { a.mode = 'search'; a.searchT = 2.5; a.mark.visible = false; } }
   else if (c.boon === 'guide') { const av = records.filter((q) => q.on && !q.carried).sort((a, b) => Math.hypot(a.x - P.pos.x, a.z - P.pos.z) - Math.hypot(b.x - P.pos.x, b.z - P.pos.z)); if (!av.length) msg = 'THERE IS NOTHING LEFT TO FIND'; else { c.guide = { rec: av[0] }; c.guideT = 0; c.dest = [av[0].x, av[0].z]; c.path = navPath(NAV, c.pos.x, c.pos.z, c.dest[0], c.dest[1]); c.repath = 2; c.waitT = 0; msg = 'FOLLOW ME. I WILL TAKE YOU TO THE NEAREST RECORD'; } }
@@ -926,6 +939,12 @@ function applyBoon(c) { let msg; state.met = state.met || new Set(); state.met.a
   else if (c.boon === 'reveal') { state.reveal = 30; state.luzMet = true; msg = 'SHE MARKS EVERY HIDDEN RECORD FOR 30s. SHE WILL WARN YOU ABOUT RAIDS'; }
   else { P.heat = 0; state.loudT = 0; state.eddie = 0; state.eddieClear = true; state.heard = false; for (const a of agents) { if (a.thug) a.remove = true; else if (a.mode === 'chase') { a.mode = 'search'; a.searchT = 3; a.alert = 0; a.mark.visible = false; } } msg = 'HEAT CLEARED. THE THUGS ARE GONE UNTIL THE AGENCY HEARS THE PARTY AGAIN'; }
   if (state.met.has('christopher') && state.met.has('juancarlos') && !state.duet) { state.duet = true; P.lowC = 100; P.tired = false; msg += '  •  DUET: LOW C FULL'; }
+  { const T = { invisible: ['INVISIBLE!', '20 SECONDS. AGENTS CAN’T SEE YOU'], guide: ['FOLLOW ME!', 'HE LEADS YOU TO THE NEAREST RECORD'], reveal: ['RECORDS REVEALED!', 'EVERY HIDDEN RECORD IS MARKED FOR 30s'], life: ['+1 LIFE!', state.lives + ' LIVES'], fullc: ['LOW C FULL!', 'SPRINT ALL YOU WANT'], cool: ['HEAT CLEARED!', 'THE THUGS ARE GONE'] }[c.boon] || ['', ''];
+    if (!(c.boon === 'guide' && !c.guide)) crewMoment(c, c.name + ': ' + T[0], state.duet === true && !state.duetShown ? (state.duetShown = true, T[1] + ' + DUET: LOW C FULL') : T[1]);
+    if (c.boon === 'invisible') crewAura(c.glow, () => P.pos, () => P.invis > 0);
+    if (c.boon === 'reveal') crewAura(c.glow, () => P.pos, () => state.reveal > 0);
+    if (c.boon === 'guide' && c.guide) crewAura(c.glow, () => c.pos, () => !!c.guide);
+    if (c.boon === 'cool') { crewRing(P.pos.x, P.pos.z, c.glow, 40, 1.8, 0.6); } }
   hud(); toast(c.boon === 'fullc' ? `${c.name}: ${c.line}  •  ${msg}` : `${c.name}: “${c.line}”  •  ${msg}`, 4.6); }
 function updateCrew(dt) {
   P.invis = Math.max(0, P.invis - dt); { const iv = P.invis > 0; if (iv !== heroInv) { heroInv = iv; for (const m of heroMats) { m.transparent = iv; m.opacity = iv ? 0.2 : 1; m.depthWrite = !iv; m.needsUpdate = true; } } } const sh = Math.ceil(P.invis); if (sh !== P.invShown) { P.invShown = sh; hud(); } invRing.visible = P.invis > 0; if (invRing.visible) { invRing.position.set(P.pos.x, 0.32, P.pos.z); invRing.scale.setScalar(1 + Math.sin(P.t * 6) * 0.12); }
@@ -1239,7 +1258,7 @@ function update(dt) {
   heroRig.root.position.copy(P.pos); heroRig.root.rotation.y = P.yaw; heroRig.root.visible = P.inv <= 0 || Math.floor(P.t * 14) % 2 === 0;
   const side = s > 0 ? 1 : -1; if (amp > 0.45 && side !== P.stepSide && Math.abs(s) < 0.2) { P.stepSide = side; puff(P.pos.x - fwdX * 0.15, 0.12, P.pos.z - fwdZ * 0.15, P.boosting ? 0x7ff0ff : 0xe9dfcf, -P.vel.x * 0.15, 0.5, -P.vel.z * 0.15, 0.45, 0.14, 0.42); } else if (Math.abs(s) >= 0.2) P.stepSide = side;
   // traffic, lights, agents
-  updateAlien(dt); updateCrew(dt); updateHints(dt); updateHub(dt); updateTear(dt); updateBanner(); updateHearts(dt); updateDJ(dt); updateRebels(dt); updateWaves(dt); updateHouseFx(dt); updateSky(dt); updateCoils(dt); updateBaskets(dt); updateWaters(dt); updateCooler(dt); updateGetEm(dt); drawMini(dt); { const c = stack.find((g) => g.rec !== undefined); if (c && !state.reveal && !(state.hintT > 0)) drawArrows([{ x: DECK.x, z: DECK.z, col: '#ffd34d' }]); } updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
+  updateAlien(dt); updateCrew(dt); updateHints(dt); updateHub(dt); updateTear(dt); updateBanner(); updateHearts(dt); updateDJ(dt); updateRebels(dt); updateWaves(dt); updateHouseFx(dt); updateSky(dt); updateCoils(dt); updateBaskets(dt); updateWaters(dt); updateCooler(dt); updateCrewFx(dt); updateGetEm(dt); drawMini(dt); { const c = stack.find((g) => g.rec !== undefined); if (c && !state.reveal && !(state.hintT > 0)) drawArrows([{ x: DECK.x, z: DECK.z, col: '#ffd34d' }]); } updateTraffic(dt, state.clock); lampH.color.set(greenX(state.clock) ? 0x40e070 : 0xff4a3a); lampV.color.set(greenZ(state.clock) ? 0x40e070 : 0xff4a3a);
   P.carT = Math.max(0, (P.carT || 0) - dt); for (const g of agents) { if (g.down) continue; for (const c of carList) { const ex = g.pos.x - c.x, ez = g.pos.z - c.z, ox = c.hx + 0.5 - Math.abs(ex), oz = c.hz + 0.5 - Math.abs(ez); if (ox > 0 && oz > 0) { if (ox < oz) g.pos.x += (ex < 0 ? -1 : 1) * ox; else g.pos.z += (ez < 0 ? -1 : 1) * oz; } } } /* cars never brake for agents; an agent in a car's way just gets nudged aside, so no traffic jams */ for (const o of [...CREW, ...REBELS]) { if (o.mode === 'dead') continue; const pp = o.pos; for (const c of carList) { const ex = pp.x - c.x, ez = pp.z - c.z, ox = c.hx + 0.5 - Math.abs(ex), oz = c.hz + 0.5 - Math.abs(ez); if (ox > 0 && oz > 0) { if (ox < oz) pp.x += (ex < 0 ? -1 : 1) * ox; else pp.z += (ez < 0 ? -1 : 1) * oz; } } }
   for (const c of carList) { const cx = Math.max(c.x - c.hx, Math.min(P.pos.x, c.x + c.hx)), cz = Math.max(c.z - c.hz, Math.min(P.pos.z, c.z + c.hz)), ex = P.pos.x - cx, ez = P.pos.z - cz, e = Math.hypot(ex, ez);
     if (e < P.r) { const rx = P.pos.x - c.x, rz = P.pos.z - c.z, along = rx * c.fx + rz * c.fz, half = c.fx ? c.hx : c.hz;
@@ -1305,6 +1324,6 @@ function frame(now) { requestAnimationFrame(frame); acc += Math.min(0.1, (now - 
 requestAnimationFrame(frame);
 window.__v2 = { WATERS, trucks, LOOSE, applyBoon, heatBar, agentSees, segHit, BASKETS, POWER, powerAlarm, bigAlert, loseLife, winGame, addScore, scoreBlock, LAWN, GATE, party, plzOk, REBELS, FENCE, COILS, HEARTS, TEAR, trucks, state, signedUrl, playTrack, CREW, KIOSCO, bankRecord, returnRecord, NAV, NAVA, reachable, navPath, navComponents, buildNav, FRUNS, records, gotRec, TRACKS, covered, spawnThug, collectRecord, crates, makeFigure, LOOKS, dbg, alien, buildings, updateAgent, P, update, items, stack, state, agents, lanes, carList, keys, stick, scene, camera, renderer, PAD, scatter, W, D, colliders };
 </script>
-<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-16 z28 · rebel stamina, cooler, fixes</div>
+<div style="position:fixed;left:6px;bottom:3px;font:10px system-ui;color:rgba(255,255,255,.55);pointer-events:none;z-index:5">build 11-16 z29 · crew moments</div>
 </body>
 </html>

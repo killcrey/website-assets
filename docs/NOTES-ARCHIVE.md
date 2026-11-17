@@ -259,3 +259,7 @@ Verbatim write-ups moved out of CLAUDE.md on 2026-11-07 to cut per-session token
 - GET HIM only when the player is >100° behind the agent, agent has 0 alert and isn't investigating. Laser aim 1.6 s (was 1.0).
 - LOW C label "SPRINT FUEL"; HEAT hint text; death screen lists causes; build label z28.
 - Bot (invincible, no recruiting): loud prepared WON 5:12 and 5:19, 0 thefts (was collapsing at 6–9 songs).
+
+## Barrio z29 (2026-11-16) — crew moments
+- Every crew boon: crew-colored screen flash, big crew-colored alert ("LUZ: RECORDS REVEALED!"), double shockwave ring + burst at the player, light camera shake.
+- Lasting powers get an aura ring + light beam while active: Juan Carlos invisibility and Luz reveal on the player, Christopher on himself while guiding. Eduardo sends a 40 m heat-clear wave.
